@@ -20,10 +20,6 @@ const enterData = asyncHandler(async (req, res) => {
     });
 
 
-    console.log("=== CONFERENCE PAPER SUBMISSION DEBUG ===");
-    console.log("Full request body:", JSON.stringify(data, null, 2));
-    console.log("department_id received:", data.department_id);
-
     // Extract logged-in user information for role-based saving
     const loggedInUser = {
         id: req.user?.id,

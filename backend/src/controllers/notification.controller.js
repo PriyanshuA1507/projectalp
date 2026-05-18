@@ -125,7 +125,6 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
         $or: orConditions
     }).sort({ createdAt: -1 }).limit(500);
 
-    console.log(`[Notification] Found ${notifications.length} notifications.`);
     // Increased limit to 500 to show complete notification history
 
     return res.status(200).json(new ApiResponse(200, notifications, 'Notifications fetched successfully'));

@@ -3,9 +3,6 @@ import { connectDB } from './db/index.js'
 import { app } from './app.js'
 import { createServer } from 'http'
 import { initializeSocket } from './config/socket.js'
-import dns from 'dns'
-dns.setServers(['8.8.8.8', '1.1.1.1']); // Force Google/Cloudflare DNS
-dns.resolveSrv('_mongodb._tcp.flos20.n6rt3bh.mongodb.net', console.log);
 
 dotenv.config();
 

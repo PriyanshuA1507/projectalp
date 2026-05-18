@@ -330,7 +330,6 @@ const deleteFunding = async (id) => {
     const entryData = { type: 'project', action: 'deleted', ...transformed };
 
     await ResearchProject.findOneAndDelete(query);
-    console.log(`[DELETE FUNDING] Deleted project: ${project.funding_id}`);
 
     if (facultyIds.length > 0) {
       // Non-blocking sync trigger

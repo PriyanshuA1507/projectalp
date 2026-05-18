@@ -80,7 +80,6 @@ export const createRouteGuard = (basePath) => {
       // but still needs access to general resources (e.g. Faculty endpoints)
       const systemRole = req.user?.systemRole;
       if (systemRole && allowedRoles.includes(systemRole)) {
-        console.log('[auth] route access granted via systemRole', systemRole, 'for', basePath);
         return next();
       }
 
@@ -90,8 +89,6 @@ export const createRouteGuard = (basePath) => {
       console.error(`[auth-error] Allowed Roles: ${JSON.stringify(allowedRoles)}`);
       return next(new ApiError(403, 'You do not have permission to perform this action'));
     }
-    console.log('[auth] route access granted for', req.method, basePath, 'to role', userRole);
-
     return next();
   };
 };

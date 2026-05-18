@@ -91,8 +91,6 @@ const set = async (data, loggedInUser = null) => {
     });
 
     if (existingPaper) {
-      console.log(`Duplicate found for "${title}". Merging new details into existing record ${existingPaper.publication_id}`);
-
       // MERGE LOGIC: Add new faculty, students, external authors to existing record
 
       // 1. Merge Faculty
@@ -418,7 +416,6 @@ const deletePaper = async (id) => {
     };
 
     await Publication.findOneAndDelete(query);
-    console.log(`[DELETE JOURNAL] Deleted paper: ${paper.paper_id}`);
 
     if (facultyIds.length > 0) {
       triggerAparAutoSyncMultiple(facultyIds, ay, entryData).catch(err =>

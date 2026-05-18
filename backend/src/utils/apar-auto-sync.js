@@ -33,7 +33,6 @@ export const triggerAparAutoSync = async (faculty_id, academic_year = null, entr
         const draftForms = await AparForm.find(query);
 
         if (draftForms.length === 0) {
-            console.log(`No draft APAR forms found for faculty ${faculty_id}`);
             return;
         }
 
@@ -50,9 +49,8 @@ export const triggerAparAutoSync = async (faculty_id, academic_year = null, entr
                 if (modified) {
                     form.markModified('research');
                     await form.save();
-                    console.log(`✅ Auto-synced IQAC data to APAR form for ${faculty_id}, AY: ${form.ay}`);
 
-                    // 🚀 Emit Socket.io event for real-time update
+                    // Send notification to faculty.io event for real-time update
                     if (entryData) {
                         // Resolve submitter name
                         let submittedBy = 'System';
