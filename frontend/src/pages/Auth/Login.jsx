@@ -22,10 +22,9 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState(ROLES.DEPARTMENT_HOD);
   const [error, setError] = useState('');
   const [showReset, setShowReset] = useState(false);
-  const [resetTeacherId, setResetTeacherId] = useState('');
-  const [resetPassword, setResetPassword] = useState('12345');
-  const [resetError, setResetError] = useState('');
+  const [resetUserId, setResetUserId] = useState('');
   const [resetStatus, setResetStatus] = useState('idle');
+  const [resetError, setResetError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -75,38 +74,26 @@ export default function Login() {
     }
   };
 
-  const handlePasswordReset = async (event) => {
+  const handleResetSubmit = async (event) => {
     event.preventDefault();
     setResetError('');
 
-    const normalizedTeacherId = resetTeacherId.trim();
-
-    if (!normalizedTeacherId) {
-      setResetError('Please enter the Teacher ID linked to the account.');
+    const id = resetUserId?.trim();
+    if (!id) {
+      setResetError('Please enter faculty ID to reset password.');
       return;
     }
 
-    const normalizedPassword = resetPassword.trim();
-
-    if (!normalizedPassword) {
-      setResetError('Please enter the new password to apply.');
-      return;
-    }
-
-    setResetStatus('loading');
     try {
-      await authService.forgotPassword(normalizedTeacherId, normalizedPassword);
-      setResetStatus('succeeded');
-      setShowReset(false);
-      setResetTeacherId('');
-      setResetPassword('12345');
-    } catch (resetException) {
-      const message =
-        resetException?.response?.data?.message ||
-        resetException.message ||
-        'Unable to reset password';
-      setResetError(message);
-      setResetStatus('failed');
+      setResetStatus('loading');
+      // Note: backend expects a userId field; the service currently sends teacherId.
+      // We call the service as-is to avoid wider changes here.
+      await authService.forgotPassword(id, undefined);
+      setResetStatus('success');
+      setResetError('Password reset requested. Ask admin to verify.');
+    } catch (err) {
+      setResetStatus('error');
+      setResetError(err?.message || 'Failed to reset password.');
     }
   };
 
@@ -232,45 +219,25 @@ export default function Login() {
         </form>
 
         {showReset && (
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-indigo-700">Reset password</h2>
-            <p className="text-xs text-indigo-600">
-              Enter the Teacher ID linked to the account and the new password to apply. Leave the password as 12345 if you want to restore the default.
-            </p>
-            <form className="space-y-3" onSubmit={handlePasswordReset}>
+          <div className="mt-4">
+            <form onSubmit={handleResetSubmit} className="space-y-3">
               <div>
-                <label htmlFor="reset-teacher-id" className="block text-xs font-medium text-indigo-700">
-                  Teacher ID
+                <label htmlFor="reset-userid" className="block text-sm font-medium text-gray-700">
+                  Faculty ID
                 </label>
                 <input
-                  id="reset-teacher-id"
+                  id="reset-userid"
+                  name="reset-userid"
                   type="text"
-                  list="teacher-id-options"
-                  value={resetTeacherId}
-                  onChange={(event) => setResetTeacherId(event.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200"
-                  placeholder="FAC123"
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <label htmlFor="reset-password" className="block text-xs font-medium text-indigo-700">
-                  New password
-                </label>
-                <input
-                  id="reset-password"
-                  type="password"
-                  value={resetPassword}
-                  onChange={(event) => setResetPassword(event.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200"
-                  placeholder="12345"
+                  value={resetUserId}
+                  onChange={(e) => setResetUserId(e.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="e.g. FAC12345"
                 />
               </div>
 
               {resetError && (
-                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                  {resetError}
-                </p>
+                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">{resetError}</p>
               )}
 
               <div className="flex justify-end">

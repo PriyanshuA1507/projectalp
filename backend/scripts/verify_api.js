@@ -34,7 +34,9 @@ async function connectDB() {
         process.exit(1);
     }
     try {
-        await mongoose.connect(`${process.env.MONGODB_URI}/apar`);
+        const baseUri = process.env.MONGODB_URI.replace(/\/+$, '');
+        const uri = baseUri ? `${baseUri}/apar` : 'mongodb://localhost:27017/apar';
+        await mongoose.connect(uri);
         console.log('MongoDB connected');
     } catch (error) {
         console.error('MongoDB connection error:', error.message);

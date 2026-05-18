@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { aparLogin } from '../store/slices/aparAuthSlice.js';
+import { aparLogin, aparChangePassword } from '../store/slices/aparAuthSlice.js';
 import { aparAuthService } from '../services/aparAuth.service.js';
 
 export default function AparLogin({ loginData, setLoginData }) {
@@ -10,6 +10,7 @@ export default function AparLogin({ loginData, setLoginData }) {
   const location = useLocation();
   const isAuthenticated = useSelector((state) => Boolean(state.aparAuth.user));
   const aparRole = useSelector((state) => state.aparAuth.role);
+  const mustChangePassword = useSelector((state) => Boolean(state.aparAuth.user?.mustChangePassword));
   const status = useSelector((state) => state.aparAuth.status);
   const authError = useSelector((state) => state.aparAuth.error);
   const [localError, setLocalError] = useState('');
@@ -18,18 +19,17 @@ export default function AparLogin({ loginData, setLoginData }) {
   const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
   const effectiveLoginData = loginData ?? localLoginData;
   const effectiveSetLoginData = setLoginData ?? setLocalLoginData;
-  const [showReset, setShowReset] = useState(false);
-  const [resetTeacherId, setResetTeacherId] = useState(effectiveLoginData.id || '');
-  const [resetPassword, setResetPassword] = useState('12345');
-  const [resetError, setResetError] = useState('');
-  const [resetStatus, setResetStatus] = useState('idle');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changeStatus, setChangeStatus] = useState('idle');
 
   useEffect(() => {
     if (authError) setLocalError(authError);
   }, [authError]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !mustChangePassword) {
       const from = location.state?.from?.pathname;
       const roleToUse = aparRole || effectiveLoginData.role;
       if (roleToUse === 'Reporting Officer' || roleToUse === 'Reviewing Officer') {
@@ -38,11 +38,7 @@ export default function AparLogin({ loginData, setLoginData }) {
       }
       navigate('/apar/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate, location.state]);
-
-  useEffect(() => {
-    setResetTeacherId(effectiveLoginData.id || '');
-  }, [effectiveLoginData.id]);
+  }, [isAuthenticated, mustChangePassword, navigate, aparRole, effectiveLoginData.role, location.state]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -55,35 +51,40 @@ export default function AparLogin({ loginData, setLoginData }) {
     dispatch(aparLogin({ email: effectiveLoginData.id, password: effectiveLoginData.password, role: effectiveLoginData.role }));
   };
 
-  const handlePasswordReset = async (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
-    setResetError('');
+    setLocalError('');
 
-    const normalizedTeacherId = (resetTeacherId || '').trim();
-    if (!normalizedTeacherId) {
-      setResetError('Please enter the Teacher ID linked to the account.');
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setLocalError('All password fields are required');
       return;
     }
 
-    const normalizedPassword = (resetPassword || '').trim();
-    if (!normalizedPassword) {
-      setResetError('Please enter the new password to apply.');
+    if (newPassword !== confirmPassword) {
+      setLocalError('New passwords do not match');
       return;
     }
 
-    setResetStatus('loading');
+    if (newPassword.length < 12) {
+      setLocalError('New password must be at least 12 characters and include letters and numbers');
+      return;
+    }
+
+    setChangeStatus('loading');
     try {
-      await aparAuthService.forgotPassword(normalizedTeacherId, normalizedPassword);
-      setResetStatus('succeeded');
-      setShowReset(false);
-      setResetTeacherId('');
-      setResetPassword('12345');
+      await dispatch(aparChangePassword({ oldPassword, newPassword })).unwrap();
+      setChangeStatus('succeeded');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setLocalError('Password updated. Please sign in with your new password.');
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Unable to reset password';
-      setResetError(message);
-      setResetStatus('failed');
+      setLocalError(typeof err === 'string' ? err : 'Unable to change password');
+      setChangeStatus('failed');
     }
   };
+
+  const showPasswordChange = isAuthenticated && mustChangePassword;
 
   return (
     <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -114,6 +115,31 @@ export default function AparLogin({ loginData, setLoginData }) {
           <p className="mt-2 text-sm text-gray-600">Sign in to access the Annual Performance Appraisal Report system</p>
         </div>
         <div className="bg-white/90 py-5 px-8 shadow-2xl sm:rounded-2xl sm:px-12 border border-gray-100">
+          {showPasswordChange ? (
+            <>
+
+              <h2 className="text-lg font-bold text-indigo-700 mb-2">Change your password</h2>
+              <p className="text-sm text-gray-600 mb-4">For security, set a new password before using APAR.</p>
+              <form className="space-y-4" onSubmit={handlePasswordChange}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                </div>
+                {localError && (<div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">{localError}</div>)}
+                <button type="submit" disabled={changeStatus === 'loading'} className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70">
+                  {changeStatus === 'loading' ? 'Updating…' : 'Update password'}
+                </button>
+              </form>
+            </>
+          ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="id" className="block text-sm font-medium text-gray-700 mb-1"> Login ID </label>
@@ -148,37 +174,9 @@ export default function AparLogin({ loginData, setLoginData }) {
               </button>
             </div>
 
-            <div className="text-sm text-center mt-4">
-              <button
-                type="button"
-                onClick={() => { setShowReset((prev) => !prev); setResetError(''); }}
-                className="text-indigo-600 font-medium hover:text-indigo-500 hover:underline transition-colors"
-              >
-                {showReset ? 'Hide forgot password' : 'Forgot password?'}
-              </button>
-            </div>
           </form>
+          )}
         </div>
-        {showReset && (
-          <div className="mt-6 rounded-xl border border-indigo-100 bg-white/90 p-6 shadow-lg">
-            <h2 className="text-sm font-bold text-indigo-700 mb-2">Reset password</h2>
-            <p className="text-xs text-gray-600 mb-4">Enter the Teacher ID linked to the account and the new password to apply. Leave the password as 12345 to restore the default.</p>
-            <form className="space-y-4" onSubmit={handlePasswordReset}>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Teacher ID</label>
-                <input type="text" className="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={resetTeacherId} onChange={(e) => setResetTeacherId(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New password</label>
-                <input type="password" className="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
-              </div>
-              {resetError && (<div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">{resetError}</div>)}
-              <div className="flex justify-end pt-2">
-                <button type="submit" disabled={resetStatus === 'loading'} className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 transition-colors">{resetStatus === 'loading' ? 'Resetting…' : 'Reset password'}</button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
     </div>
   );

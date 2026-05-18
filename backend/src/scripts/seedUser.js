@@ -105,7 +105,7 @@ const USERS = [
         user_id: 'REV_OFFICER',
         email: 'prateek.sharma@dtu.ac.in',
         name: 'Dr. Prateek Sharma',
-        role: '',
+        role: 'Faculty Member',
         department_id: 'ADMIN',
         designation: 'Professor',
         apar_role: 'Reviewing Officer',
@@ -237,8 +237,8 @@ const USERS = [
 
 async function seed() {
     try {
-        const baseUri = process.env.MONGODB_URI.replace(/\/$/, '');
-        const mongoUri = `${baseUri}/apar`;
+        const baseUri = (process.env.MONGODB_URI || '').replace(/\/+$/, '');
+        const mongoUri = baseUri ? `${baseUri}/apar` : 'mongodb://localhost:27017/apar';
         console.log('Connecting to MongoDB...');
         await mongoose.connect(mongoUri);
         console.log('✅ Connected');
@@ -249,7 +249,7 @@ async function seed() {
             await Department.findOneAndUpdate(
                 { department_id: dept.department_id },
                 dept,
-                { upsert: true, new: true }
+                { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
             );
             console.log(`   Processed ${dept.department_id}`);
         }
@@ -260,7 +260,7 @@ async function seed() {
             await Student.findOneAndUpdate(
                 { student_id: stu.student_id },
                 stu,
-                { upsert: true, new: true }
+                { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
             );
             console.log(`   Processed ${stu.name}`);
         }
@@ -273,11 +273,11 @@ async function seed() {
                 user_id: u.user_id,
                 email: u.email,
                 password_hash: u.password_hash,
-                role: u.role,
                 name: u.name,
                 department_id: u.department_id,
                 designation: u.designation
             };
+            if (u.role) userPayload.role = u.role;
             if (u.apar_role) userPayload.apar_role = u.apar_role;
             if (u.reporting_officer_id) userPayload.reporting_officer_id = u.reporting_officer_id;
             if (u.reviewing_officer_id) userPayload.reviewing_officer_id = u.reviewing_officer_id;
@@ -285,7 +285,7 @@ async function seed() {
             await User.findOneAndUpdate(
                 { user_id: u.user_id },
                 userPayload,
-                { upsert: true, new: true }
+                { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
             );
             console.log(`   User: ${u.name} (${u.role})`);
 
@@ -308,7 +308,7 @@ async function seed() {
                         specialization: u.specialization,
                         employment_type: 'Regular'
                     },
-                    { upsert: true, new: true }
+                    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
                 );
                 console.log(`   --> Faculty Record Created`);
             } else {
