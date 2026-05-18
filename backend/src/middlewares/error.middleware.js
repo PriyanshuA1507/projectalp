@@ -1,6 +1,7 @@
 import { ApiError } from "../utils/api-error.js";
 
 export const errorHandler = (err, req, res, next)=>{
+    const showStack = process.env.NODE_ENV !== 'production' && !process.env.RENDER;
 
     if (err instanceof ApiError){
 
@@ -10,7 +11,7 @@ export const errorHandler = (err, req, res, next)=>{
                 message : err.message,
                 statusCode : err.statusCode,
                 errors : err.errors,
-                stack : err.stack,
+                ...(showStack ? { stack : err.stack } : {}),
                 success : err.success
             }
         )
@@ -18,10 +19,10 @@ export const errorHandler = (err, req, res, next)=>{
         res.status(500)
         .json(
             {
-                message : err.message,
+                message : showStack ? err.message : 'Internal server error',
                 statusCode : 500,
                 errors : [],
-                stack : err.stack,
+                ...(showStack ? { stack : err.stack } : {}),
                 success : false
             }
         )

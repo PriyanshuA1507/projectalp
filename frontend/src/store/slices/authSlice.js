@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { authService } from '../../services/auth.service.js';
 import { ROLES } from '../../config/rolePermissions.js';
+import { clearCsrfToken } from '../../utils/csrf.js';
 
 const extractErrorMessage = (error, fallback = 'Something went wrong') => {
   if (!error) return fallback;
@@ -120,6 +121,7 @@ const authSlice = createSlice({
           : getAllowedRolesFor(action.payload?.user?.role);
         state.lastVerifiedRole = action.payload?.user?.role ?? null;
         state.error = null;
+        clearCsrfToken();
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';

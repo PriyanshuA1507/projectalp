@@ -18,6 +18,9 @@ const mapUser = (user) => {
     sessionToken: user.session_token,
     sessionExpiresAt: user.session_expires_at,
     mustChangePassword: Boolean(user.must_change_password),
+    failedLoginAttempts: user.failed_login_attempts ?? 0,
+    lastFailedLoginAt: user.last_failed_login_at,
+    lockedUntil: user.locked_until,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
     passwordHash: user.password_hash // Often needed internally for checks
@@ -122,6 +125,38 @@ export const clearUserSession = async (id) => {
     {
       session_token: null,
       session_expires_at: null
+    },
+    { new: true }
+  );
+  return mapUser(user);
+};
+
+export const recordFailedLogin = async (id, options = {}) => {
+  const maxAttempts = Number(options.maxAttempts || 5);
+  const lockMs = Number(options.lockMs || 15 * 60 * 1000);
+  const now = new Date();
+
+  const existing = await User.findById(id);
+  if (!existing) return null;
+
+  const failedAttempts = (existing.failed_login_attempts || 0) + 1;
+  const updateData = {
+    failed_login_attempts: failedAttempts,
+    last_failed_login_at: now,
+    ...(failedAttempts >= maxAttempts ? { locked_until: new Date(now.getTime() + lockMs) } : {})
+  };
+
+  const user = await User.findByIdAndUpdate(id, updateData, { new: true });
+  return mapUser(user);
+};
+
+export const clearFailedLogins = async (id) => {
+  const user = await User.findByIdAndUpdate(
+    id,
+    {
+      failed_login_attempts: 0,
+      last_failed_login_at: null,
+      locked_until: null
     },
     { new: true }
   );

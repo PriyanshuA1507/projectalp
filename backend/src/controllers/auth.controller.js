@@ -5,10 +5,12 @@ import { hashPassword, verifyPassword } from '../utils/password.js';
 import { authCookieName, signAccessToken } from '../utils/jwt.js';
 import {
   createUser,
+  clearFailedLogins,
   clearUserSession,
   findUserByEmail,
   findUserById,
   findUserByUserId,
+  recordFailedLogin,
   updateUserPassword,
   updateUserAttributes,
   updateUserSession
@@ -21,6 +23,8 @@ const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 12)
 const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
 const ALLOW_AUTO_PROVISION = process.env.ALLOW_AUTO_PROVISION === 'true';
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+const MAX_FAILED_LOGIN_ATTEMPTS = Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5);
+const LOGIN_LOCKOUT_MS = Number(process.env.LOGIN_LOCKOUT_MS || 15 * 60 * 1000);
 const COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: isProduction ? 'None' : 'Lax',
@@ -78,6 +82,22 @@ const canLoginAsRole = (currentRole, requestedRole) => {
 
   const allowedRoles = getAllowedRolesFor(normalizedCurrentRole);
   return allowedRoles.includes(normalizedRequestedRole);
+};
+
+const assertAccountNotLocked = (userRecord) => {
+  if (!userRecord?.lockedUntil) return;
+  const lockedUntilTime = new Date(userRecord.lockedUntil).getTime();
+  if (Number.isFinite(lockedUntilTime) && lockedUntilTime > Date.now()) {
+    throw new ApiError(423, 'Account temporarily locked due to failed login attempts. Please try again later.');
+  }
+};
+
+const recordInvalidLogin = async (userRecord) => {
+  if (!userRecord?.id) return;
+  await recordFailedLogin(userRecord.id, {
+    maxAttempts: MAX_FAILED_LOGIN_ATTEMPTS,
+    lockMs: LOGIN_LOCKOUT_MS
+  });
 };
 
 export const registerUser = asyncHandler(async (req, res) => {
@@ -165,7 +185,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   if (!userRecord && facultyMember?.faculty_id) {
-    if (!ALLOW_AUTO_PROVISION) {
+    if (!ALLOW_AUTO_PROVISION || isProduction) {
       throw new ApiError(401, 'Invalid credentials');
     }
 
@@ -203,6 +223,8 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
+  assertAccountNotLocked(userRecord);
+
   if (!facultyMember && userRecord.userId) {
     facultyMember = await findFacultyById(userRecord.userId);
   }
@@ -212,6 +234,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const isPasswordValid = await verifyPassword(password, userRecord.passwordHash);
   if (!isPasswordValid) {
+    await recordInvalidLogin(userRecord);
     throw new ApiError(401, 'Invalid credentials');
   }
 
@@ -221,6 +244,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   const effectiveRoleForAccess = currentRole || (facultyMember ? normalizeRoleValue(facultyMember.role) : null) || ROLES.FACULTY;
 
   if (!canLoginAsRole(effectiveRoleForAccess, normalizedRequestedRole)) {
+    await recordInvalidLogin(userRecord);
     throw new ApiError(403, `You are not allowed to sign in as ${normalizedRequestedRole}.`);
   }
 
@@ -274,6 +298,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const accessToken = signAccessToken(payload);
   await updateUserSession(userRecord.id, accessToken, new Date(Date.now() + SESSION_TTL_MS));
+  await clearFailedLogins(userRecord.id);
 
   res.cookie(authCookieName, accessToken, {
     ...COOKIE_OPTIONS,

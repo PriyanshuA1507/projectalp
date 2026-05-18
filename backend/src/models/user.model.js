@@ -100,6 +100,22 @@ const UserSchema = new mongoose.Schema({
         default: true
     },
 
+    failed_login_attempts: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+
+    last_failed_login_at: {
+        type: Date,
+        default: null
+    },
+
+    locked_until: {
+        type: Date,
+        default: null
+    },
+
     // -------------------------------------------------------------------------
     // Metadata
     // -------------------------------------------------------------------------

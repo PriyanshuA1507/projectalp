@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { aparAuthService } from '../../services/aparAuth.service.js';
 import { ROLES } from '../../config/aparRoles.js';
+import { clearCsrfToken } from '../../utils/csrf.js';
 
 const extractErrorMessage = (error, fallback = 'Something went wrong') => {
   if (!error) return fallback;
@@ -109,6 +110,7 @@ const aparSlice = createSlice({
           ? action.payload.allowedRoles
           : getAllowedRolesFor(action.payload?.user?.role);
         state.error = null;
+        clearCsrfToken();
       })
       .addCase(aparLogin.rejected, (state, action) => {
         state.status = 'failed';
