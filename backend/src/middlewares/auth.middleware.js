@@ -1,7 +1,6 @@
 import { authCookieName, verifyAccessToken } from '../utils/jwt.js';
 import { ApiError } from '../utils/api-error.js';
 import { findUserById } from '../data-access/users.data-access.js';
-import { findById as findFacultyById } from '../data-access/faculty.data-access.js';
 import { getAllowedRolesFor } from '../config/permissions.js';
 import { normalizeRoleValue } from '../config/roles.js';
 
@@ -21,65 +20,42 @@ const extractToken = (req) => {
 
 export const authenticate = async (req, res, next) => {
   try {
-    // console.log('Authenticating request...');
-    // debug: log when authenticate runs to trace unexpected invocations
-    try {
-      console.warn('[auth] authenticate called for', req.method, req.originalUrl || req.url, 'bypass=', !!req.headers['x-bypass-auth-redirect']);
-    } catch (e) { }
-
-    // Allow unauthenticated access to password reset endpoints
-    // (some frontends call POST /apar/auth/forgot-password without a session)
-    const url = req.originalUrl || req.url || '';
-    if (typeof url === 'string' && url.toLowerCase().includes('/forgot-password')) {
-      return next();
-    }
-    // Also allow bypass when client explicitly requests it (header set by frontend)
-    const bypassHeader = req.headers['x-bypass-auth-redirect'] || req.headers['X-Bypass-Auth-Redirect'];
-    if (bypassHeader) return next();
     const token = extractToken(req);
     if (!token) {
-      // throw new ApiError(401, 'Authentication required');
+      throw new ApiError(401, 'Authentication required');
     }
 
     const decoded = verifyAccessToken(token);
 
-    // consolidated: all users (IQAC, HOD, Faculty, APAR) now in MongoDB 'users' collection
     let user = await findUserById(decoded.sub);
     const roleFromToken = normalizeRoleValue(decoded.role) ?? decoded.role ?? null;
 
     if (user) {
+      if (!user.sessionToken || user.sessionToken !== token) {
+        throw new ApiError(401, 'Session is no longer valid');
+      }
+
+      if (!user.sessionExpiresAt || new Date(user.sessionExpiresAt).getTime() <= Date.now()) {
+        throw new ApiError(401, 'Session has expired');
+      }
+
       req.user = {
         id: user.id,
+        sub: decoded.sub,
         userId: user.userId,
         email: user.email,
         role: roleFromToken || (normalizeRoleValue(user.role) ?? user.role),
         systemRole: normalizeRoleValue(user.role) ?? user.role,
         aparRole: user.aparRole ?? null,
         academicYear: decoded.academicYear ?? null,
-        departmentId: user.departmentId ?? null
-      };
-      req.authTokenPayload = decoded;
-      return next();
-    }
-
-    // Fallback: try faculty table (for any lingering sessions using faculty_id)
-    const faculty = await findFacultyById(decoded.sub);
-    if (faculty) {
-      req.user = {
-        id: faculty.faculty_id,
-        userId: faculty.faculty_id,
-        email: faculty.email ? faculty.email.toLowerCase() : null,
-        role: roleFromToken || (normalizeRoleValue(faculty.role) ?? faculty.role),
-        systemRole: normalizeRoleValue(faculty.role) ?? faculty.role,
-        departmentId: faculty.department_id ?? null
+        departmentId: user.departmentId ?? null,
+        mustChangePassword: user.mustChangePassword
       };
       req.authTokenPayload = decoded;
       return next();
     }
 
     throw new ApiError(401, 'Session is no longer valid');
-
-    next();
   } catch (error) {
     next(error);
   }
@@ -95,7 +71,7 @@ export const createRouteGuard = (basePath) => {
 
     const userRole = normalizeRoleValue(req.user?.role) ?? req.user?.role;
     if (!userRole) {
-      // return next(new ApiError(401, 'Authentication required'));
+      return next(new ApiError(401, 'Authentication required'));
     }
 
     if (!allowedRoles.includes(userRole)) {

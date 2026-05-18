@@ -15,10 +15,11 @@ import {
 } from '../data-access/users.data-access.js';
 import { findById as findFacultyById, findByEmail as findFacultyByEmail } from '../data-access/faculty.data-access.js';
 import { normalizeRoleValue, ROLES } from '../config/aparRoles.js';
+import { validatePasswordPolicy } from '../utils/password-policy.js';
 
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 12); // 12 hours
-const MIN_PASSWORD_LENGTH = Number(process.env.MIN_PASSWORD_LENGTH || 5);
-const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '12345';
+const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
+const ALLOW_AUTO_PROVISION = process.env.ALLOW_AUTO_PROVISION === 'true';
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -38,7 +39,8 @@ const sanitizeUser = (user, additionalInfo = {}) => {
     department: additionalInfo.department || user.departmentId,
     role: user.role,
     aparRole: user.aparRole ?? null,
-    departmentId: user.departmentId ?? null
+    departmentId: user.departmentId ?? null,
+    mustChangePassword: Boolean(user.mustChangePassword)
   };
 };
 
@@ -117,6 +119,16 @@ export const aparLogin = asyncHandler(async (req, res) => {
 
   // If user doesn't exist in MongoDB 'users' but exists in 'faculty', create them
   if (!userRecord && facultyMember?.faculty_id) {
+    if (!ALLOW_AUTO_PROVISION) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    if (!DEFAULT_INITIAL_PASSWORD) {
+      throw new ApiError(500, 'Default password is not configured');
+    }
+
+    validatePasswordPolicy(DEFAULT_INITIAL_PASSWORD, 'Default password');
+
     const existingByUser = await findUserByUserId(facultyMember.faculty_id);
 
     if (existingByUser) {
@@ -281,35 +293,6 @@ export const aparVerifyRole = asyncHandler(async (req, res) => {
   );
 });
 
-export const aparForgotPassword = asyncHandler(async (req, res) => {
-  const { userId, newPassword = DEFAULT_INITIAL_PASSWORD } = req.body ?? {};
-
-  const normalizedUserId = userId?.trim();
-
-  if (!normalizedUserId) {
-    throw new ApiError(400, 'User ID is required');
-  }
-
-  const facultyMember = await findFacultyById(normalizedUserId);
-  if (!facultyMember) {
-    throw new ApiError(404, 'User ID does not match any faculty record');
-  }
-
-  const userRecord = await findUserByUserId(normalizedUserId);
-  if (!userRecord) {
-    throw new ApiError(404, 'No account exists for the provided user ID');
-  }
-
-  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
-  }
-
-  const passwordHash = await hashPassword(newPassword);
-  await updateUserPassword(userRecord.id, passwordHash);
-
-  res.status(200).json(new ApiResponse(200, {}, 'Password reset. You can now sign in with the new password.'));
-});
-
 export const aparChangePassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body ?? {};
 
@@ -317,9 +300,7 @@ export const aparChangePassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Old password and new password are required');
   }
 
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, `New password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
-  }
+  validatePasswordPolicy(newPassword, 'New password');
 
   const user = await findUserById(req.user.id);
   if (!user) {
@@ -332,7 +313,12 @@ export const aparChangePassword = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await updateUserPassword(user.id, passwordHash);
+  await updateUserPassword(user.id, passwordHash, { mustChangePassword: false, clearSession: true });
+
+  res.clearCookie(authCookieName, {
+    ...COOKIE_OPTIONS,
+    maxAge: 0
+  });
 
   res.status(200).json(new ApiResponse(200, {}, 'Password changed successfully'));
 });

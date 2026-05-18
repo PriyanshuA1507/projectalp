@@ -1,22 +1,30 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 //import multer from 'multer'
 import { errorHandler } from './middlewares/error.middleware.js'
 import { authenticate, createRouteGuard } from './middlewares/auth.middleware.js'
+import { csrfProtection, getCsrfToken } from './middlewares/csrf.middleware.js'
+import { authRateLimiter, globalRateLimiter } from './middlewares/rate-limit.middleware.js'
+import { requirePasswordChangeComplete } from './middlewares/must-change-password.middleware.js'
 
 const app = express()
 //const upload = multer()
 
 app.set('trust proxy', 1);
 
+app.use(helmet())
+
+app.use(globalRateLimiter)
+
 app.use(express.json({
-    limit: '50mb'
+    limit: process.env.JSON_BODY_LIMIT || '2mb'
 }))
 
 app.use(express.urlencoded({
     extended: true,
-    limit: '50mb'
+    limit: process.env.JSON_BODY_LIMIT || '2mb'
 }))
 
 //app.use(upload.any())
@@ -25,11 +33,12 @@ app.use(express.static('public'))
 
 const rawOrigins = process.env.ORIGIN ? process.env.ORIGIN.split(',').map((value) => value.trim()).filter(Boolean) : []
 const allowedOrigins = rawOrigins.length > 0 ? rawOrigins : undefined
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER)
 
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) {
-            callback(null, true)
+            callback(null, !isProduction)
             return
         }
 
@@ -44,6 +53,9 @@ app.use(cors({
 }))
 
 app.use(cookieParser())
+
+app.get('/api/v1/csrf-token', getCsrfToken)
+app.use(csrfProtection)
 
 // Global Middleware: Normalize Academic Year (AY) formats
 // Ensures '2026-2027' becomes '2026-27' across all IQAC and APAR endpoints.
@@ -130,14 +142,16 @@ import aparMongoRoutes from "./routes/apar.mongo.routes.js"
 
 // ...
 
-app.use('/api/v1/apar/mongo', authenticate, aparMongoRoutes)
+app.use('/api/v1/apar/mongo', authenticate, requirePasswordChangeComplete, aparMongoRoutes)
 
 
 const registerProtectedRoute = (path, router) => {
     // console.log(`[app] registering protected route: ${path}`)
-    app.use(path, authenticate, createRouteGuard(path), router)
+    app.use(path, authenticate, requirePasswordChangeComplete, createRouteGuard(path), router)
 }
 
+app.use('/api/v1/auth/login', authRateLimiter)
+app.use('/api/v1/apar/auth/login', authRateLimiter)
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/feedback', feedbackRoutes)
 app.use('/api/v1/apar/auth', aparAuthRoutes)

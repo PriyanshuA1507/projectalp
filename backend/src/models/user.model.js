@@ -95,6 +95,11 @@ const UserSchema = new mongoose.Schema({
         default: null
     },
 
+    must_change_password: {
+        type: Boolean,
+        default: true
+    },
+
     // -------------------------------------------------------------------------
     // Metadata
     // -------------------------------------------------------------------------

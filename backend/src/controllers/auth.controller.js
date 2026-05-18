@@ -5,18 +5,21 @@ import { hashPassword, verifyPassword } from '../utils/password.js';
 import { authCookieName, signAccessToken } from '../utils/jwt.js';
 import {
   createUser,
+  clearUserSession,
   findUserByEmail,
   findUserById,
   findUserByUserId,
   updateUserPassword,
-  updateUserAttributes
+  updateUserAttributes,
+  updateUserSession
 } from '../data-access/users.data-access.js';
 import { findById as findFacultyById, findByEmail as findFacultyByEmail, listFacultyIds } from '../data-access/faculty.data-access.js';
 import { normalizeRoleValue, ROLES } from '../config/roles.js';
+import { validatePasswordPolicy } from '../utils/password-policy.js';
 
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 12); // 12 hours
-const MIN_PASSWORD_LENGTH = Number(process.env.MIN_PASSWORD_LENGTH || 5);
-const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '12345';
+const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
+const ALLOW_AUTO_PROVISION = process.env.ALLOW_AUTO_PROVISION === 'true';
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -34,7 +37,8 @@ const sanitizeUser = (user, additionalInfo = {}) => {
     name: additionalInfo.name || user.name,
     designation: additionalInfo.designation || user.designation,
     role: normalizeRoleValue(user.role) ?? user.role,
-    departmentId: additionalInfo.departmentId || user.departmentId || null
+    departmentId: additionalInfo.departmentId || user.departmentId || null,
+    mustChangePassword: Boolean(user.mustChangePassword)
   };
 };
 
@@ -107,10 +111,10 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   const passwordToApply = password || DEFAULT_INITIAL_PASSWORD;
-
-  if (passwordToApply.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+  if (!passwordToApply) {
+    throw new ApiError(400, 'Password is required');
   }
+  validatePasswordPolicy(passwordToApply);
 
   const normalizedRole = validateRole(role);
 
@@ -161,6 +165,16 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   if (!userRecord && facultyMember?.faculty_id) {
+    if (!ALLOW_AUTO_PROVISION) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    if (!DEFAULT_INITIAL_PASSWORD) {
+      throw new ApiError(500, 'Default password is not configured');
+    }
+
+    validatePasswordPolicy(DEFAULT_INITIAL_PASSWORD, 'Default password');
+
     const existingByUser = await findUserByUserId(facultyMember.faculty_id);
 
     if (existingByUser) {
@@ -259,6 +273,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   };
 
   const accessToken = signAccessToken(payload);
+  await updateUserSession(userRecord.id, accessToken, new Date(Date.now() + SESSION_TTL_MS));
 
   res.cookie(authCookieName, accessToken, {
     ...COOKIE_OPTIONS,
@@ -281,12 +296,42 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 export const logoutUser = asyncHandler(async (req, res) => {
+  if (req.user?.id) {
+    await clearUserSession(req.user.id);
+  }
+
   res.clearCookie(authCookieName, {
     ...COOKIE_OPTIONS,
     maxAge: 0
   });
 
   res.status(200).json(new ApiResponse(200, {}, 'Logged out successfully'));
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body ?? {};
+
+  validatePasswordPolicy(newPassword, 'New password');
+
+  const user = await findUserById(req.user.id);
+  if (!user) {
+    throw new ApiError(401, 'User not found');
+  }
+
+  const isPasswordValid = await verifyPassword(oldPassword, user.passwordHash);
+  if (!isPasswordValid) {
+    throw new ApiError(401, 'Invalid old password');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await updateUserPassword(user.id, passwordHash, { mustChangePassword: false, clearSession: true });
+
+  res.clearCookie(authCookieName, {
+    ...COOKIE_OPTIONS,
+    maxAge: 0
+  });
+
+  res.status(200).json(new ApiResponse(200, {}, 'Password changed successfully'));
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
@@ -327,35 +372,6 @@ export const verifyRole = asyncHandler(async (req, res) => {
   res.status(200).json(
     new ApiResponse(200, { role: currentRole }, 'Role verified')
   );
-});
-
-export const forgotPassword = asyncHandler(async (req, res) => {
-  const { userId, newPassword = DEFAULT_INITIAL_PASSWORD } = req.body ?? {};
-
-  const normalizedUserId = userId?.trim();
-
-  if (!normalizedUserId) {
-    throw new ApiError(400, 'User ID is required');
-  }
-
-  const facultyMember = await findFacultyById(normalizedUserId);
-  if (!facultyMember) {
-    throw new ApiError(404, 'User ID does not match any faculty record');
-  }
-
-  const userRecord = await findUserByUserId(normalizedUserId);
-  if (!userRecord) {
-    throw new ApiError(404, 'No account exists for the provided user ID');
-  }
-
-  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
-  }
-
-  const passwordHash = await hashPassword(newPassword);
-  await updateUserPassword(userRecord.id, passwordHash);
-
-  res.status(200).json(new ApiResponse(200, {}, 'Password reset. You can now sign in with the new password.'));
 });
 
 export const listUserIds = asyncHandler(async (req, res) => {

@@ -2,22 +2,24 @@ import { Router } from 'express';
 import {
 	loginUser,
 	logoutUser,
+	changePassword,
 	getProfile,
 	verifyRole,
 	registerUser,
-	forgotPassword,
 	listUserIds
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { authLoginSchema, changePasswordSchema, verifyRoleSchema } from '../validators/apar-auth.validator.js';
 
 const router = Router();
 
-router.post('/login', loginUser);
+router.post('/login', validate(authLoginSchema), loginUser);
 router.post('/register', registerUser);
-router.post('/forgot-password', forgotPassword);
 router.post('/logout', authenticate, logoutUser);
 router.get('/profile', authenticate, getProfile);
-router.post('/verify-role', authenticate, verifyRole);
-router.get('/user-ids', listUserIds);
+router.post('/verify-role', authenticate, validate(verifyRoleSchema), verifyRole);
+router.post('/change-password', authenticate, validate(changePasswordSchema), changePassword);
+router.get('/user-ids', authenticate, listUserIds);
 
 export default router;

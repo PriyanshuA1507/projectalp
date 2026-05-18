@@ -86,7 +86,10 @@ export const initializeSocket = (httpServer) => {
         const token = socket.handshake.auth.token;
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+                if (!process.env.JWT_SECRET) {
+                    throw new Error('JWT_SECRET is not configured');
+                }
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 socket.userId = decoded.id;
                 socket.facultyId = decoded.userId || decoded.faculty_id;
             } catch (err) {

@@ -21,10 +21,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState(ROLES.DEPARTMENT_HOD);
   const [error, setError] = useState('');
-  const [showReset, setShowReset] = useState(false);
-  const [resetUserId, setResetUserId] = useState('');
-  const [resetStatus, setResetStatus] = useState('idle');
-  const [resetError, setResetError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -74,28 +70,6 @@ export default function Login() {
     }
   };
 
-  const handleResetSubmit = async (event) => {
-    event.preventDefault();
-    setResetError('');
-
-    const id = resetUserId?.trim();
-    if (!id) {
-      setResetError('Please enter faculty ID to reset password.');
-      return;
-    }
-
-    try {
-      setResetStatus('loading');
-      // Note: backend expects a userId field; the service currently sends teacherId.
-      // We call the service as-is to avoid wider changes here.
-      await authService.forgotPassword(id, undefined);
-      setResetStatus('success');
-      setResetError('Password reset requested. Ask admin to verify.');
-    } catch (err) {
-      setResetStatus('error');
-      setResetError(err?.message || 'Failed to reset password.');
-    }
-  };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
@@ -123,7 +97,7 @@ export default function Login() {
         <div className="text-center space-y-2">
           <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-20 w-auto mx-auto object-contain mb-2" />
           <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-500">Sign in with your institutional email and password (default is 12345).</p>
+          <p className="text-gray-500">Sign in with your institutional email and password.</p>
         </div>
 
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
@@ -184,7 +158,7 @@ export default function Login() {
                   if (error) setError('');
                 }}
                 className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                placeholder="12345"
+                placeholder="Password"
               />
             </div>
           </div>
@@ -203,55 +177,7 @@ export default function Login() {
             {authStatus === 'loading' ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <div className="text-sm text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setShowReset((prev) => !prev);
-                setResetError('');
-              }}
-              className="text-indigo-600 font-medium hover:underline"
-            >
-              {showReset ? 'Hide forgot password' : 'Forgot password?'}
-            </button>
-          </div>
-
         </form>
-
-        {showReset && (
-          <div className="mt-4">
-            <form onSubmit={handleResetSubmit} className="space-y-3">
-              <div>
-                <label htmlFor="reset-userid" className="block text-sm font-medium text-gray-700">
-                  Faculty ID
-                </label>
-                <input
-                  id="reset-userid"
-                  name="reset-userid"
-                  type="text"
-                  value={resetUserId}
-                  onChange={(e) => setResetUserId(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="e.g. FAC12345"
-                />
-              </div>
-
-              {resetError && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">{resetError}</p>
-              )}
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={resetStatus === 'loading'}
-                  className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70"
-                >
-                  {resetStatus === 'loading' ? 'Resetting…' : 'Reset password'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
     </div>
   );

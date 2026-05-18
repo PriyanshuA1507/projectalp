@@ -15,7 +15,7 @@ const emptyCreateForm = {
   email: '',
   designation: '',
   role: ROLES.FACULTY,
-  password: '12345',
+  password: '',
   departmentId: ''
 };
 
@@ -178,8 +178,8 @@ export default function UserManagement() {
     const draft = drafts[user.id] || {};
     const password = draft.password?.trim() || '';
 
-    if (password && password.length < 5) {
-      toast.error('Password must be at least 5 characters long');
+    if (password && password.length < 12) {
+      toast.error('Password must be at least 12 characters long');
       return;
     }
 

@@ -6,8 +6,11 @@ class AuthService {
   }
 
   async login(email, password, role) {
-    const response = await this.api.post('/auth/login', { email, password, role });
-    return response;
+    return this.api.post('/auth/login', { email, password, role });
+  }
+
+  async changePassword(oldPassword, newPassword) {
+    return this.api.post('/auth/change-password', { oldPassword, newPassword });
   }
 
   async logout() {
@@ -22,13 +25,7 @@ class AuthService {
     return this.api.post('/auth/verify-role', { role });
   }
 
-  async forgotPassword(teacherId, newPassword) {
-    return this.api.post('/auth/forgot-password', { teacherId, newPassword });
-  }
 
-  async getTeacherIds() {
-    return this.api.get('/auth/teacher-ids');
-  }
 }
 
 export const authService = new AuthService();

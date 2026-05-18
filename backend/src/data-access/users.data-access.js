@@ -17,6 +17,7 @@ const mapUser = (user) => {
     departmentId: user.department_id,
     sessionToken: user.session_token,
     sessionExpiresAt: user.session_expires_at,
+    mustChangePassword: Boolean(user.must_change_password),
     createdAt: user.created_at,
     updatedAt: user.updated_at,
     passwordHash: user.password_hash // Often needed internally for checks
@@ -33,7 +34,8 @@ export const createUser = async ({
   aparRole = null,
   reportingOfficerId = null,
   reviewingOfficerId = null,
-  departmentId = null
+  departmentId = null,
+  mustChangePassword = true
 }) => {
   const normalizedRole = normalizeRoleValue(role);
   if (!normalizedRole) {
@@ -61,7 +63,8 @@ export const createUser = async ({
       apar_role: aparRole,
       reporting_officer_id: reportingOfficerId,
       reviewing_officer_id: reviewingOfficerId,
-      department_id: departmentId
+      department_id: departmentId,
+      must_change_password: mustChangePassword
     });
     await user.save();
     return mapUser(user);
@@ -125,10 +128,16 @@ export const clearUserSession = async (id) => {
   return mapUser(user);
 };
 
-export const updateUserPassword = async (id, passwordHash) => {
+export const updateUserPassword = async (id, passwordHash, options = {}) => {
+  const updateData = {
+    password_hash: passwordHash,
+    ...(options.mustChangePassword !== undefined ? { must_change_password: options.mustChangePassword } : {}),
+    ...(options.clearSession ? { session_token: null, session_expires_at: null } : {})
+  };
+
   const user = await User.findByIdAndUpdate(
     id,
-    { password_hash: passwordHash },
+    updateData,
     { new: true }
   );
   return mapUser(user);
@@ -143,7 +152,8 @@ export const updateUserAttributes = async ({
   reviewingOfficerId,
   name,
   designation,
-  departmentId
+  departmentId,
+  mustChangePassword
 }) => {
   if (!id) {
     throw new Error('User ID is required for attribute update');
@@ -162,7 +172,8 @@ export const updateUserAttributes = async ({
     ...(reviewingOfficerId !== undefined ? { reviewing_officer_id: reviewingOfficerId } : {}),
     ...(name !== undefined ? { name } : {}),
     ...(designation !== undefined ? { designation } : {}),
-    ...(departmentId !== undefined ? { department_id: departmentId } : {})
+    ...(departmentId !== undefined ? { department_id: departmentId } : {}),
+    ...(mustChangePassword !== undefined ? { must_change_password: mustChangePassword } : {})
   };
   if (email !== undefined && email !== null) updateData.email = email.toLowerCase();
 

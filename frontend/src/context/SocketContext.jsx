@@ -31,9 +31,7 @@ export const SocketProvider = ({ children }) => {
 
         if (!socketRef.current) {
             socketRef.current = io(backendUrl, {
-                auth: {
-                    token: localStorage.getItem('token')
-                },
+                withCredentials: true,
                 transports: ['websocket', 'polling']
             });
 

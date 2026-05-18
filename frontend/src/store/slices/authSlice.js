@@ -49,7 +49,6 @@ export const login = createAsyncThunk(
   async ({ email, password, role }, thunkAPI) => {
     try {
       const response = await authService.login(email, password, role);
-      localStorage.setItem('auth_session', 'true');
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(extractErrorMessage(error, 'Unable to sign in'));
@@ -60,7 +59,6 @@ export const login = createAsyncThunk(
 export const logout = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
   try {
     await authService.logout();
-    localStorage.removeItem('auth_session');
     return true;
   } catch (error) {
     return thunkAPI.rejectWithValue(extractErrorMessage(error, 'Unable to sign out'));
@@ -70,14 +68,10 @@ export const logout = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
 export const initializeSession = createAsyncThunk(
   'auth/initializeSession',
   async (_, thunkAPI) => {
-    if (!localStorage.getItem('auth_session')) {
-      return null;
-    }
     try {
       const response = await authService.getProfile();
       return response.user;
     } catch (error) {
-      localStorage.removeItem('auth_session');
       if (error.response?.status === 401) {
         return null;
       }

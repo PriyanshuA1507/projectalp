@@ -6,16 +6,12 @@ class AparAuthService {
   }
 
   async login(email, password, role, academic_year) {
-    const response = await this.api.post('/apar/auth/login', { email, password, role, academic_year }, { 'X-Bypass-Auth-Redirect': '1' });
+    const response = await this.api.post('/apar/auth/login', { email, password, role, academic_year });
     return response;
   }
 
   async logout() {
     return this.api.post('/apar/auth/logout', {});
-  }
-
-  async forgotPassword(teacherId, newPassword) {
-    return this.api.post('/apar/auth/forgot-password', { teacherId, newPassword }, { 'X-Bypass-Auth-Redirect': '1' });
   }
 
   async getProfile() {

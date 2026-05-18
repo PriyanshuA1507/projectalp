@@ -38,7 +38,6 @@ const initialState = {
 export const aparLogin = createAsyncThunk('aparAuth/login', async ({ email, password, role, academic_year }, thunkAPI) => {
   try {
     const response = await aparAuthService.login(email, password, role, academic_year);
-    localStorage.setItem('apar_auth_session', 'true');
     return response;
   } catch (error) {
     return thunkAPI.rejectWithValue(extractErrorMessage(error, 'Unable to sign in'));
@@ -48,7 +47,6 @@ export const aparLogin = createAsyncThunk('aparAuth/login', async ({ email, pass
 export const aparLogout = createAsyncThunk('aparAuth/logout', async (_, thunkAPI) => {
   try {
     await aparAuthService.logout();
-    localStorage.removeItem('apar_auth_session');
     return true;
   } catch (error) {
     return thunkAPI.rejectWithValue(extractErrorMessage(error, 'Unable to sign out'));
@@ -56,14 +54,10 @@ export const aparLogout = createAsyncThunk('aparAuth/logout', async (_, thunkAPI
 });
 
 export const aparInitializeSession = createAsyncThunk('aparAuth/initializeSession', async (_, thunkAPI) => {
-  if (!localStorage.getItem('apar_auth_session')) {
-    return null;
-  }
   try {
     const response = await aparAuthService.getProfile();
     return response.user;
   } catch (error) {
-    localStorage.removeItem('apar_auth_session');
     if (error.response?.status === 401) return null;
     return thunkAPI.rejectWithValue(extractErrorMessage(error, 'Unable to load session'));
   }
