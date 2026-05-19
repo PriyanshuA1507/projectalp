@@ -25,24 +25,31 @@ export default function OfficerDashboard() {
     const fileInputRef = useRef(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
-    // Define current academic year logic
+    // Define current academic year logic (fallback)
     const CURRENT_AY = '2026-27';
 
-    // Generate past 5 years
-    const getPastYears = () => {
-        const years = [];
-        const parts = CURRENT_AY.split('-');
-        let start = parseInt(parts[0]);
-        // Simple logic: we know we want YYYY-YY format
-        for (let i = 1; i <= 5; i++) {
-            const s = start - i;
-            const e = s + 1;
-            years.push(`${s}-${e.toString().substring(2)}`);
-        }
-        return years;
-    };
+    // Defensive: ensure both ay and CURRENT_AY are strings and trimmed
+    const normalizeAY = (val) =>
+        String(val)
+            .replace(/\s+/g, '')
+            .replace(/\//g, '-')
+            .trim();
 
-    const pastYears = getPastYears();
+    // Derive archive years from fetched history + current AY (most recent first)
+    const archiveYears = (() => {
+        const yearsSet = new Set();
+        if (CURRENT_AY) yearsSet.add(normalizeAY(CURRENT_AY));
+        history.forEach(h => {
+            if (h && h.ay) yearsSet.add(normalizeAY(h.ay));
+        });
+        const arr = Array.from(yearsSet);
+        arr.sort((a, b) => {
+            const aStart = parseInt(String(a).split('-')[0]) || 0;
+            const bStart = parseInt(String(b).split('-')[0]) || 0;
+            return bStart - aStart;
+        });
+        return arr.slice(0, 5); // last 5 years
+    })();
 
     const fetchHistory = useCallback(async () => {
         if (!user) return;
@@ -112,13 +119,6 @@ export default function OfficerDashboard() {
 
     // Debug log to check what is in history and CURRENT_AY
     console.log('APAR Dashboard Debug:', { history, CURRENT_AY });
-
-    // Defensive: ensure both ay and CURRENT_AY are strings and trimmed
-    const normalizeAY = (val) =>
-  String(val)
-    .replace(/\s+/g, '')
-    .replace(/\//g, '-')
-    .trim();
 
     const computedExternalImage = (name) => `https://dtu.ac.in/modules/facilities/people/faculty/userimages/${String(name || '').replace(/^(Dr\.|Dr|Professor|Prof\.|Prof|Mr\.|Mr|Ms\.|Ms|Mrs\.|Mrs)\s+/i, '').toLowerCase().replace(/\s+/g, '')}.jpg`;
 
@@ -339,7 +339,7 @@ const currentYearForm = history.find(
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {pastYears.map((year) => {
+                                {archiveYears.map((year) => {
                                     const form = history.find(f => normalizeAY(f.ay) === normalizeAY(year));
                                     return (
                                         <tr key={year} className="hover:bg-gray-50">
