@@ -91,13 +91,12 @@ export default function ProfileDropdown() {
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1 origin-top-right transform transition-all">
                     <button
-                        onClick={() => {
-                            setIsOpen(false);
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        type="button"
+                        disabled
+                        title="Reset password is currently disabled"
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-400 cursor-not-allowed opacity-60 transition-colors"
                     >
-                        <FaKey className="mr-3 text-gray-500" />
+                        <FaKey className="mr-3 text-gray-400" />
                         Reset Password
                     </button>
                     <div className="border-t border-gray-100 my-1"></div>

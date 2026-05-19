@@ -1,10 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { FiArrowLeft, FiPrinter, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiPrinter, FiCheck, FiAlertCircle, FiFileText, FiGrid } from 'react-icons/fi';
+import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import ProfileDropdown from '../components/ProfileDropdown.jsx';
 import { toast, Toaster } from 'sonner';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { aparLogout, selectAparAcademicYear } from '../store/slices/aparAuthSlice.js';
+import { useSelector } from 'react-redux';
+import { selectAparAcademicYear } from '../store/slices/aparAuthSlice.js';
 import { AparFormGradedService } from '../services/apar_form_graded.services.js'
 import { aparFormReportingService } from '../services/apar_form_reporting.service.js'
 import AparLogin from '../components/AparLogin.jsx';
@@ -15,10 +18,127 @@ import PartIV from './Apar/PartIV.jsx';
 import PartV from './Apar/PartV.jsx';
 import PartVIRemarks from './Apar/PartVIRemarks.jsx';
 import AparTimeline from '../components/AparTimeline.jsx';
-import { useAparRealTimeSync, mergeNewEntry } from '../hooks/useAparRealTimeSync';
+import { mergeNewEntry } from '../hooks/useAparRealTimeSync';
 import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
 import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
+
+const toTitle = (value) => String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+
+const toDisplayValue = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    if (Array.isArray(value)) {
+        return value.map(item => {
+            if (item && typeof item === 'object') {
+                return Object.entries(item).map(([key, val]) => `${toTitle(key)}: ${toDisplayValue(val)}`).join(', ');
+            }
+            return String(item);
+        }).join(' | ');
+    }
+    if (typeof value === 'object') {
+        return Object.entries(value).map(([key, val]) => `${toTitle(key)}: ${toDisplayValue(val)}`).join('; ');
+    }
+    return String(value);
+};
+
+const flattenRecord = (record) => {
+    if (!record || typeof record !== 'object') return { Value: toDisplayValue(record) };
+    return Object.entries(record).reduce((acc, [key, value]) => {
+        acc[toTitle(key)] = toDisplayValue(value);
+        return acc;
+    }, {});
+};
+
+const sanitizeSheetName = (name) => {
+    const sanitized = String(name || 'Sheet').replace(/[\\/?*[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
+    return (sanitized || 'Sheet').slice(0, 31);
+};
+
+const sanitizeFileName = (name) => String(name || 'APAR_Form')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_');
+
+const getAcademicYearFromDates = (start, end) => {
+    if (!start || !end) return '';
+    const startYear = new Date(start).getFullYear();
+    const endYear = new Date(end).getFullYear();
+    if (!Number.isFinite(startYear) || !Number.isFinite(endYear)) return '';
+    return `${startYear}-${endYear}`;
+};
+
+const collectExportSheets = (data, sectionName = 'APAR Form') => {
+    if (Array.isArray(data)) {
+        return [{
+            name: sectionName,
+            rows: data.length ? data.map(item => flattenRecord(item)) : [{ Message: 'No entries' }]
+        }];
+    }
+
+    if (!data || typeof data !== 'object') {
+        return [{ name: sectionName, rows: [{ Field: sectionName, Value: toDisplayValue(data) }] }];
+    }
+
+    const sheets = [];
+    const fieldRows = [];
+
+    Object.entries(data).forEach(([key, value]) => {
+        const label = toTitle(key);
+        const nestedName = sectionName === 'APAR Form' ? label : `${sectionName} ${label}`;
+
+        if (Array.isArray(value)) {
+            sheets.push(...collectExportSheets(value, nestedName));
+            return;
+        }
+
+        if (value && typeof value === 'object') {
+            const hasNestedCollection = Object.values(value).some(item => Array.isArray(item) || (item && typeof item === 'object'));
+            if (hasNestedCollection) {
+                sheets.push(...collectExportSheets(value, nestedName));
+                return;
+            }
+            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+                fieldRows.push({ Field: `${label} - ${toTitle(nestedKey)}`, Value: toDisplayValue(nestedValue) });
+            });
+            return;
+        }
+
+        fieldRows.push({ Field: label, Value: toDisplayValue(value) });
+    });
+
+    if (fieldRows.length) {
+        sheets.unshift({ name: sectionName, rows: fieldRows });
+    }
+
+    return sheets;
+};
+
+const createWordCell = (text, bold = false) => new TableCell({
+    width: { size: 50, type: WidthType.PERCENTAGE },
+    children: [new Paragraph({ children: [new TextRun({ text: String(text || ''), bold })] })]
+});
+
+const createWordKeyValueTable = (rows) => new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+        new TableRow({
+            children: [
+                createWordCell('Field', true),
+                createWordCell('Value', true)
+            ]
+        }),
+        ...rows.map(([field, value]) => new TableRow({
+            children: [
+                createWordCell(field),
+                createWordCell(value)
+            ]
+        }))
+    ]
+});
 
 export default function AparForm() {
     const { socket } = useSocket(); // Get socket from context
@@ -31,7 +151,6 @@ export default function AparForm() {
     const aparRole = useSelector((state) => state.aparAuth.role);
     const reduxAy = useSelector(selectAparAcademicYear);
     const activeRole = aparRole || loginData.role;
-    const dispatch = useDispatch();
     const getSteps = () => {
         if (activeRole === 'Reporting Officer') return 6;
         if (activeRole === 'Reviewing Officer') return 7;
@@ -165,7 +284,6 @@ export default function AparForm() {
     const [submittedForms, setSubmittedForms] = useState([]);
     const [certified, setCertified] = useState(false);
     const [selectedFacultyRaw, setSelectedFacultyRaw] = useState(null);
-    const [logoutLoading, setLogoutLoading] = useState(false);
 
     // Popup State
     const [queryModalOpen, setQueryModalOpen] = useState(false);
@@ -410,11 +528,7 @@ export default function AparForm() {
         let rawAy = reduxAy || loginData.academic_year || (location.state?.ay);
         // Fallback AY derivation
         if (!rawAy && formData.personal?.report_start_date && formData.personal?.report_end_date) {
-            try {
-                const s = new Date(formData.personal.report_start_date).getFullYear();
-                const e = new Date(formData.personal.report_end_date).getFullYear();
-                rawAy = `${s}-${e}`;
-            } catch (e) { }
+            rawAy = getAcademicYearFromDates(formData.personal.report_start_date, formData.personal.report_end_date);
         }
 
         // Helper to normalize AY for consistent room names and API calls
@@ -531,6 +645,77 @@ export default function AparForm() {
 
     const handlePrint = () => window.print();
 
+    const getExportFileBaseName = () => {
+        const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.userId || aparUser?.user_id || aparUser?.id || 'faculty';
+        const ay = reduxAy || loginData.academic_year || location.state?.ay || formData?.personal?.academic_year || 'apar';
+        const name = formData?.personal?.name || aparUser?.name || 'APAR_Form';
+        return sanitizeFileName(`${name}_${facultyId}_${ay}`);
+    };
+
+    const handleExportExcel = () => {
+        try {
+            const workbook = XLSX.utils.book_new();
+            const usedNames = new Map();
+
+            collectExportSheets(formData).forEach((sheet) => {
+                const baseName = sanitizeSheetName(sheet.name);
+                const count = usedNames.get(baseName) || 0;
+                usedNames.set(baseName, count + 1);
+                const suffix = count ? `_${count + 1}` : '';
+                const sheetName = `${baseName.slice(0, 31 - suffix.length)}${suffix}`;
+                const worksheet = XLSX.utils.json_to_sheet(sheet.rows);
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            });
+
+            XLSX.writeFile(workbook, `${getExportFileBaseName()}.xlsx`);
+            toast.success('Excel file downloaded');
+        } catch (error) {
+            console.error('Excel export failed', error);
+            toast.error('Excel export failed');
+        }
+    };
+
+    const handleExportWord = async () => {
+        try {
+            const children = [
+                new Paragraph({
+                    text: 'Annual Performance Assessment Report Form',
+                    heading: HeadingLevel.TITLE
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: `Faculty: ${formData?.personal?.name || aparUser?.name || ''}` }),
+                        new TextRun({ text: ` | Academic Year: ${reduxAy || loginData.academic_year || location.state?.ay || ''}` })
+                    ]
+                })
+            ];
+
+            collectExportSheets(formData).forEach((sheet) => {
+                const rows = sheet.rows.flatMap((row, index) => {
+                    const entries = Object.entries(row || {});
+                    if (sheet.rows.length > 1 && !('Field' in row && 'Value' in row)) {
+                        return entries.map(([key, value]) => [`Entry ${index + 1} - ${key}`, value]);
+                    }
+                    return entries;
+                });
+
+                children.push(
+                    new Paragraph({ text: sheet.name, heading: HeadingLevel.HEADING_1 }),
+                    createWordKeyValueTable(rows),
+                    new Paragraph({ text: '' })
+                );
+            });
+
+            const document = new Document({ sections: [{ children }] });
+            const blob = await Packer.toBlob(document);
+            saveAs(blob, `${getExportFileBaseName()}.docx`);
+            toast.success('Word file downloaded');
+        } catch (error) {
+            console.error('Word export failed', error);
+            toast.error('Word export failed');
+        }
+    };
+
     const isReadOnlyMode = () => {
         const role = aparRole || loginData.role;
         // Reporting/Reviewing are always read-only for Parts I-IV
@@ -546,11 +731,7 @@ export default function AparForm() {
         if (!gradedId) return;
         let ay = reduxAy || loginData.academic_year || (location.state?.ay);
         if (!ay && formData.personal?.report_start_date && formData.personal?.report_end_date) {
-            try {
-                const s = new Date(formData.personal.report_start_date).getFullYear();
-                const e = new Date(formData.personal.report_end_date).getFullYear();
-                ay = `${s}-${e}`;
-            } catch (e) { }
+            ay = getAcademicYearFromDates(formData.personal.report_start_date, formData.personal.report_end_date);
         }
         if (gradedId && ay) {
             fetchFormData(gradedId, ay);
@@ -566,14 +747,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })()
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
@@ -617,14 +791,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })();
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
@@ -725,14 +892,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })()
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
@@ -1050,6 +1210,20 @@ export default function AparForm() {
                             className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                         >
                             <FiPrinter className="mr-2" /> Print Form
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportWord}
+                            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            <FiFileText className="mr-2" /> Word
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportExcel}
+                            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                        >
+                            <FiGrid className="mr-2" /> Excel
                         </button>
                         <ProfileDropdown />
                     </div>
