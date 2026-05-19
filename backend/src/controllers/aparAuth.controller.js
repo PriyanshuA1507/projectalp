@@ -465,7 +465,24 @@ export const aparUploadAvatar = asyncHandler(async (req, res) => {
   try {
     const existing = await findUserById(req.user.id);
     if (existing?.avatar) {
-      try { await deleteFromCloudinary(existing.avatar); } catch (e) {}
+      // If avatar is stored in local uploads folder, remove the file from disk
+      try {
+        const avatarUrl = String(existing.avatar);
+        const uploadsSegment = '/uploads/';
+        const idx = avatarUrl.indexOf(uploadsSegment);
+        if (idx !== -1) {
+          const filename = avatarUrl.substring(idx + uploadsSegment.length);
+          const localPath = path.join(process.cwd(), 'public', 'uploads', filename);
+          if (fs.existsSync(localPath)) {
+            try { fs.unlinkSync(localPath); } catch (e) { /* ignore */ }
+          }
+        } else {
+          // Otherwise attempt to delete from Cloudinary (best-effort)
+          try { await deleteFromCloudinary(existing.avatar); } catch (e) { /* ignore */ }
+        }
+      } catch (e) {
+        // ignore deletion errors
+      }
     }
   } catch (e) {
     // ignore
