@@ -28,9 +28,11 @@ export const SocketProvider = ({ children }) => {
         }
 
         const backendUrl = import.meta.env.VITE_BASEURL || 'http://localhost:8000';
+        // Remove /api/v1 or any API path for Socket.IO connection (Socket.IO runs on root)
+        const socketUrl = backendUrl.replace(/\/api\/v\d+$/, '').replace(/\/api$/, '');
 
         if (!socketRef.current) {
-            socketRef.current = io(backendUrl, {
+            socketRef.current = io(socketUrl, {
                 withCredentials: true,
                 transports: ['websocket', 'polling']
             });
@@ -55,8 +57,12 @@ export const SocketProvider = ({ children }) => {
         }
 
         return () => {
-            // Usually we don't disconnect global socket on every small change
-            // as it's meant to be persistent while logged in.
+            // Disconnect socket when component unmounts or user changes
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+                setConnected(false);
+            }
         };
     }, [user, role]);
 
