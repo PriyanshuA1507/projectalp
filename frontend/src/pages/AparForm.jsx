@@ -555,7 +555,7 @@ export default function AparForm() {
                         grade: facultyInfo.grade || prev.personal.grade
                     }
                 }));
-                console.log('✅ Form pre-filled with faculty data');
+                // console.log('✅ Form pre-filled with faculty data');
             }
 
             // 3. Fetch Departments
@@ -704,7 +704,7 @@ export default function AparForm() {
         };
 
         const handleRoomJoined = (data) => {
-            console.log('[FRONTEND] ✅ Successfully joined room:', data);
+            // console.log('[FRONTEND] ✅ Successfully joined room:', data);
             // toast.success(`Connected to Sync Stream: ${data.roomName}`);
         };
 
