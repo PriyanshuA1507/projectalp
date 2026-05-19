@@ -129,6 +129,7 @@ export default function DynamicTableSection({
 
         // Validation Logic
         const validationErrors = [];
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         fields.forEach(field => {
             const val = tempItem[field.key];
             const isRequired = field.required || (typeof field.requiredIf === 'function' && field.requiredIf(tempItem));
@@ -149,8 +150,37 @@ export default function DynamicTableSection({
                     validationErrors.push(`${field.label} must be a 4-digit year between ${minYear} and ${maxYear}`);
                 }
             }
+            if (field.type === 'email' && val) {
+                const normalized = String(val).trim();
+                if (!emailRegex.test(normalized)) {
+                    validationErrors.push(`${field.label} must be a valid email address`);
+                }
+            }
             
            
+        });
+
+        // Validate nested objectList items for required sub-fields
+        fields.forEach(field => {
+            if (field.type === 'objectList' && Array.isArray(tempItem[field.key]) && Array.isArray(field.subFields)) {
+                tempItem[field.key].forEach((subItem, sIdx) => {
+                    field.subFields.forEach(subF => {
+                        const isSubRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(subItem));
+                        const subVal = subItem[subF.key];
+                        const isEmpty = subVal === undefined || subVal === null || (typeof subVal === 'string' && !subVal.toString().trim());
+                        if (isSubRequired && isEmpty) {
+                            validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label}`);
+                        }
+                        // Email format validation for nested email fields
+                        if (!isEmpty && subF.type === 'email') {
+                            const normalizedSub = String(subVal).trim();
+                            if (!emailRegex.test(normalizedSub)) {
+                                validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label} must be a valid email address`);
+                            }
+                        }
+                    });
+                });
+            }
         });
 
         const startKey = getAssociatedStartKey('end_date');
@@ -195,8 +225,36 @@ export default function DynamicTableSection({
         const newItem = tempSubItems[parentKey] || {};
         const currentList = tempItem[parentKey] || [];
 
-        // Check for duplicates
-        // We assume uniqueness based on 'entitySelect' fields or specific ID keys
+        // Validate required sub-fields
+        const missing = [];
+        subFields.forEach(subF => {
+            const isReq = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(newItem));
+            if (isReq) {
+                const val = newItem[subF.key];
+                const empty = val === undefined || val === null || (typeof val === 'string' && !val.trim());
+                if (empty) missing.push(subF.label);
+            }
+        });
+        if (missing.length > 0) {
+            toast.error(`Please fill required fields: ${missing.join(', ')}`);
+            return;
+        }
+
+        // Validate email format for any email sub-fields
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const invalidEmails = [];
+        subFields.forEach(subF => {
+            if (subF.type === 'email') {
+                const val = (newItem[subF.key] || '').toString().trim();
+                if (val && !emailRegex.test(val)) invalidEmails.push(subF.label);
+            }
+        });
+        if (invalidEmails.length > 0) {
+            toast.error(`Invalid email format: ${invalidEmails.join(', ')}`);
+            return;
+        }
+
+        // Check for duplicates (uniqueness based on entitySelect fields)
         const duplicate = currentList.some(existing => {
             return subFields.some(subF => {
                 if (subF.type === 'entitySelect' && newItem[subF.key]) {
@@ -207,7 +265,7 @@ export default function DynamicTableSection({
         });
 
         if (duplicate) {
-            alert("This entity has already been added."); // Simple feedback
+            toast.error('This entity has already been added.');
             return;
         }
 
@@ -395,13 +453,18 @@ export default function DynamicTableSection({
                                                     {f.subFields.map(subF => {
                                                         const isVisible = !subF.showIf || subF.showIf(tempSubItems[f.key] || {});
                                                         if (!isVisible) return null;
+                                                        const subDefaults = (tempSubItems[f.key] || {});
+                                                        const isRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(subDefaults));
                                                         return (
                                                             <div key={subF.key}>
-                                                                <label className="block text-xs font-medium text-gray-500 mb-1">{subF.label}</label>
+                                                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                                                    {subF.label} {isRequired && <span className="text-red-600 ml-1">*</span>}
+                                                                </label>
                                                                 {subF.type === 'select' ? (
                                                                     <select
-                                                                        value={(tempSubItems[f.key] || {})[subF.key] || ''}
+                                                                        value={subDefaults[subF.key] || ''}
                                                                         onChange={(e) => handleSubItemChange(f.key, subF.key, e.target.value)}
+                                                                        disabled={subF.disabled || subF.readOnly || readOnly}
                                                                         className="w-full text-sm border-gray-300 rounded p-1.5"
                                                                     >
                                                                         <option value="">Select...</option>
@@ -417,18 +480,41 @@ export default function DynamicTableSection({
                                                                         return (
                                                                             <SearchableSelect
                                                                                 entityType={subF.entityType}
-                                                                                value={(tempSubItems[f.key] || {})[subF.key] || ''}
+                                                                                value={subDefaults[subF.key] || ''}
                                                                                 onChange={(val) => handleSubItemChange(f.key, subF.key, val)}
                                                                                 className="w-full"
                                                                                 excludeValues={alreadySelected}
+                                                                                disabled={subF.disabled || subF.readOnly || readOnly}
                                                                             />
                                                                         );
                                                                     })()
                                                                 ) : (
                                                                     <input
-                                                                        type="text"
-                                                                        value={(tempSubItems[f.key] || {})[subF.key] || ''}
-                                                                        onChange={(e) => handleSubItemChange(f.key, subF.key, e.target.value)}
+                                                                        type={subF.type === 'year' ? 'text' : subF.type || 'text'}
+                                                                        value={subDefaults[subF.key] || ''}
+                                                                        onChange={(e) => {
+                                                                            let inputValue = e.target.value;
+                                                                            if (subF.type === 'year') {
+                                                                                inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
+                                                                            } else if (subF.type === 'number') {
+                                                                                inputValue = inputValue.replace(/[^0-9.\-]/g, '');
+                                                                                if (subF.min === 0) {
+                                                                                    inputValue = inputValue.replace(/-/g, '');
+                                                                                }
+                                                                            } else if (subF.pattern === '^[0-9-]+$') {
+                                                                                inputValue = inputValue.replace(/[^0-9-]/g, '');
+                                                                            }
+                                                                            handleSubItemChange(f.key, subF.key, inputValue);
+                                                                        }}
+                                                                        min={subF.min}
+                                                                        max={subF.max}
+                                                                        step={subF.step}
+                                                                        inputMode={subF.inputMode}
+                                                                        pattern={subF.pattern}
+                                                                        maxLength={subF.maxLength}
+                                                                        placeholder={subF.placeholder}
+                                                                        readOnly={subF.readOnly || readOnly}
+                                                                        disabled={subF.disabled || readOnly}
                                                                         className="w-full text-sm border-gray-300 rounded p-1.5"
                                                                     />
                                                                 )}
