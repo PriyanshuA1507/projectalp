@@ -980,6 +980,86 @@ export default function AparForm() {
         }
     };
 
+    const validateFormData = () => {
+        const errors = [];
+
+        // Validate Personal Data (Part I)
+        const personal = formData.personal || {};
+        if (!personal.name || !personal.name.trim()) errors.push('Name is required');
+        if (!personal.department_id || !personal.department_id.trim()) errors.push('Department is required');
+        if (!personal.designation || !personal.designation.trim()) errors.push('Designation is required');
+        if (!personal.date_of_birth) errors.push('Date of birth is required');
+        if (!personal.qualification || !personal.qualification.trim()) errors.push('Qualification is required');
+        if (!personal.sc_st_status || !personal.sc_st_status.trim()) errors.push('Caste category is required');
+        if (!personal.joining_date) errors.push('Joining date is required');
+        if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');
+        if (!personal.absence_period || !personal.absence_period.trim()) errors.push('Absence period is required');
+
+        // Validate email format if provided
+        if (personal.email && personal.email.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(personal.email.trim())) {
+                errors.push('Invalid email format');
+            }
+        }
+
+        // Validate Assessment Scores (Part V) - must be between 1-10
+        const assessment = formData.assessment || {};
+        const validateScore = (value, fieldName) => {
+            if (value && value.trim()) {
+                const num = parseInt(value);
+                if (isNaN(num) || num < 1 || num > 10) {
+                    errors.push(`${fieldName} must be between 1 and 10`);
+                }
+            }
+        };
+
+        if (assessment.section_a) {
+            validateScore(assessment.section_a.q1, 'Section A Q1');
+            validateScore(assessment.section_a.q2, 'Section A Q2');
+            validateScore(assessment.section_a.q3, 'Section A Q3');
+            validateScore(assessment.section_a.q4, 'Section A Q4');
+            validateScore(assessment.section_a.overall_grading, 'Section A Overall Grading');
+        }
+
+        if (assessment.section_b) {
+            validateScore(assessment.section_b.q1, 'Section B Q1');
+            validateScore(assessment.section_b.q2, 'Section B Q2');
+            validateScore(assessment.section_b.q3, 'Section B Q3');
+            validateScore(assessment.section_b.q4, 'Section B Q4');
+            validateScore(assessment.section_b.q5, 'Section B Q5');
+            validateScore(assessment.section_b.q6, 'Section B Q6');
+            validateScore(assessment.section_b.q7a, 'Section B Q7a');
+            validateScore(assessment.section_b.q7b, 'Section B Q7b');
+            validateScore(assessment.section_b.q8, 'Section B Q8');
+            validateScore(assessment.section_b.q9, 'Section B Q9');
+            validateScore(assessment.section_b.q10, 'Section B Q10');
+            validateScore(assessment.section_b.overall_grading, 'Section B Overall Grading');
+        }
+
+        if (assessment.section_c) {
+            validateScore(assessment.section_c.q1, 'Section C Q1');
+            validateScore(assessment.section_c.q2, 'Section C Q2');
+            validateScore(assessment.section_c.q3, 'Section C Q3');
+            validateScore(assessment.section_c.q4, 'Section C Q4');
+            validateScore(assessment.section_c.q5, 'Section C Q5');
+            validateScore(assessment.section_c.q6, 'Section C Q6');
+            validateScore(assessment.section_c.overall_grading, 'Section C Overall Grading');
+        }
+
+        if (assessment.general) {
+            validateScore(assessment.general.q6, 'Overall Numerical Grading');
+        }
+
+        // Validate Remarks (Part VI) - if disagree, reason is required
+        const remarks = formData.remarks || {};
+        if (remarks.agree_with_assessment === 'No' && (!remarks.disagreement_reason || !remarks.disagreement_reason.trim())) {
+            errors.push('Please provide reason for disagreement with assessment');
+        }
+
+        return errors;
+    };
+
     const handleSubmit = async () => {
         try {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
@@ -991,6 +1071,13 @@ export default function AparForm() {
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
             if (!ay || !facultyId || ay === 'undefined') {
                 toast.error("Invalid Academic Year or Faculty ID");
+                return;
+            }
+
+            // Validate form data before submission
+            const validationErrors = validateFormData();
+            if (validationErrors.length > 0) {
+                toast.error(`Validation errors: ${validationErrors.slice(0, 5).join(', ')}${validationErrors.length > 5 ? '...' : ''}`);
                 return;
             }
 

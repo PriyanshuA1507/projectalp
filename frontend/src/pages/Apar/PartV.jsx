@@ -5,6 +5,19 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
   const isReviewing = activeRole === 'Reviewing Officer';
   const isDisabled = isRO_Forwarded || isReviewing;
 
+  const validateScore = (value) => {
+    if (!value || value.trim() === '') return true;
+    const num = parseInt(value);
+    return !isNaN(num) && num >= 1 && num <= 10;
+  };
+
+  const handleScoreChange = (section, key, value) => {
+    if (value && !validateScore(value)) {
+      return; // Reject invalid scores
+    }
+    updateAssessment(section, key, value);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-8">
       <div className="border-b border-gray-100 pb-4">
@@ -19,23 +32,23 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
           <div className="border-x border-b border-gray-200 rounded-b-lg p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
               <div className="md:col-span-3 text-sm font-medium text-gray-700">1] Accomplishment of planned work/work allotted as per subjects allotted.</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q1} onChange={(e) => updateAssessment('section_a', 'q1', e.target.value)} />
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q1} onChange={(e) => handleScoreChange('section_a', 'q1', e.target.value)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
               <div className="md:col-span-3 text-sm font-medium text-gray-700">2] Quality of output</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q2} onChange={(e) => updateAssessment('section_a', 'q2', e.target.value)} />
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q2} onChange={(e) => handleScoreChange('section_a', 'q2', e.target.value)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
               <div className="md:col-span-3 text-sm font-medium text-gray-700">3] Analytical ability</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q3} onChange={(e) => updateAssessment('section_a', 'q3', e.target.value)} />
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q3} onChange={(e) => handleScoreChange('section_a', 'q3', e.target.value)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
               <div className="md:col-span-3 text-sm font-medium text-gray-700">4] Accomplishment of exceptional work/ Unforeseen tasks performed.</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q4} onChange={(e) => updateAssessment('section_a', 'q4', e.target.value)} />
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_a.q4} onChange={(e) => handleScoreChange('section_a', 'q4', e.target.value)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on “Work output”</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_a.overall_grading} onChange={(e) => updateAssessment('section_a', 'overall_grading', e.target.value)} />
+              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on "Work output"</div>
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_a.overall_grading} onChange={(e) => handleScoreChange('section_a', 'overall_grading', e.target.value)} />
             </div>
           </div>
         </div>
@@ -59,7 +72,7 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
             ].map((q) => (
               <div key={q.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
                 <div className="md:col-span-3 text-sm font-medium text-gray-700">{q.text}</div>
-                <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_b[q.id]} onChange={(e) => updateAssessment('section_b', q.id, e.target.value)} />
+                <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_b[q.id]} onChange={(e) => handleScoreChange('section_b', q.id, e.target.value)} />
               </div>
             ))}
 
@@ -76,8 +89,8 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on “Personal Attribute”</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_b.overall_grading} onChange={(e) => updateAssessment('section_b', 'overall_grading', e.target.value)} />
+              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on "Personal Attribute"</div>
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_b.overall_grading} onChange={(e) => handleScoreChange('section_b', 'overall_grading', e.target.value)} />
             </div>
           </div>
         </div>
@@ -96,13 +109,13 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
             ].map((q) => (
               <div key={q.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b border-gray-200 pb-2">
                 <div className="md:col-span-3 text-sm font-medium text-gray-700">{q.text}</div>
-                <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_c[q.id]} onChange={(e) => updateAssessment('section_c', q.id, e.target.value)} />
+                <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center transition-colors" placeholder="1-10" value={formData.assessment.section_c[q.id]} onChange={(e) => handleScoreChange('section_c', q.id, e.target.value)} />
               </div>
             ))}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on “Functional Competency”</div>
-              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_c.overall_grading} onChange={(e) => updateAssessment('section_c', 'overall_grading', e.target.value)} />
+              <div className="md:col-span-3 text-sm font-bold text-gray-800">Overall Grading on "Functional Competency"</div>
+              <input type="number" min="1" max="10" className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 text-center font-bold transition-colors" placeholder="Score" value={formData.assessment.section_c.overall_grading} onChange={(e) => handleScoreChange('section_c', 'overall_grading', e.target.value)} />
             </div>
           </div>
         </div>
@@ -133,7 +146,7 @@ export default function PartVAssessment({ formData, updateAssessment, activeRole
             </div>
             <div className="bg-gray-100 p-4 rounded border border-gray-300">
               <label className="block text-sm font-medium text-gray-700 mb-2">6. Overall numerical grading (Weighted A+B+C)</label>
-              <input type="number" min="1" max="10" className="w-32 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 font-bold text-lg transition-colors" value={formData.assessment.general.q6} onChange={(e) => updateAssessment('general', 'q6', e.target.value)} />
+              <input type="number" min="1" max="10" className="w-32 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 font-bold text-lg transition-colors" value={formData.assessment.general.q6} onChange={(e) => handleScoreChange('general', 'q6', e.target.value)} />
             </div>
           </div>
         </div>
