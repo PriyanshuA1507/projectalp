@@ -100,6 +100,14 @@ export default function DynamicTableSection({
         setActiveSubForms({});
     };
 
+    const getAssociatedStartKey = (endKey) => {
+        if (endKey === 'end_date') return 'start_date';
+        if (endKey === 'duration_end_date') return 'duration_start_date';
+        if (endKey.endsWith('_end_date')) return endKey.replace('_end_date', '_start_date');
+        if (endKey.startsWith('end_')) return `start_${endKey.slice(4)}`;
+        return null;
+    };
+
     const handleSave = () => {
         // Validation: Check for duplicates if uniqueKey is provided
         if (uniqueKey && tempItem[uniqueKey]) {
@@ -120,18 +128,42 @@ export default function DynamicTableSection({
         }
 
         // Validation Logic
-        const missingFields = [];
+        const validationErrors = [];
         fields.forEach(field => {
-            if (field.required) {
-                const val = tempItem[field.key];
+            const val = tempItem[field.key];
+            const isRequired = field.required || (typeof field.requiredIf === 'function' && field.requiredIf(tempItem));
+
+            if (isRequired) {
                 if (!val || (typeof val === 'string' && !val.trim())) {
-                    missingFields.push(field.label);
+                    validationErrors.push(field.label);
+                    return;
                 }
             }
+
+            if (field.type === 'year' && val) {
+                const normalized = String(val).trim();
+                const yearNum = Number(normalized);
+                const minYear = field.min || 0;
+                const maxYear = field.max || 9999;
+                if (!/^\d{4}$/.test(normalized) || Number.isNaN(yearNum) || yearNum < minYear || yearNum > maxYear) {
+                    validationErrors.push(`${field.label} must be a 4-digit year between ${minYear} and ${maxYear}`);
+                }
+            }
+            
+           
         });
 
-        if (missingFields.length > 0) {
-            toast.error(`Please fill all required fields: ${missingFields.join(', ')}`);
+        const startKey = getAssociatedStartKey('end_date');
+        if (startKey && tempItem.start_date && tempItem.end_date) {
+            const startDate = new Date(tempItem.start_date);
+            const endDate = new Date(tempItem.end_date);
+            if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate < startDate) {
+                validationErrors.push('End Date must be the same as or after Start Date.');
+            }
+        }
+
+        if (validationErrors.length > 0) {
+            toast.error(`Please resolve the following errors: ${validationErrors.join(', ')}`);
             return;
         }
 
@@ -281,7 +313,7 @@ export default function DynamicTableSection({
                         {fields.map(f => (
                             <div key={f.key} className={f.fullWidth ? "md:col-span-2" : ""}>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    {f.label} {f.required && <span className="text-red-600">*</span>}
+                                    {f.label} {(f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))) && <span className="text-red-600">*</span>}
                                 </label>
                                 {f.type === 'textarea' ? (
                                     <textarea
@@ -418,12 +450,49 @@ export default function DynamicTableSection({
                                         )}
                                     </div>
                                 ) : (
-                                    <input
-                                        type={f.type || 'text'}
-                                        value={tempItem[f.key] || ''}
-                                        onChange={(e) => handleChange(f.key, e.target.value)}
-                                        className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
-                                    />
+                                    <>
+                                        <input
+                                            type={f.type === 'year' ? 'text' : f.type || 'text'}
+                                            value={tempItem[f.key] || ''}
+                                            onChange={(e) => {
+                                                let inputValue = e.target.value;
+                                                if (f.type === 'year') {
+                                                    inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
+                                                } else if (f.type === 'number') {
+                                                    inputValue = inputValue.replace(/[^0-9.\-]/g, '');
+                                                    if (f.min === 0) {
+                                                        inputValue = inputValue.replace(/-/g, '');
+                                                    }
+                                                } else if (f.pattern === '^[0-9-]+$') {
+                                                    inputValue = inputValue.replace(/[^0-9-]/g, '');
+                                                }
+                                                handleChange(f.key, inputValue);
+                                            }}
+                                            min={f.min}
+                                            max={f.max}
+                                            step={f.step}
+                                            inputMode={f.inputMode}
+                                            pattern={f.pattern}
+                                            maxLength={f.maxLength}
+                                            placeholder={f.placeholder}
+                                            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
+                                        />
+                                        {(() => {
+                                            const associatedStartKey = getAssociatedStartKey(f.key);
+                                            const startValue = associatedStartKey ? tempItem[associatedStartKey] : null;
+                                            const endValue = tempItem[f.key];
+                                            if (associatedStartKey && startValue && endValue) {
+                                                const startDate = new Date(startValue);
+                                                const endDate = new Date(endValue);
+                                                if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate < startDate) {
+                                                    return (
+                                                        <p className="text-sm text-red-600 mt-1">End date must not be earlier than start date.</p>
+                                                    );
+                                                }
+                                            }
+                                            return null;
+                                        })()}
+                                    </>
                                 )}
                             </div>
                         ))}
