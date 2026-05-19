@@ -92,7 +92,8 @@ export default function OfficerDashboard() {
         try {
             setLogoutLoading(true);
             await dispatch(aparLogout());
-            navigate('/apar/login');
+            // Force full page navigation to login to clear any session/CSRF state
+            window.location.replace('/apar/login');
         } catch (e) {
             console.error(e);
         } finally {

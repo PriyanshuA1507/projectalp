@@ -37,7 +37,8 @@ export default function ProfileDropdown() {
         try {
             setIsLoading(true);
             await dispatch(aparLogout()).unwrap();
-            navigate('/apar/login');
+            // Force a full page load to ensure any server-side session/csrf state is cleared
+            window.location.replace('/apar/login');
         } catch (e) {
             console.error('logout failed', e);
             toast.error('Logout failed');
