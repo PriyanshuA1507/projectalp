@@ -252,6 +252,56 @@ export const aparLogin = asyncHandler(async (req, res) => {
   }, 'APAR login successful'));
 });
 
+export const aparAllowedRoles = asyncHandler(async (req, res) => {
+  const { email } = req.body ?? {};
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  // basic format check (do not import heavy validators here)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email address');
+  }
+
+  let userRecord = await findUserByEmail(normalizedEmail);
+  let facultyMember = null;
+
+  if (userRecord?.userId) {
+    facultyMember = await findFacultyById(userRecord.userId);
+  }
+
+  if (!facultyMember) {
+    facultyMember = await findFacultyByEmail(normalizedEmail);
+  }
+
+  // Determine allowed APAR roles
+  let baseAparRole = userRecord?.aparRole ?? null;
+  if (!baseAparRole && facultyMember) {
+    // derive from faculty/system role
+    const derived = facultyMember.role ?? facultyMember.designation ?? null;
+    if (derived) {
+      // map to APAR default: Officer for most, Reporting/Reviewing for specific titles
+      const lc = String(derived).toLowerCase();
+      if (lc.includes('hod') || lc.includes('head')) baseAparRole = ROLES.OFFICER;
+      else baseAparRole = ROLES.OFFICER;
+    }
+  }
+
+  let allowed = [];
+  if (baseAparRole) {
+    allowed = getAllowedRolesFor(baseAparRole);
+  }
+
+  if (!allowed || allowed.length === 0) {
+    allowed = [ROLES.OFFICER];
+  }
+
+  res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed APAR roles fetched'));
+});
+
 export const aparLogout = asyncHandler(async (req, res) => {
   try {
     if (req.user?.id) {

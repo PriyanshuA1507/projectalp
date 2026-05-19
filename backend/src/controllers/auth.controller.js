@@ -411,3 +411,43 @@ export const listUserIds = asyncHandler(async (req, res) => {
   const ids = await listFacultyIds();
   res.status(200).json(new ApiResponse(200, { userIds: ids }, 'User IDs fetched'));
 });
+
+export const allowedRoles = asyncHandler(async (req, res) => {
+  const { email } = req.body ?? {};
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email address');
+  }
+
+  let userRecord = await findUserByEmail(normalizedEmail);
+  let facultyMember = null;
+
+  if (userRecord?.userId) {
+    facultyMember = await findFacultyById(userRecord.userId);
+  }
+
+  if (!facultyMember) {
+    facultyMember = await findFacultyByEmail(normalizedEmail);
+  }
+
+  let baseRole = null;
+  if (userRecord && userRecord.role) baseRole = normalizeRoleValue(userRecord.role) ?? userRecord.role;
+  else if (facultyMember && (facultyMember.role || facultyMember.designation)) baseRole = normalizeRoleValue(facultyMember.role ?? facultyMember.designation) ?? (facultyMember.role ?? facultyMember.designation);
+
+  let allowed = [];
+  if (baseRole) {
+    allowed = getAllowedRolesFor(baseRole);
+  }
+
+  // Fallback to common roles if nothing found
+  if (!allowed || allowed.length === 0) {
+    allowed = [ROLES.FACULTY];
+  }
+
+  res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed roles fetched'));
+});
