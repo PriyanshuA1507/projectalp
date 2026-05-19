@@ -26,7 +26,13 @@ export default function DynamicTableSection({
     const [activeSubForms, setActiveSubForms] = useState({}); // State to toggle visibility of sub-item forms
 
     const handleStartAdd = () => {
-        setTempItem(initialItem);
+        const itemWithDefaults = { ...initialItem };
+        fields.forEach(field => {
+            if (field.defaultValue !== undefined && (itemWithDefaults[field.key] === undefined || itemWithDefaults[field.key] === '')) {
+                itemWithDefaults[field.key] = field.defaultValue;
+            }
+        });
+        setTempItem(itemWithDefaults);
         // Reset sub-forms visibility: all hidden by default
         setActiveSubForms({});
 
@@ -379,6 +385,7 @@ export default function DynamicTableSection({
                                         value={tempItem[f.key] || ''}
                                         onChange={(e) => handleChange(f.key, e.target.value)}
                                         required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+                                        disabled={f.disabled || f.readOnly || readOnly}
                                         className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                     />
                                 ) : f.type === 'select' ? (
@@ -386,6 +393,7 @@ export default function DynamicTableSection({
                                         value={tempItem[f.key] || ''}
                                         onChange={(e) => handleChange(f.key, e.target.value)}
                                         required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+                                        disabled={f.disabled || f.readOnly || readOnly}
                                         className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                     >
                                         <option value="">Select...</option>
@@ -399,6 +407,7 @@ export default function DynamicTableSection({
                                         value={tempItem[f.key] || ''}
                                         onChange={(val) => handleChange(f.key, val)}
                                         required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+                                        disabled={f.disabled || f.readOnly || readOnly}
                                         className="w-full"
                                     />
                                 ) : f.type === 'file' ? (
@@ -406,7 +415,7 @@ export default function DynamicTableSection({
                                         <FileUpload
                                             value={tempItem[f.key] || ''}
                                             onChange={(url) => handleChange(f.key, url)}
-                                            disabled={false}
+                                            disabled={f.disabled || f.readOnly || readOnly}
                                             required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         />
                                         {f.description && (
@@ -503,7 +512,7 @@ export default function DynamicTableSection({
                                                                             if (subF.type === 'year') {
                                                                                 inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
                                                                             } else if (subF.type === 'number') {
-                                                                                inputValue = inputValue.replace(/[^0-9.\-]/g, '');
+                                                                                inputValue = inputValue.replace(/[^0-9.-]/g, '');
                                                                                 if (subF.min === 0) {
                                                                                     inputValue = inputValue.replace(/-/g, '');
                                                                                 }
@@ -552,7 +561,7 @@ export default function DynamicTableSection({
                                                 if (f.type === 'year') {
                                                     inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
                                                 } else if (f.type === 'number') {
-                                                    inputValue = inputValue.replace(/[^0-9.\-]/g, '');
+                                                    inputValue = inputValue.replace(/[^0-9.-]/g, '');
                                                     if (f.min === 0) {
                                                         inputValue = inputValue.replace(/-/g, '');
                                                     }
@@ -568,8 +577,10 @@ export default function DynamicTableSection({
                                             pattern={f.pattern}
                                             maxLength={f.maxLength}
                                             placeholder={f.placeholder}
-                                                required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
-                                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
+                                            readOnly={f.readOnly || readOnly}
+                                            disabled={f.disabled || readOnly}
+                                            required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+                                            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                         />
                                         {(() => {
                                             const associatedStartKey = getAssociatedStartKey(f.key);

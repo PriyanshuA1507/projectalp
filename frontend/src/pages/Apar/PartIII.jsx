@@ -3,8 +3,9 @@ import { useSelector } from 'react-redux';
 import { selectAparUser } from '../../store/slices/aparAuthSlice';
 import DynamicTableSection from '../../components/DynamicTableSection';
 
-export default function PartIII({ formData, addItem, removeItem, updateArrayField, updateArrayItem, updateField, readOnly }) {
+export default function PartIII({ formData, addItem, updateArrayItem, updateField, readOnly }) {
     const user = useSelector(selectAparUser);
+    const currentFacultyId = user?.teacherId || user?.faculty_id || user?.userId || user?.user_id || '';
 
     // Helper handlers generator
     const createHandlers = (field) => ({
@@ -229,8 +230,8 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                 readOnly={readOnly}
                 initialItem={{
                     department_id: '',
-                    supervisor_id: '',
-                    supervisor_name: '',
+                    supervisor_id: currentFacultyId,
+                    supervisor_name: user?.name || '',
                     student_id: '',
                     student_name: '',
                     enrollment_no: '',
@@ -249,7 +250,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                 fields={[
 
 
-                    { label: 'Supervisor ID', key: 'supervisor_id', type: 'entitySelect', entityType: 'faculty', required: true },
+                    { label: 'Supervisor ID', key: 'supervisor_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: currentFacultyId, disabled: true },
                     { label: 'Supervisor Name', key: 'supervisor_name', required: true, placeholder: 'Enter supervisor name' },
                     { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student', required: true },
                     { label: 'Student Name', key: 'student_name', required: true, placeholder: 'Enter student name' },
