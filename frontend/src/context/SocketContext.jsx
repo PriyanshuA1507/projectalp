@@ -73,4 +73,4 @@ export const SocketProvider = ({ children }) => {
     );
 };
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocket = () => useContext(SocketContext); // eslint-disable-line react-refresh/only-export-components
