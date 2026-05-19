@@ -57,12 +57,8 @@ export const SocketProvider = ({ children }) => {
         }
 
         return () => {
-            // Disconnect socket when component unmounts or user changes
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-                setConnected(false);
-            }
+            // Only disconnect on unmount, not on user/role changes
+            // Socket should remain persistent while logged in
         };
     }, [user, role]);
 
