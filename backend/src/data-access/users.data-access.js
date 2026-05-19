@@ -38,7 +38,9 @@ export const createUser = async ({
   reportingOfficerId = null,
   reviewingOfficerId = null,
   departmentId = null,
-  mustChangePassword = true
+  // Default to false: do not force password change on first login for newly created users.
+  // Historically this was true; switched to false per request.
+  mustChangePassword = false
 }) => {
   const normalizedRole = normalizeRoleValue(role);
   if (!normalizedRole) {

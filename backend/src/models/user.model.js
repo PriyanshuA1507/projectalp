@@ -97,7 +97,7 @@ const UserSchema = new mongoose.Schema({
 
     must_change_password: {
         type: Boolean,
-        default: true
+        default: false
     },
 
     failed_login_attempts: {
