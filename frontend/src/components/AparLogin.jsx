@@ -19,6 +19,8 @@ export default function AparLogin({ loginData, setLoginData }) {
   const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
   const effectiveLoginData = loginData ?? localLoginData;
   const effectiveSetLoginData = setLoginData ?? setLocalLoginData;
+  const normalizedIdLive = effectiveLoginData.id?.trim().toLowerCase();
+  const isEmailValidLive = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdLive || '');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -171,7 +173,7 @@ export default function AparLogin({ loginData, setLoginData }) {
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1"> Role </label>
               <div className="mt-1">
-                <select id="role" name="role" className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value }); if (localError) setLocalError(''); }}>
+                <select id="role" name="role" disabled={!isEmailValidLive} title={!isEmailValidLive ? 'Enter a valid email to select role' : ''} className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value }); if (localError) setLocalError(''); }}>
                   <option>Officer (Graded)</option>
                   <option>Reporting Officer</option>
                   <option>Reviewing Officer</option>

@@ -77,6 +77,9 @@ export default function Login() {
     }
   };
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isEmailValid = emailRegex.test(email.trim().toLowerCase());
+
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
@@ -136,6 +139,8 @@ export default function Login() {
                 id="role"
                 name="role"
                 value={selectedRole}
+                disabled={!isEmailValid}
+                title={!isEmailValid ? 'Enter a valid email to select role' : ''}
                 onChange={(event) => {
                   setSelectedRole(event.target.value);
                   if (error) setError('');
