@@ -654,7 +654,7 @@ export default function AparForm() {
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
 
-            console.log('[FRONTEND] 📬 Real-time NEW ENTRY received:', data);
+            // console.log('[FRONTEND] 📬 Real-time NEW ENTRY received:', data);
 
             // Small delay to ensure DB write propagates
             setTimeout(() => {
@@ -685,7 +685,7 @@ export default function AparForm() {
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
 
-            console.log('[FRONTEND] 📬 Real-time DELETE ENTRY received:', data);
+            // console.log('[FRONTEND] 📬 Real-time DELETE ENTRY received:', data);
 
             setTimeout(() => {
                 const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
@@ -857,7 +857,7 @@ export default function AparForm() {
                 formData: formData
             };
 
-            console.log('[APAR SAVE] Sending Draft Payload:', payload);
+            // console.log('[APAR SAVE] Sending Draft Payload:', payload);
 
             await AparFormGradedService.saveDraft(payload);
             if (!silent) toast.success('Progress saved and synced to profile');
