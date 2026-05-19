@@ -29,28 +29,53 @@ const toTitle = (value) => String(value || '')
     .trim()
     .replace(/\b\w/g, char => char.toUpperCase());
 
+const sectionLabels = {
+    personal: 'Part I - Personal Data',
+    teaching: 'Part II - Self Appraisal & Teaching',
+    research: 'Part III - Research & Development',
+    corporate: 'Part IV - Corporate Life',
+    assessment: 'Part V - Numerical Assessment',
+    remarks: 'Part VI - Remarks',
+    timeline: 'Timeline'
+};
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const flattenRecord = (record, prefix = '') => {
+    if (!isPlainObject(record)) {
+        return { [prefix || 'Value']: toDisplayValue(record) };
+    }
+
+    return Object.entries(record).reduce((acc, [key, value]) => {
+        const label = prefix ? `${prefix} - ${toTitle(key)}` : toTitle(key);
+        if (isPlainObject(value)) {
+            return { ...acc, ...flattenRecord(value, label) };
+        }
+        acc[label] = toDisplayValue(value);
+        return acc;
+    }, {});
+};
+
 const toDisplayValue = (value) => {
     if (value === null || value === undefined || value === '') return '';
     if (Array.isArray(value)) {
-        return value.map(item => {
-            if (item && typeof item === 'object') {
-                return Object.entries(item).map(([key, val]) => `${toTitle(key)}: ${toDisplayValue(val)}`).join(', ');
+        if (!value.length) return '';
+        return value.map((item, index) => {
+            if (isPlainObject(item)) {
+                const details = Object.entries(flattenRecord(item))
+                    .map(([key, val]) => `${key}: ${val}`)
+                    .join(', ');
+                return `${index + 1}. ${details}`;
             }
-            return String(item);
-        }).join(' | ');
+            return `${index + 1}. ${String(item)}`;
+        }).join('\n');
     }
-    if (typeof value === 'object') {
-        return Object.entries(value).map(([key, val]) => `${toTitle(key)}: ${toDisplayValue(val)}`).join('; ');
+    if (isPlainObject(value)) {
+        return Object.entries(flattenRecord(value))
+            .map(([key, val]) => `${key}: ${val}`)
+            .join('; ');
     }
     return String(value);
-};
-
-const flattenRecord = (record) => {
-    if (!record || typeof record !== 'object') return { Value: toDisplayValue(record) };
-    return Object.entries(record).reduce((acc, [key, value]) => {
-        acc[toTitle(key)] = toDisplayValue(value);
-        return acc;
-    }, {});
 };
 
 const sanitizeSheetName = (name) => {
@@ -71,38 +96,59 @@ const getAcademicYearFromDates = (start, end) => {
     return `${startYear}-${endYear}`;
 };
 
-const collectExportSheets = (data, sectionName = 'APAR Form') => {
+const getColumns = (rows) => {
+    const columns = [];
+    rows.forEach(row => {
+        Object.keys(row || {}).forEach(key => {
+            if (!columns.includes(key)) columns.push(key);
+        });
+    });
+    if (columns.includes('S. No.')) {
+        return ['S. No.', ...columns.filter(column => column !== 'S. No.')];
+    }
+    if (columns.includes('Field') && columns.includes('Value')) {
+        return ['Field', 'Value', ...columns.filter(column => column !== 'Field' && column !== 'Value')];
+    }
+    return columns.length ? columns : ['Message'];
+};
+
+const createExportTables = (data, sectionName = 'APAR Form') => {
     if (Array.isArray(data)) {
+        const rows = data.length
+            ? data.map((item, index) => ({ 'S. No.': index + 1, ...flattenRecord(item) }))
+            : [{ Message: 'No entries' }];
         return [{
-            name: sectionName,
-            rows: data.length ? data.map(item => flattenRecord(item)) : [{ Message: 'No entries' }]
+            title: sectionName,
+            columns: getColumns(rows),
+            rows
         }];
     }
 
-    if (!data || typeof data !== 'object') {
-        return [{ name: sectionName, rows: [{ Field: sectionName, Value: toDisplayValue(data) }] }];
+    if (!isPlainObject(data)) {
+        const rows = [{ Field: sectionName, Value: toDisplayValue(data) }];
+        return [{ title: sectionName, columns: ['Field', 'Value'], rows }];
     }
 
-    const sheets = [];
     const fieldRows = [];
+    const childTables = [];
 
     Object.entries(data).forEach(([key, value]) => {
         const label = toTitle(key);
-        const nestedName = sectionName === 'APAR Form' ? label : `${sectionName} ${label}`;
+        const nestedName = sectionName === 'APAR Form' ? (sectionLabels[key] || label) : `${sectionName} - ${label}`;
 
         if (Array.isArray(value)) {
-            sheets.push(...collectExportSheets(value, nestedName));
+            childTables.push(...createExportTables(value, nestedName));
             return;
         }
 
-        if (value && typeof value === 'object') {
-            const hasNestedCollection = Object.values(value).some(item => Array.isArray(item) || (item && typeof item === 'object'));
-            if (hasNestedCollection) {
-                sheets.push(...collectExportSheets(value, nestedName));
+        if (isPlainObject(value)) {
+            const hasChildTables = Object.values(value).some(item => Array.isArray(item));
+            if (hasChildTables) {
+                childTables.push(...createExportTables(value, nestedName));
                 return;
             }
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-                fieldRows.push({ Field: `${label} - ${toTitle(nestedKey)}`, Value: toDisplayValue(nestedValue) });
+            Object.entries(flattenRecord(value, label)).forEach(([field, val]) => {
+                fieldRows.push({ Field: field, Value: val });
             });
             return;
         }
@@ -110,33 +156,70 @@ const collectExportSheets = (data, sectionName = 'APAR Form') => {
         fieldRows.push({ Field: label, Value: toDisplayValue(value) });
     });
 
+    const tables = [];
     if (fieldRows.length) {
-        sheets.unshift({ name: sectionName, rows: fieldRows });
+        tables.push({
+            title: sectionLabels[sectionName] || sectionName,
+            columns: ['Field', 'Value'],
+            rows: fieldRows
+        });
     }
 
-    return sheets;
+    return [...tables, ...childTables];
 };
 
-const createWordCell = (text, bold = false) => new TableCell({
-    width: { size: 50, type: WidthType.PERCENTAGE },
-    children: [new Paragraph({ children: [new TextRun({ text: String(text || ''), bold })] })]
+const createWordCell = (text, bold = false, width = 50) => new TableCell({
+    width: { size: width, type: WidthType.PERCENTAGE },
+    children: String(text ?? '').split('\n').map(line => new Paragraph({
+        children: [new TextRun({ text: line || ' ', bold })]
+    }))
 });
 
-const createWordKeyValueTable = (rows) => new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+const createWordTable = (columns, rows) => {
+    const safeRows = rows.length ? rows : [{ Message: 'No entries' }];
+    const safeColumns = columns.length ? columns : getColumns(safeRows);
+    const width = Math.max(8, Math.floor(100 / safeColumns.length));
+    return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+            new TableRow({
+                children: safeColumns.map(column => createWordCell(column, true, width))
+            }),
+            ...safeRows.map(row => new TableRow({
+                children: safeColumns.map(column => createWordCell(row[column], false, width))
+            }))
+        ]
+    });
+};
+
+const createExcelWorksheet = (table) => {
+    const rows = table.rows.length ? table.rows : [{ Message: 'No entries' }];
+    const columns = table.columns.length ? table.columns : getColumns(rows);
+    const data = [
+        [table.title],
+        [],
+        columns,
+        ...rows.map(row => columns.map(column => row[column] ?? ''))
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(columns.length - 1, 0) } }];
+    worksheet['!cols'] = columns.map((column, index) => {
+        const maxLength = rows.reduce((max, row) => Math.max(max, String(row[column] ?? '').length), String(column).length);
+        return { wch: Math.min(Math.max(index === 0 ? 12 : maxLength + 2, 14), 50) };
+    });
+    return worksheet;
+};
+
+const createSummaryTable = (formData, aparUser, ay) => ({
+    title: 'APAR Summary',
+    columns: ['Field', 'Value'],
     rows: [
-        new TableRow({
-            children: [
-                createWordCell('Field', true),
-                createWordCell('Value', true)
-            ]
-        }),
-        ...rows.map(([field, value]) => new TableRow({
-            children: [
-                createWordCell(field),
-                createWordCell(value)
-            ]
-        }))
+        { Field: 'Faculty Name', Value: formData?.personal?.name || aparUser?.name || '' },
+        { Field: 'Faculty ID', Value: aparUser?.teacherId || aparUser?.faculty_id || aparUser?.userId || aparUser?.user_id || aparUser?.id || '' },
+        { Field: 'Designation', Value: formData?.personal?.designation || aparUser?.designation || '' },
+        { Field: 'Department', Value: formData?.personal?.department_id || aparUser?.departmentId || aparUser?.department || '' },
+        { Field: 'Academic Year', Value: ay || '' },
+        { Field: 'Report Period', Value: [formData?.personal?.report_start_date, formData?.personal?.report_end_date].filter(Boolean).join(' to ') }
     ]
 });
 
@@ -656,14 +739,19 @@ export default function AparForm() {
         try {
             const workbook = XLSX.utils.book_new();
             const usedNames = new Map();
+            const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
+            const tables = [
+                createSummaryTable(formData, aparUser, ay),
+                ...createExportTables(formData)
+            ];
 
-            collectExportSheets(formData).forEach((sheet) => {
-                const baseName = sanitizeSheetName(sheet.name);
+            tables.forEach((table) => {
+                const baseName = sanitizeSheetName(table.title);
                 const count = usedNames.get(baseName) || 0;
                 usedNames.set(baseName, count + 1);
                 const suffix = count ? `_${count + 1}` : '';
                 const sheetName = `${baseName.slice(0, 31 - suffix.length)}${suffix}`;
-                const worksheet = XLSX.utils.json_to_sheet(sheet.rows);
+                const worksheet = createExcelWorksheet(table);
                 XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
             });
 
@@ -677,6 +765,11 @@ export default function AparForm() {
 
     const handleExportWord = async () => {
         try {
+            const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
+            const tables = [
+                createSummaryTable(formData, aparUser, ay),
+                ...createExportTables(formData)
+            ];
             const children = [
                 new Paragraph({
                     text: 'Annual Performance Assessment Report Form',
@@ -685,23 +778,15 @@ export default function AparForm() {
                 new Paragraph({
                     children: [
                         new TextRun({ text: `Faculty: ${formData?.personal?.name || aparUser?.name || ''}` }),
-                        new TextRun({ text: ` | Academic Year: ${reduxAy || loginData.academic_year || location.state?.ay || ''}` })
+                        new TextRun({ text: ` | Academic Year: ${ay || ''}` })
                     ]
                 })
             ];
 
-            collectExportSheets(formData).forEach((sheet) => {
-                const rows = sheet.rows.flatMap((row, index) => {
-                    const entries = Object.entries(row || {});
-                    if (sheet.rows.length > 1 && !('Field' in row && 'Value' in row)) {
-                        return entries.map(([key, value]) => [`Entry ${index + 1} - ${key}`, value]);
-                    }
-                    return entries;
-                });
-
+            tables.forEach((table) => {
                 children.push(
-                    new Paragraph({ text: sheet.name, heading: HeadingLevel.HEADING_1 }),
-                    createWordKeyValueTable(rows),
+                    new Paragraph({ text: table.title, heading: HeadingLevel.HEADING_1 }),
+                    createWordTable(table.columns, table.rows),
                     new Paragraph({ text: '' })
                 );
             });
