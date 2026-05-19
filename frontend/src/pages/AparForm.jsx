@@ -168,6 +168,14 @@ const createExportTables = (data, sectionName = 'APAR Form') => {
     return [...tables, ...childTables];
 };
 
+const createAparExportTables = (formData) => {
+    if (!isPlainObject(formData)) return createExportTables(formData);
+    return Object.entries(formData).flatMap(([key, value]) => {
+        const sectionName = sectionLabels[key] || toTitle(key);
+        return createExportTables(value, sectionName);
+    });
+};
+
 const createWordCell = (text, bold = false, width = 50) => new TableCell({
     width: { size: width, type: WidthType.PERCENTAGE },
     children: String(text ?? '').split('\n').map(line => new Paragraph({
@@ -742,7 +750,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
             const tables = [
                 createSummaryTable(formData, aparUser, ay),
-                ...createExportTables(formData)
+                ...createAparExportTables(formData)
             ];
 
             tables.forEach((table) => {
@@ -768,7 +776,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
             const tables = [
                 createSummaryTable(formData, aparUser, ay),
-                ...createExportTables(formData)
+                ...createAparExportTables(formData)
             ];
             const children = [
                 new Paragraph({
