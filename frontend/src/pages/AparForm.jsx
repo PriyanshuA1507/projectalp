@@ -655,7 +655,64 @@ export default function AparForm() {
     };
 
     const nextStep = async () => {
+        // Validate current step before moving forward
+        const validateCurrentStep = () => {
+            try {
+                const container = typeof document !== 'undefined' ? document.getElementById(`apar-step-${currentStep}`) : null;
+                if (!container) return true;
+
+                const nodes = Array.from(container.querySelectorAll('[required], [aria-required="true"]')).filter(el => !el.disabled);
+                const missing = [];
+
+                for (const el of nodes) {
+                    let valid = true;
+                    const tag = (el.tagName || '').toLowerCase();
+                    const type = el.type || '';
+
+                    if (type === 'checkbox') {
+                        valid = el.checked;
+                    } else if (tag === 'select') {
+                        valid = el.value !== '' && el.value !== null && el.value !== undefined;
+                    } else {
+                        valid = el.value !== null && el.value !== undefined && String(el.value).trim() !== '';
+                    }
+
+                    if (!valid) {
+                        let labelText = '';
+                        const parent = el.closest('div') || el.parentElement;
+                        if (parent) {
+                            const label = parent.querySelector('label');
+                            if (label) labelText = label.textContent.replace('*', '').trim();
+                        }
+                        if (!labelText) labelText = el.name || el.placeholder || 'Required field';
+                        missing.push(labelText);
+                    }
+                }
+
+                if (missing.length > 0) {
+                    const firstInvalid = nodes.find(el => {
+                        const tag = (el.tagName || '').toLowerCase();
+                        const type = el.type || '';
+                        if (type === 'checkbox') return !el.checked;
+                        if (tag === 'select') return !(el.value !== '' && el.value !== null && el.value !== undefined);
+                        return !(el.value !== null && el.value !== undefined && String(el.value).trim() !== '');
+                    });
+                    if (firstInvalid && typeof firstInvalid.reportValidity === 'function') firstInvalid.reportValidity();
+                    else if (firstInvalid && firstInvalid.focus) firstInvalid.focus();
+
+                    toast.error(`Please fill required fields: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
+                    return false;
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Validation error:', e);
+                return true;
+            }
+        };
+
         if (currentStep < totalSteps) {
+            if (!validateCurrentStep()) return;
             // Auto-save on next
             await handleSaveDraft(true);
             setCurrentStep(currentStep + 1);
@@ -681,6 +738,12 @@ export default function AparForm() {
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
             if (!ay || !facultyId || ay === 'undefined') {
                 toast.error("Invalid Academic Year or Faculty ID");
+                return;
+            }
+
+            // Enforce final certification for editable submissions
+            if (!isReadOnlyMode() && !certified) {
+                toast.error('Please certify the form before submitting.');
                 return;
             }
 
@@ -1083,7 +1146,7 @@ export default function AparForm() {
                         <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
 
                             {/* Step 1: Personal Data - Mapped to 'faculty' table */}
-                            <div className={currentStep === 1 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-1" className={currentStep === 1 ? 'block' : 'hidden print:block'}>
                                 <div className="shadow-lg">
                                     {/* Import Part I component to render the personal data fields */}
                                     <div>
@@ -1094,23 +1157,23 @@ export default function AparForm() {
                             </div>
 
                             {/* Step 2: Self Appraisal */}
-                            <div className={currentStep === 2 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-2" className={currentStep === 2 ? 'block' : 'hidden print:block'}>
                                 <PartII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateAssessment={updateAssessment} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 3: Research - HEAVY Schema Mapping */}
-                            <div className={currentStep === 3 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-3" className={currentStep === 3 ? 'block' : 'hidden print:block'}>
                                 <PartIII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 4: Corporate Life */}
-                            <div className={currentStep === 4 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-4" className={currentStep === 4 ? 'block' : 'hidden print:block'}>
                                 <PartIV formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 5: Numerical Assessment (Reporting Officer Only - Read/Write, Reviewing Officer - Read Only) */}
                             {(activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') && (
-                                <div className={currentStep === 5 ? 'block' : 'hidden print:block'}>
+                                <div id="apar-step-5" className={currentStep === 5 ? 'block' : 'hidden print:block'}>
                                     <PartV formData={formData} updateAssessment={updateAssessment} activeRole={activeRole} formStatus={formStatus} />
                                 </div>
                             )}
@@ -1118,13 +1181,13 @@ export default function AparForm() {
 
                             {/* Step 6: Remarks of the Reviewing Officer (Reviewing Officer Only) */}
                             {activeRole === 'Reviewing Officer' && (
-                                <div className={currentStep === 6 ? 'block' : 'hidden print:block'}>
+                                <div id="apar-step-6" className={currentStep === 6 ? 'block' : 'hidden print:block'}>
                                     <PartVIRemarks formData={formData} updateRemarks={updateRemarks} formStatus={formStatus} />
                                 </div>
                             )}
 
                             {/* Step 5/6/7: Review & Submit */}
-                            <div className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
+                            <div id={`apar-step-${totalSteps}`} className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
                                 <div className="border-2 border-gray-900 rounded-xl p-6 shadow-lg">
                                     <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">One Final Check</h3>
                                     <p className="text-gray-600 mb-6 font-medium">
@@ -1135,7 +1198,17 @@ export default function AparForm() {
 
                                     <div className="mt-8 pt-4 border-t border-gray-100">
                                         <div className="flex bg-gray-50 p-4 rounded-md">
-                                            <input type="checkbox" className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" id="certification" checked={certified} onChange={(e) => setCertified(e.target.checked)} />
+                                            <input
+                                                type="checkbox"
+                                                id="certification"
+                                                name="certification"
+                                                disabled={isReadOnlyMode()}
+                                                required={!isReadOnlyMode()}
+                                                aria-required={!isReadOnlyMode()}
+                                                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                checked={certified}
+                                                onChange={(e) => setCertified(e.target.checked)}
+                                            />
                                             <div className="ml-3">
                                                 <label htmlFor="certification" className="text-sm font-medium text-gray-900 cursor-pointer">I certify that the information’s given above are correct and factual to the best of my knowledge.</label>
                                             </div>

@@ -3,7 +3,7 @@ import { Api } from '../api/Api';
 import { FiUpload, FiEye, FiTrash2, FiLoader } from 'react-icons/fi';
 import { toast } from 'sonner';
 
-const FileUpload = ({ value, onChange, disabled }) => {
+const FileUpload = ({ value, onChange, disabled, required = false }) => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
     const api = new Api(); // Use default base URL
@@ -17,19 +17,12 @@ const FileUpload = ({ value, onChange, disabled }) => {
         formData.append('file', file);
 
         try {
-            // Using api.client directly to handle multipart/form-data correctly
-            // and avoiding the default application/json header issue if any
-            const response = await api.client.post('/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            // Use Api.post and let axios set the multipart boundary header
+            const result = await api.post('/upload', formData, { 'Content-Type': undefined });
 
-            // The backend returns { statusCode: 200, data: { url: ... }, message: ... }
-            const data = response.data?.data;
-
-            if (data?.url) {
-                onChange(data.url);
+            // Api.post unwraps the response to `data` so `result` should be the controller's `data`
+            if (result && result.url) {
+                onChange(result.url);
                 toast.success('File uploaded successfully');
             } else {
                 throw new Error('Invalid response from server');
@@ -51,6 +44,18 @@ const FileUpload = ({ value, onChange, disabled }) => {
 
     return (
         <div className="flex items-center space-x-2">
+            {/* Hidden text input mirrors selected/uploaded value to participate in native form validation */}
+            {required && (
+                <input
+                    aria-hidden
+                    tabIndex={-1}
+                    value={value || ''}
+                    required
+                    readOnly
+                    onChange={() => {}}
+                    style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}
+                />
+            )}
             <input
                 type="file"
                 ref={fileInputRef}

@@ -271,13 +271,16 @@ export default function PartIV({ formData, updateField, readOnly }) {
             <div className={`flex items-center gap-4 border p-4 rounded-lg transition-colors ${corporate.certify === 'true' ? 'bg-green-50 border-green-200' : 'bg-indigo-50 border-indigo-100'}`}>
                 <div className="flex items-center h-5">
                     {/* Send explicit string 'true' or '' instead of boolean to avoid DB cast issues */}
-                    <input 
-                        id="certify" 
-                        type="checkbox" 
-                        disabled={readOnly} 
-                        checked={corporate.certify === 'true' || corporate.certify === true} 
-                        onChange={(e) => updateField('corporate', 'certify', e.target.checked ? 'true' : '')} 
-                        className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded cursor-pointer" 
+                    <input
+                        id="certify"
+                        name="certify"
+                        type="checkbox"
+                        disabled={readOnly}
+                        required={!readOnly}
+                        aria-required={!readOnly}
+                        checked={corporate.certify === 'true' || corporate.certify === true}
+                        onChange={(e) => updateField('corporate', 'certify', e.target.checked ? 'true' : '')}
+                        className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded cursor-pointer"
                     />
                 </div>
                 <div className="text-sm flex items-center">

@@ -62,20 +62,20 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'PDF', key: 'link', type: 'file' },
                     {
                         label: 'Faculty Involved', key: 'faculty_involved', type: 'objectList', subFields: [
-                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', defaultValue: user?.faculty_id },
-                            { label: 'Role', key: 'role', type: 'select', options: ['Principal Investigator', 'Co-Principal Investigator', 'Research Collaborator'] }
+                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: user?.faculty_id },
+                            { label: 'Role', key: 'role', type: 'select', options: ['Principal Investigator', 'Co-Principal Investigator', 'Research Collaborator'], required: true }
                         ]
                     },
                     {
                         label: 'Students Involved', key: 'students_involved', type: 'objectList', subFields: [
-                            { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' },
-                            { label: 'Role', key: 'role', type: 'select', options: ['Research Assistant', 'Intern', 'Contributor'] }
+                            { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student',  required: true },
+                            { label: 'Role', key: 'role', type: 'select', options: ['Research Assistant', 'Intern', 'Contributor'], required: true }
                         ]
                     },
                     {
                         label: 'External Collaborators', key: 'external_collaborators', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role', type: 'select', options: ['Principal Investigator', 'Co-PI', 'Research Collaborator', 'Other'] },
-                            { label: 'Affiliation', key: 'affiliation' }, { label: 'Email', key: 'email' }
+                            { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', type: 'select', options: ['Principal Investigator', 'Co-PI', 'Research Collaborator', 'Other'],required: true },
+                            { label: 'Affiliation', key: 'affiliation' }, { label: 'Email', key: 'email',required: true, type: 'email', placeholder: 'Enter email' }
                         ]
                     }
                 ]}
@@ -111,7 +111,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Students', key: 'students', type: 'objectList', subFields: [{ label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' }] },
                     {
                         label: 'External Contributors', key: 'external_contributors', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name',required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -159,7 +159,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Students', key: 'students', type: 'objectList', subFields: [{ label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' }] },
                     {
                         label: 'External Contributors', key: 'external_contributors', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name',required: true }, { label: 'Role', key: 'role',required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -214,7 +214,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Students', key: 'students', type: 'objectList', subFields: [{ label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' }] },
                     {
                         label: 'External Contributors', key: 'external_contributors', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name',required: true }, { label: 'Role', key: 'role',required: true }, { label: 'Affiliation', key: 'affiliation'}
                         ]
                     }
                 ]}
@@ -258,7 +258,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Thesis Type', key: 'thesis_type', type: 'select', options: ['Full-time', 'Part-time', 'Sponsored', 'Industry-linked', 'Other'], required: true, placeholder: 'Select type' },
                     { label: 'Supervisor Role', key: 'supervisor_role', placeholder: 'Enter role' },
                     { label: 'Status', key: 'status', type: 'select', options: ['Ongoing', 'Submitted', 'Awarded'], required: true, placeholder: 'Select status' },
-                    { label: 'Result Outcome', key: 'result_outcome', type: 'select', options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
+                    { label: 'Result Outcome', key: 'result_outcome', type: 'select',options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
                     { label: 'Reg. Year', key: 'registration_year', type: 'year', min: 1900, max: 2099, required: true, placeholder: 'YYYY' },
                     { label: 'Academic Year', key: 'academic_year', required: true, placeholder: '20XX-YY', inputMode: 'numeric', pattern: '^[0-9-]+$' },
                     { label: 'Defence Date', key: 'date_of_defence', type: 'date' },
@@ -267,13 +267,13 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'PDF', key: 'link', type: 'file' },
                     {
                         label: 'Co-Supervisors', key: 'co_supervisors', type: 'objectList', subFields: [
-                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty' },
-                            { label: 'Role', key: 'role' }
+                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty',required: true },
+                            { label: 'Role', key: 'role', required: true }
                         ]
                     },
                     {
                         label: 'External Examiners', key: 'external_examiners', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name',required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -393,19 +393,19 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'PDF', key: 'link', type: 'file' },
                     {
                         label: 'Faculty Involved', key: 'faculty_involved', type: 'objectList', subFields: [
-                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty' },
-                            { label: 'Role', key: 'role' }
+                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true },
+                            { label: 'Role', key: 'role', required: true }
                         ]
                     },
                     {
                         label: 'Students Involved', key: 'students_involved', type: 'objectList', subFields: [
-                            { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' },
-                            { label: 'Role', key: 'role' }
+                            { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student', required: true },
+                            { label: 'Role', key: 'role', required: true }
                         ]
                     },
                     {
                         label: 'External Collaborators', key: 'external_collaborators', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -433,7 +433,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Student IDs', key: 'student_ids', type: 'objectList', subFields: [{ label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' }] },
                     {
                         label: 'External Contributors', key: 'external_contributors', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name',required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -484,13 +484,13 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'PDF', key: 'link', type: 'file' },
                     {
                         label: 'Faculty Participants', key: 'faculty_participants', type: 'objectList', subFields: [
-                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty' },
-                            { label: 'Role', key: 'role' }
+                            { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true },
+                            { label: 'Role', key: 'role', required: true }
                         ]
                     },
                     {
                         label: 'External Participants', key: 'external_participants', type: 'objectList', subFields: [
-                            { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                            { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }
                         ]
                     }
                 ]}
@@ -563,7 +563,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                             { label: 'Students', key: 'students', type: 'objectList', subFields: [{ label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student' }] },
                             {
                                 label: 'External Inventors', key: 'external_inventors', type: 'objectList', subFields: [
-                                    { label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }, { label: 'Affiliation', key: 'affiliation' }
+                                    { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }
                                 ]
                             }
                         ]}
