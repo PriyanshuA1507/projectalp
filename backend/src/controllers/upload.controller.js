@@ -10,6 +10,12 @@ const uploadFile = asyncHandler(async (req, res) => {
         throw new ApiError(400, "No file uploaded");
     }
 
+    // Check if Cloudinary is configured
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+        console.error('Cloudinary not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+        throw new ApiError(500, "Cloudinary not configured. Please contact administrator.");
+    }
+
     const response = await uploadOnCloudinary(localFilePath);
 
     if (!response) {

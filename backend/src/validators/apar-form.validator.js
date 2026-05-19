@@ -405,18 +405,32 @@ export const aparFormSchema = z.object({
   query: z.object({}).passthrough()
 });
 
-// Schema for saving draft (less strict)
+// Schema for saving draft (very lenient - only required fields)
 export const aparDraftSchema = z.object({
   body: z.object({
     ay: z.string().min(1, 'Academic Year is required'),
     faculty_id: z.string().min(1, 'Faculty ID is required'),
     formData: z.object({
-      personal: personalSchema.partial(),
-      teaching: teachingSchema.optional(),
-      research: researchSchema.optional(),
-      corporate: corporateSchema.optional(),
-      assessment: assessmentSchema.optional(),
-      remarks: remarksSchema.optional()
+      personal: z.object({
+        name: z.string().optional(),
+        designation: z.string().optional(),
+        date_of_birth: z.string().optional(),
+        email: z.string().optional(),
+        phone: z.string().optional(),
+        department_id: z.string().optional(),
+        qualification: z.string().optional(),
+        joining_date: z.string().optional(),
+        report_start_date: z.string().optional(),
+        report_end_date: z.string().optional(),
+        sc_st_status: z.string().optional(),
+        absence_period: z.string().optional(),
+        grade: z.string().optional()
+      }).optional(),
+      teaching: z.any().optional(),
+      research: z.any().optional(),
+      corporate: z.any().optional(),
+      assessment: z.any().optional(),
+      remarks: z.any().optional()
     }).optional()
   }),
   params: z.object({}).passthrough(),

@@ -55,6 +55,7 @@ app.use(cors({
 app.use(cookieParser())
 
 app.get('/api/v1/csrf-token', getCsrfToken)
+app.use('/api/v1/upload', uploadRoutes)
 app.use(csrfProtection)
 
 // Global Middleware: Normalize Academic Year (AY) formats
@@ -155,7 +156,6 @@ app.use('/api/v1/apar/auth/login', authRateLimiter)
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/feedback', feedbackRoutes)
 app.use('/api/v1/apar/auth', aparAuthRoutes)
-app.use('/api/v1/upload', uploadRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
 app.use('/api/v1/dashboard', dashboardRoutes)
 
