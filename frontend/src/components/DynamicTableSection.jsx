@@ -378,12 +378,14 @@ export default function DynamicTableSection({
                                         rows={3}
                                         value={tempItem[f.key] || ''}
                                         onChange={(e) => handleChange(f.key, e.target.value)}
+                                        required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                     />
                                 ) : f.type === 'select' ? (
                                     <select
                                         value={tempItem[f.key] || ''}
                                         onChange={(e) => handleChange(f.key, e.target.value)}
+                                        required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                     >
                                         <option value="">Select...</option>
@@ -396,6 +398,7 @@ export default function DynamicTableSection({
                                         entityType={f.entityType}
                                         value={tempItem[f.key] || ''}
                                         onChange={(val) => handleChange(f.key, val)}
+                                        required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         className="w-full"
                                     />
                                 ) : f.type === 'file' ? (
@@ -404,6 +407,7 @@ export default function DynamicTableSection({
                                             value={tempItem[f.key] || ''}
                                             onChange={(url) => handleChange(f.key, url)}
                                             disabled={false}
+                                            required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         />
                                         {f.description && (
                                             <p className="text-xs text-gray-500 mt-1 italic">{f.description}</p>
@@ -465,6 +469,7 @@ export default function DynamicTableSection({
                                                                         value={subDefaults[subF.key] || ''}
                                                                         onChange={(e) => handleSubItemChange(f.key, subF.key, e.target.value)}
                                                                         disabled={subF.disabled || subF.readOnly || readOnly}
+                                                                        required={isRequired}
                                                                         className="w-full text-sm border-gray-300 rounded p-1.5"
                                                                     >
                                                                         <option value="">Select...</option>
@@ -485,6 +490,7 @@ export default function DynamicTableSection({
                                                                                 className="w-full"
                                                                                 excludeValues={alreadySelected}
                                                                                 disabled={subF.disabled || subF.readOnly || readOnly}
+                                                                                required={isRequired}
                                                                             />
                                                                         );
                                                                     })()
@@ -515,6 +521,7 @@ export default function DynamicTableSection({
                                                                         placeholder={subF.placeholder}
                                                                         readOnly={subF.readOnly || readOnly}
                                                                         disabled={subF.disabled || readOnly}
+                                                                        required={isRequired}
                                                                         className="w-full text-sm border-gray-300 rounded p-1.5"
                                                                     />
                                                                 )}
@@ -561,7 +568,8 @@ export default function DynamicTableSection({
                                             pattern={f.pattern}
                                             maxLength={f.maxLength}
                                             placeholder={f.placeholder}
-                                            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
+                                                required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+                                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
                                         />
                                         {(() => {
                                             const associatedStartKey = getAssociatedStartKey(f.key);

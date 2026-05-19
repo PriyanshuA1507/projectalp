@@ -179,6 +179,18 @@ const SearchableSelect = ({
 
   return (
     <div className={className}>
+      {/* Hidden input to participate in native form validation when using custom select */}
+      {required && (
+        <input
+          aria-hidden
+          tabIndex={-1}
+          value={value || ''}
+          required
+          readOnly
+          onChange={() => {}}
+          style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}
+        />
+      )}
       {label && (
         <label className="block text-sm font-semibold mb-2 text-gray-700">
           {label}

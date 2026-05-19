@@ -258,7 +258,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayFiel
                     { label: 'Thesis Type', key: 'thesis_type', type: 'select', options: ['Full-time', 'Part-time', 'Sponsored', 'Industry-linked', 'Other'], required: true, placeholder: 'Select type' },
                     { label: 'Supervisor Role', key: 'supervisor_role', placeholder: 'Enter role' },
                     { label: 'Status', key: 'status', type: 'select', options: ['Ongoing', 'Submitted', 'Awarded'], required: true, placeholder: 'Select status' },
-                    { label: 'Result Outcome', key: 'result_outcome', type: 'select', required: true,options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
+                    { label: 'Result Outcome', key: 'result_outcome', type: 'select',options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
                     { label: 'Reg. Year', key: 'registration_year', type: 'year', min: 1900, max: 2099, required: true, placeholder: 'YYYY' },
                     { label: 'Academic Year', key: 'academic_year', required: true, placeholder: '20XX-YY', inputMode: 'numeric', pattern: '^[0-9-]+$' },
                     { label: 'Defence Date', key: 'date_of_defence', type: 'date' },
