@@ -11,10 +11,16 @@ import { requirePasswordChangeComplete } from './middlewares/must-change-passwor
 
 const app = express()
 //const upload = multer()
+app.set('trust proxy', 1);
+// Determine environment early so we can configure security headers appropriately
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER)
 
 app.set('trust proxy', 1);
 
-app.use(helmet())
+// Configure Helmet: allow cross-origin resource loading during development (e.g., Vite at :3000)
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: isProduction ? 'same-origin' : 'cross-origin' }
+}))
 
 app.use(globalRateLimiter)
 
@@ -33,7 +39,6 @@ app.use(express.static('public'))
 
 const rawOrigins = process.env.ORIGIN ? process.env.ORIGIN.split(',').map((value) => value.trim()).filter(Boolean) : []
 const allowedOrigins = rawOrigins.length > 0 ? rawOrigins : undefined
-const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER)
 
 app.use(cors({
     origin: (origin, callback) => {

@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { AparFormGradedService } from '../../services/apar_form_graded.services.js';
-import { aparLogout } from '../../store/slices/aparAuthSlice.js';
-import { FiAlertCircle, FiClock, FiFileText, FiArchive, FiPlus } from 'react-icons/fi';
+import { aparLogout, aparInitializeSession } from '../../store/slices/aparAuthSlice.js';
+import { FiAlertCircle, FiClock, FiFileText, FiArchive, FiPlus, FiCamera, FiLoader } from 'react-icons/fi';
 import NotificationBell from '../../components/NotificationBell.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
+import { Api } from '../../api/Api.js';
+import { toast } from 'sonner';
 
 import AparTimeline from '../../components/AparTimeline.jsx';
 
@@ -20,6 +22,8 @@ export default function OfficerDashboard() {
 
     const { socket } = useSocket();
     const lastRefreshRef = useRef(0);
+    const fileInputRef = useRef(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
 
     // Define current academic year logic
     const CURRENT_AY = '2026-27';
@@ -116,6 +120,41 @@ export default function OfficerDashboard() {
     .replace(/\//g, '-')
     .trim();
 
+    const computedExternalImage = (name) => `https://dtu.ac.in/modules/facilities/people/faculty/userimages/${String(name || '').replace(/^(Dr\.|Dr|Professor|Prof\.|Prof|Mr\.|Mr|Ms\.|Ms|Mrs\.|Mrs)\s+/i, '').toLowerCase().replace(/\s+/g, '')}.jpg`;
+
+    const handleAvatarSelected = async (e) => {
+        const file = e?.target?.files?.[0];
+        if (!file) return;
+        if (!file.type || !file.type.startsWith('image/')) {
+            toast.error('Please select an image file');
+            e.target.value = '';
+            return;
+        }
+
+        setAvatarUploading(true);
+        try {
+            const api = new Api();
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await api.client.post('/apar/auth/profile/avatar', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (response?.data?.data) {
+                await dispatch(aparInitializeSession());
+                toast.success('Profile picture updated');
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } catch (err) {
+            console.error('Avatar upload failed', err);
+            toast.error(err?.response?.data?.message || 'Avatar upload failed');
+        } finally {
+            setAvatarUploading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
 const currentYearForm = history.find(
   f => normalizeAY(f.ay) === normalizeAY(CURRENT_AY)
 );
@@ -170,18 +209,35 @@ const currentYearForm = history.find(
                 {/* Faculty Profile Image & Info */}
                 {user?.name && (
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <img
-                            src={`https://dtu.ac.in/modules/facilities/people/faculty/userimages/${user.name
-                                .replace(/^(Dr\.|Dr|Professor|Prof\.|Prof|Mr\.|Mr|Ms\.|Ms|Mrs\.|Mrs)\s+/i, '')
-                                .toLowerCase()
-                                .replace(/\s+/g, '')}.jpg`}
-                            alt={user.name}
-                            className="h-32 w-32 rounded-lg object-cover object-top shadow-md border border-gray-200"
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.style.display = 'none'; // Hide if fails
-                            }}
-                        />
+                        <div className="relative">
+                            <img
+                                src={user?.avatar || computedExternalImage(user?.name)}
+                                alt={user.name}
+                                className="h-32 w-32 rounded-lg object-cover object-top shadow-md border border-gray-200"
+                                onError={(e) => {
+                                    try {
+                                        if (user?.avatar && e.target.src === user.avatar) {
+                                            e.target.onerror = null;
+                                            e.target.src = computedExternalImage(user?.name);
+                                            return;
+                                        }
+                                    } catch (ex) {}
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                }}
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
+                                title="Change photo"
+                            >
+                                {avatarUploading ? <FiLoader className="animate-spin" /> : <FiCamera />}
+                            </button>
+
+                            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelected} className="hidden" />
+                        </div>
                         <div className="text-center sm:text-left">
                             <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
                             {user.designation && (
