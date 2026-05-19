@@ -93,7 +93,7 @@ export const initializeSocket = (httpServer) => {
                 socket.userId = decoded.id;
                 socket.facultyId = decoded.userId || decoded.faculty_id;
             } catch (err) {
-                console.log('Socket auth failed:', err.message);
+                // console.log('Socket auth failed:', err.message);
             }
         }
         next();
@@ -106,7 +106,7 @@ export const initializeSocket = (httpServer) => {
 
 
     io.on('connection', (socket) => {
-        console.log(`Socket connected: ${socket.id}`);
+        // console.log(`Socket connected: ${socket.id}`);
 
         // Join APAR room for specific faculty/academic year
         socket.on('join_apar_room', async ({ faculty_id, ay }) => {
@@ -114,7 +114,7 @@ export const initializeSocket = (httpServer) => {
             const normalizedAy = normalizeAy(ay);
             const roomName = `apar-${resolvedFacultyId}-${normalizedAy}`;
             socket.join(roomName);
-            console.log(`Socket ${socket.id} joined APAR room: ${roomName}`);
+            // console.log(`Socket ${socket.id} joined APAR room: ${roomName}`);
 
             socket.emit('room_joined', { roomName, faculty_id: resolvedFacultyId, ay: normalizedAy });
         });
@@ -125,7 +125,7 @@ export const initializeSocket = (httpServer) => {
             const normalizedAy = normalizeAy(ay);
             const roomName = `apar-${resolvedFacultyId}-${normalizedAy}`;
             socket.leave(roomName);
-            console.log(`Socket ${socket.id} left room: ${roomName}`);
+            // console.log(`Socket ${socket.id} left room: ${roomName}`);
         });
 
         // Join IQAC admin monitoring room for a given AY (optional feature)
@@ -133,7 +133,7 @@ export const initializeSocket = (httpServer) => {
             const normalizedAy = normalizeAy(ay);
             const roomName = `iqac-admin-${normalizedAy}`;
             socket.join(roomName);
-            console.log(`Socket ${socket.id} joined IQAC monitoring room: ${roomName}`);
+            // console.log(`Socket ${socket.id} joined IQAC monitoring room: ${roomName}`);
             socket.emit('room_joined', { roomName, ay: normalizedAy });
         });
 
@@ -210,7 +210,7 @@ export const emitNewEntry = (faculty_id, academic_year, data) => {
         timestamp: new Date()
     };
     emitToAparRooms('new_entry', faculty_id, academic_year, payload);
-    console.log(`📡 Emitted new_entry for faculty=${faculty_id}, ay=${normalizeAy(academic_year)}`);
+    // console.log(`📡 Emitted new_entry for faculty=${faculty_id}, ay=${normalizeAy(academic_year)}`);
 };
 
 /**
@@ -239,7 +239,7 @@ export const emitUpdateEntry = (faculty_id, academic_year, data) => {
         timestamp: new Date()
     };
     emitToAparRooms('update_entry', faculty_id, academic_year, payload);
-    console.log(`📡 Emitted update_entry for faculty=${faculty_id}, ay=${normalizeAy(academic_year)}`);
+    // console.log(`📡 Emitted update_entry for faculty=${faculty_id}, ay=${normalizeAy(academic_year)}`);
 };
 
 /**
@@ -289,7 +289,7 @@ export const emitAparUpdateToIqac = (faculty_id, faculty_name, academic_year, up
         timestamp: new Date()
     });
 
-    console.log(`📡 APAR update notification sent to IQAC admins: ${faculty_name} (${updateType})`);
+    // console.log(`📡 APAR update notification sent to IQAC admins: ${faculty_name} (${updateType})`);
 };
 
 /**
@@ -299,7 +299,7 @@ export const joinIqacAdminRoom = (socket, academic_year) => {
     const normalizedAy = normalizeAy(academic_year);
     const roomName = `iqac-admin-${normalizedAy}`;
     socket.join(roomName);
-    console.log(`Admin joined IQAC monitoring room: ${roomName}`);
+    // console.log(`Admin joined IQAC monitoring room: ${roomName}`);
     return roomName;
 };
 
@@ -332,5 +332,5 @@ export const emitNotification = (userId, notification) => {
 
     const roomName = `user-${userId}`;
     io.to(roomName).emit('notification', notification);
-    console.log(`📡 Notification sent to ${roomName}: ${notification.title}`);
+    // console.log(`📡 Notification sent to ${roomName}: ${notification.title}`);
 };

@@ -38,7 +38,7 @@ export const SocketProvider = ({ children }) => {
             });
 
             socketRef.current.on('connect', () => {
-                console.log('✅ Global Socket Connected');
+                // console.log('✅ Global Socket Connected');
                 setConnected(true);
 
                 // Join personal notification room
@@ -47,7 +47,7 @@ export const SocketProvider = ({ children }) => {
             });
 
             socketRef.current.on('disconnect', () => {
-                console.log('🔌 Global Socket Disconnected');
+                // console.log('🔌 Global Socket Disconnected');
                 setConnected(false);
             });
         } else {

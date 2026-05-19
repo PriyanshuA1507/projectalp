@@ -354,7 +354,7 @@ export default function AparForm() {
 
     // WebSocket Real-Time Sync - automatically updates form when IQAC adds new entries
     const handleNewEntry = useCallback((data) => {
-        console.log('📬 Real-time update received:', data);
+        // console.log('📬 Real-time update received:', data);
         setFormData(prev => ({
             ...prev,
             research: mergeNewEntry(prev.research, data)
@@ -532,7 +532,7 @@ export default function AparForm() {
             try {
                 const infoRes = await AparFormGradedService.getFacultyInfo();
                 facultyInfo = infoRes.data || infoRes;
-                console.log('📋 Faculty Info fetched:', facultyInfo);
+                // console.log('📋 Faculty Info fetched:', facultyInfo);
             } catch (infoErr) {
                 console.error('Failed to fetch faculty info:', infoErr);
             }
@@ -601,7 +601,7 @@ export default function AparForm() {
                 }))
                 console.log('✅ Form overlaid with MongoDB data');
             } else {
-                console.log('ℹ️ No existing APAR form found in MongoDB');
+                // console.log('ℹ️ No existing APAR form found in MongoDB');
             }
 
         } catch (e) {
@@ -637,14 +637,14 @@ export default function AparForm() {
 
         if (facultyId && ay) {
             socket.emit('join_apar_room', { faculty_id: facultyId, ay });
-            console.log(`[FRONTEND] Requesting join APAR Room: ${facultyId}, ${ay}`);
+            // console.log(`[FRONTEND] Requesting join APAR Room: ${facultyId}, ${ay}`);
 
             // Initial Fetch on Load
             fetchFormData(facultyId, ay);
         }
 
         const handleDataUpdate = (data) => {
-            console.log('[FRONTEND] Received Update:', data);
+            // console.log('[FRONTEND] Received Update:', data);
             // toast.info("New IQAC data received. Refreshing form...", { autoClose: 3000 }); // Removed to avoid double popup with NotificationBell
             fetchFormData(facultyId, ay);
         };
@@ -696,7 +696,7 @@ export default function AparForm() {
         };
 
         const handleBulkEntries = (data) => {
-            console.log('[FRONTEND] 📬 Bulk entries received:', data);
+            // console.log('[FRONTEND] 📬 Bulk entries received:', data);
             toast.success(`${data.count} new entries synced`);
             if (data.entries && Array.isArray(data.entries)) {
                 data.entries.forEach(e => handleNewEntry(e));
@@ -1355,7 +1355,7 @@ export default function AparForm() {
         );
     }
 
-    console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
+    // console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">

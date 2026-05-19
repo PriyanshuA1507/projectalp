@@ -26,7 +26,7 @@ const uploadFile = asyncHandler(async (req, res) => {
             .json(new ApiResponse(200, { url: response.secure_url }, "File uploaded successfully"));
     } else {
         // Fallback to local storage
-        console.log('Cloudinary not configured, using local storage');
+        // console.log('Cloudinary not configured, using local storage');
         
         // Move file from temp to public/uploads directory
         const publicDir = path.join(process.cwd(), 'public', 'uploads');
