@@ -45,8 +45,15 @@ export default function Login() {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Client-side: validate presence and basic email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!normalizedEmail) {
       setError('Please enter your email address.');
+      return;
+    }
+
+    if (!emailRegex.test(normalizedEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
 

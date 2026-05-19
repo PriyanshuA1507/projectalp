@@ -18,6 +18,7 @@ import {
 import { findById as findFacultyById, findByEmail as findFacultyByEmail, listFacultyIds } from '../data-access/faculty.data-access.js';
 import { normalizeRoleValue, ROLES } from '../config/roles.js';
 import { validatePasswordPolicy } from '../utils/password-policy.js';
+import { isValidEmail } from '../utils/validation.js';
 
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 12); // 12 hours
 const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
@@ -144,6 +145,9 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   if (email) {
+    if (!isValidEmail(email)) {
+      throw new ApiError(400, 'Invalid email address');
+    }
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
       throw new ApiError(409, 'Email is already registered');
@@ -169,6 +173,10 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   if (!normalizedEmail || !password || !requestedRole) {
     throw new ApiError(400, 'Email, password and role are required');
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email address');
   }
 
   const normalizedRequestedRole = validateRole(requestedRole);

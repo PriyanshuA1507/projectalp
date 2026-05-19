@@ -43,12 +43,25 @@ export default function AparLogin({ loginData, setLoginData }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setLocalError('');
-    if (!effectiveLoginData.id || !effectiveLoginData.password || !effectiveLoginData.role) {
-      setLocalError('All fields are required');
+    const normalizedEmail = effectiveLoginData.id?.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!normalizedEmail) {
+      setLocalError('Please enter your email address.');
       return;
     }
 
-    dispatch(aparLogin({ email: effectiveLoginData.id, password: effectiveLoginData.password, role: effectiveLoginData.role }));
+    if (!emailRegex.test(normalizedEmail)) {
+      setLocalError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!effectiveLoginData.password || !effectiveLoginData.role) {
+      setLocalError('Password and role are required');
+      return;
+    }
+
+    dispatch(aparLogin({ email: normalizedEmail, password: effectiveLoginData.password, role: effectiveLoginData.role }));
   };
 
   const handlePasswordChange = async (e) => {
@@ -144,21 +157,21 @@ export default function AparLogin({ loginData, setLoginData }) {
             <div>
               <label htmlFor="id" className="block text-sm font-medium text-gray-700 mb-1"> Login ID </label>
               <div className="mt-1">
-                <input id="id" name="id" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.id} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value })} />
+                <input id="id" name="id" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.id} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value }); if (localError) setLocalError(''); }} />
               </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1"> Password </label>
               <div className="mt-1">
-                <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.password} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value })} />
+                <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.password} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value }); if (localError) setLocalError(''); }} />
               </div>
             </div>
 
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1"> Role </label>
               <div className="mt-1">
-                <select id="role" name="role" className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value })}>
+                <select id="role" name="role" className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value }); if (localError) setLocalError(''); }}>
                   <option>Officer (Graded)</option>
                   <option>Reporting Officer</option>
                   <option>Reviewing Officer</option>
