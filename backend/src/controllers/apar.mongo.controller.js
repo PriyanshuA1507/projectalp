@@ -180,7 +180,7 @@ const syncIqacToAparForm = async (form, faculty_id, ay) => {
     // Generic Merger with Enhanced Matching
     const merge = (sectionKey, iqacList, idField, type) => {
         if (!typeof research[sectionKey] === 'object') research[sectionKey] = [];
-        const oldSection = research[sectionKey] || [];
+        const oldSection = Array.isArray(research[sectionKey]) ? research[sectionKey] : [];
 
         // Map valid IQAC items to clean POJOs
         const newSection = iqacList.map(iqacItem => {
@@ -196,15 +196,62 @@ const syncIqacToAparForm = async (form, faculty_id, ay) => {
 
         // Determine modification status
         // If lengths differ, or if we have content (assuming updates), mark as modified
-        if (oldSection.length !== newSection.length) {
-            modified = true;
-        } else if (newSection.length > 0) {
-            // Optimization: Could check deep equality, but assuming sync update is intended
-            modified = true;
+        const wasEmpty = oldSection.length === 0;
+
+        // Preserve existing APAR entries: when section already has data, perform a union merge
+        const fallbackKeys = {
+            journals: ['title', 'title_of_paper', 'name_of_journal'],
+            conferences: ['title', 'title_of_paper', 'name_of_conference'],
+            books: ['title_of_book', 'title'],
+            projects: ['title_research', 'title', 'name_of_project'],
+            consultancy: ['name_of_project', 'title'],
+            patents: ['patent_title', 'title'],
+            awards: ['name_of_award', 'title'],
+            fdps: ['program_title', 'title'],
+            e_content: ['name_of_module', 'title'],
+            collaborations: ['title_of_activity', 'title'],
+            faculty_visits: ['title']
+        };
+
+        const keyFor = (item) => {
+            const idVal = item && item[idField];
+            const id = (idVal === 0 ? '0' : (idVal || '')).toString().trim().toLowerCase();
+            if (id) return `id:${id}`;
+            const keys = fallbackKeys[sectionKey] || ['title'];
+            for (const k of keys) {
+                const v = item && item[k];
+                const sv = (v === 0 ? '0' : (v || '')).toString().trim();
+                if (sv) return `t:${sv.toLowerCase()}`;
+            }
+            return '';
+        };
+
+        if (wasEmpty) {
+            if (newSection.length > 0) modified = true;
+            research[sectionKey] = newSection;
+            return;
         }
 
-        // Direct replacement with POJO array
-        research[sectionKey] = newSection;
+        const map = new Map();
+        for (const it of oldSection) {
+            const k = keyFor(it) || `idx:${map.size}`;
+            if (!map.has(k)) map.set(k, it);
+        }
+        for (const it of newSection) {
+            const k = keyFor(it) || `idx:${map.size}`;
+            if (!map.has(k)) {
+                map.set(k, it);
+            } else {
+                const existing = map.get(k) || {};
+                map.set(k, { ...it, ...existing, [idField]: it[idField] || existing[idField] });
+            }
+        }
+
+        const combined = Array.from(map.values());
+        if (combined.length !== oldSection.length) {
+            modified = true;
+        }
+        research[sectionKey] = combined;
     };
 
     // Create case-insensitive ID query
