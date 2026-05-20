@@ -15,7 +15,7 @@ const emptyCreateForm = {
   email: '',
   designation: '',
   role: ROLES.FACULTY,
-  password: '',
+  password: 'domain@123',
   departmentId: ''
 };
 
