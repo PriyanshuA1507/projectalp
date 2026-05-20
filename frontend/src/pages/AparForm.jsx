@@ -1,10 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { FiArrowLeft, FiPrinter, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiPrinter, FiCheck, FiAlertCircle, FiFileText, FiGrid } from 'react-icons/fi';
+import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import ProfileDropdown from '../components/ProfileDropdown.jsx';
 import { toast, Toaster } from 'sonner';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { aparLogout, selectAparAcademicYear } from '../store/slices/aparAuthSlice.js';
+import { useSelector } from 'react-redux';
+import { selectAparAcademicYear } from '../store/slices/aparAuthSlice.js';
 import { AparFormGradedService } from '../services/apar_form_graded.services.js'
 import { aparFormReportingService } from '../services/apar_form_reporting.service.js'
 import AparLogin from '../components/AparLogin.jsx';
@@ -15,10 +18,218 @@ import PartIV from './Apar/PartIV.jsx';
 import PartV from './Apar/PartV.jsx';
 import PartVIRemarks from './Apar/PartVIRemarks.jsx';
 import AparTimeline from '../components/AparTimeline.jsx';
-import { useAparRealTimeSync, mergeNewEntry } from '../hooks/useAparRealTimeSync';
+import { mergeNewEntry } from '../hooks/useAparRealTimeSync';
 import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
 import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
+
+const toTitle = (value) => String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+
+const sectionLabels = {
+    personal: 'Part I - Personal Data',
+    teaching: 'Part II - Self Appraisal & Teaching',
+    research: 'Part III - Research & Development',
+    corporate: 'Part IV - Corporate Life',
+    assessment: 'Part V - Numerical Assessment',
+    remarks: 'Part VI - Remarks',
+    timeline: 'Timeline'
+};
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const flattenRecord = (record, prefix = '') => {
+    if (!isPlainObject(record)) {
+        return { [prefix || 'Value']: toDisplayValue(record) };
+    }
+
+    return Object.entries(record).reduce((acc, [key, value]) => {
+        const label = prefix ? `${prefix} - ${toTitle(key)}` : toTitle(key);
+        if (isPlainObject(value)) {
+            return { ...acc, ...flattenRecord(value, label) };
+        }
+        acc[label] = toDisplayValue(value);
+        return acc;
+    }, {});
+};
+
+const toDisplayValue = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    if (Array.isArray(value)) {
+        if (!value.length) return '';
+        return value.map((item, index) => {
+            if (isPlainObject(item)) {
+                const details = Object.entries(flattenRecord(item))
+                    .map(([key, val]) => `${key}: ${val}`)
+                    .join(', ');
+                return `${index + 1}. ${details}`;
+            }
+            return `${index + 1}. ${String(item)}`;
+        }).join('\n');
+    }
+    if (isPlainObject(value)) {
+        return Object.entries(flattenRecord(value))
+            .map(([key, val]) => `${key}: ${val}`)
+            .join('; ');
+    }
+    return String(value);
+};
+
+const sanitizeSheetName = (name) => {
+    const sanitized = String(name || 'Sheet').replace(/[\\/?*[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
+    return (sanitized || 'Sheet').slice(0, 31);
+};
+
+const sanitizeFileName = (name) => String(name || 'APAR_Form')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_');
+
+const getAcademicYearFromDates = (start, end) => {
+    if (!start || !end) return '';
+    const startYear = new Date(start).getFullYear();
+    const endYear = new Date(end).getFullYear();
+    if (!Number.isFinite(startYear) || !Number.isFinite(endYear)) return '';
+    return `${startYear}-${endYear}`;
+};
+
+const getColumns = (rows) => {
+    const columns = [];
+    rows.forEach(row => {
+        Object.keys(row || {}).forEach(key => {
+            if (!columns.includes(key)) columns.push(key);
+        });
+    });
+    if (columns.includes('S. No.')) {
+        return ['S. No.', ...columns.filter(column => column !== 'S. No.')];
+    }
+    if (columns.includes('Field') && columns.includes('Value')) {
+        return ['Field', 'Value', ...columns.filter(column => column !== 'Field' && column !== 'Value')];
+    }
+    return columns.length ? columns : ['Message'];
+};
+
+const createExportTables = (data, sectionName = 'APAR Form') => {
+    if (Array.isArray(data)) {
+        const rows = data.length
+            ? data.map((item, index) => ({ 'S. No.': index + 1, ...flattenRecord(item) }))
+            : [{ Message: 'No entries' }];
+        return [{
+            title: sectionName,
+            columns: getColumns(rows),
+            rows
+        }];
+    }
+
+    if (!isPlainObject(data)) {
+        const rows = [{ Field: sectionName, Value: toDisplayValue(data) }];
+        return [{ title: sectionName, columns: ['Field', 'Value'], rows }];
+    }
+
+    const fieldRows = [];
+    const childTables = [];
+
+    Object.entries(data).forEach(([key, value]) => {
+        const label = toTitle(key);
+        const nestedName = sectionName === 'APAR Form' ? (sectionLabels[key] || label) : `${sectionName} - ${label}`;
+
+        if (Array.isArray(value)) {
+            childTables.push(...createExportTables(value, nestedName));
+            return;
+        }
+
+        if (isPlainObject(value)) {
+            const hasChildTables = Object.values(value).some(item => Array.isArray(item));
+            if (hasChildTables) {
+                childTables.push(...createExportTables(value, nestedName));
+                return;
+            }
+            Object.entries(flattenRecord(value, label)).forEach(([field, val]) => {
+                fieldRows.push({ Field: field, Value: val });
+            });
+            return;
+        }
+
+        fieldRows.push({ Field: label, Value: toDisplayValue(value) });
+    });
+
+    const tables = [];
+    if (fieldRows.length) {
+        tables.push({
+            title: sectionLabels[sectionName] || sectionName,
+            columns: ['Field', 'Value'],
+            rows: fieldRows
+        });
+    }
+
+    return [...tables, ...childTables];
+};
+
+const createAparExportTables = (formData) => {
+    if (!isPlainObject(formData)) return createExportTables(formData);
+    return Object.entries(formData).flatMap(([key, value]) => {
+        const sectionName = sectionLabels[key] || toTitle(key);
+        return createExportTables(value, sectionName);
+    });
+};
+
+const createWordCell = (text, bold = false, width = 50) => new TableCell({
+    width: { size: width, type: WidthType.PERCENTAGE },
+    children: String(text ?? '').split('\n').map(line => new Paragraph({
+        children: [new TextRun({ text: line || ' ', bold })]
+    }))
+});
+
+const createWordTable = (columns, rows) => {
+    const safeRows = rows.length ? rows : [{ Message: 'No entries' }];
+    const safeColumns = columns.length ? columns : getColumns(safeRows);
+    const width = Math.max(8, Math.floor(100 / safeColumns.length));
+    return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+            new TableRow({
+                children: safeColumns.map(column => createWordCell(column, true, width))
+            }),
+            ...safeRows.map(row => new TableRow({
+                children: safeColumns.map(column => createWordCell(row[column], false, width))
+            }))
+        ]
+    });
+};
+
+const createExcelWorksheet = (table) => {
+    const rows = table.rows.length ? table.rows : [{ Message: 'No entries' }];
+    const columns = table.columns.length ? table.columns : getColumns(rows);
+    const data = [
+        [table.title],
+        [],
+        columns,
+        ...rows.map(row => columns.map(column => row[column] ?? ''))
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(columns.length - 1, 0) } }];
+    worksheet['!cols'] = columns.map((column, index) => {
+        const maxLength = rows.reduce((max, row) => Math.max(max, String(row[column] ?? '').length), String(column).length);
+        return { wch: Math.min(Math.max(index === 0 ? 12 : maxLength + 2, 14), 50) };
+    });
+    return worksheet;
+};
+
+const createSummaryTable = (formData, aparUser, ay) => ({
+    title: 'APAR Summary',
+    columns: ['Field', 'Value'],
+    rows: [
+        { Field: 'Faculty Name', Value: formData?.personal?.name || aparUser?.name || '' },
+        { Field: 'Faculty ID', Value: aparUser?.teacherId || aparUser?.faculty_id || aparUser?.userId || aparUser?.user_id || aparUser?.id || '' },
+        { Field: 'Designation', Value: formData?.personal?.designation || aparUser?.designation || '' },
+        { Field: 'Department', Value: formData?.personal?.department_id || aparUser?.departmentId || aparUser?.department || '' },
+        { Field: 'Academic Year', Value: ay || '' },
+        { Field: 'Report Period', Value: [formData?.personal?.report_start_date, formData?.personal?.report_end_date].filter(Boolean).join(' to ') }
+    ]
+});
 
 export default function AparForm() {
     const { socket } = useSocket(); // Get socket from context
@@ -31,7 +242,6 @@ export default function AparForm() {
     const aparRole = useSelector((state) => state.aparAuth.role);
     const reduxAy = useSelector(selectAparAcademicYear);
     const activeRole = aparRole || loginData.role;
-    const dispatch = useDispatch();
     const getSteps = () => {
         if (activeRole === 'Reporting Officer') return 6;
         if (activeRole === 'Reviewing Officer') return 7;
@@ -144,7 +354,7 @@ export default function AparForm() {
 
     // WebSocket Real-Time Sync - automatically updates form when IQAC adds new entries
     const handleNewEntry = useCallback((data) => {
-        console.log('📬 Real-time update received:', data);
+        // console.log('📬 Real-time update received:', data);
         setFormData(prev => ({
             ...prev,
             research: mergeNewEntry(prev.research, data)
@@ -165,7 +375,6 @@ export default function AparForm() {
     const [submittedForms, setSubmittedForms] = useState([]);
     const [certified, setCertified] = useState(false);
     const [selectedFacultyRaw, setSelectedFacultyRaw] = useState(null);
-    const [logoutLoading, setLogoutLoading] = useState(false);
 
     // Popup State
     const [queryModalOpen, setQueryModalOpen] = useState(false);
@@ -323,7 +532,7 @@ export default function AparForm() {
             try {
                 const infoRes = await AparFormGradedService.getFacultyInfo();
                 facultyInfo = infoRes.data || infoRes;
-                console.log('📋 Faculty Info fetched:', facultyInfo);
+                // console.log('📋 Faculty Info fetched:', facultyInfo);
             } catch (infoErr) {
                 console.error('Failed to fetch faculty info:', infoErr);
             }
@@ -346,7 +555,7 @@ export default function AparForm() {
                         grade: facultyInfo.grade || prev.personal.grade
                     }
                 }));
-                console.log('✅ Form pre-filled with faculty data');
+                // console.log('✅ Form pre-filled with faculty data');
             }
 
             // 3. Fetch Departments
@@ -392,7 +601,7 @@ export default function AparForm() {
                 }))
                 console.log('✅ Form overlaid with MongoDB data');
             } else {
-                console.log('ℹ️ No existing APAR form found in MongoDB');
+                // console.log('ℹ️ No existing APAR form found in MongoDB');
             }
 
         } catch (e) {
@@ -410,11 +619,7 @@ export default function AparForm() {
         let rawAy = reduxAy || loginData.academic_year || (location.state?.ay);
         // Fallback AY derivation
         if (!rawAy && formData.personal?.report_start_date && formData.personal?.report_end_date) {
-            try {
-                const s = new Date(formData.personal.report_start_date).getFullYear();
-                const e = new Date(formData.personal.report_end_date).getFullYear();
-                rawAy = `${s}-${e}`;
-            } catch (e) { }
+            rawAy = getAcademicYearFromDates(formData.personal.report_start_date, formData.personal.report_end_date);
         }
 
         // Helper to normalize AY for consistent room names and API calls
@@ -432,14 +637,14 @@ export default function AparForm() {
 
         if (facultyId && ay) {
             socket.emit('join_apar_room', { faculty_id: facultyId, ay });
-            console.log(`[FRONTEND] Requesting join APAR Room: ${facultyId}, ${ay}`);
+            // console.log(`[FRONTEND] Requesting join APAR Room: ${facultyId}, ${ay}`);
 
             // Initial Fetch on Load
             fetchFormData(facultyId, ay);
         }
 
         const handleDataUpdate = (data) => {
-            console.log('[FRONTEND] Received Update:', data);
+            // console.log('[FRONTEND] Received Update:', data);
             // toast.info("New IQAC data received. Refreshing form...", { autoClose: 3000 }); // Removed to avoid double popup with NotificationBell
             fetchFormData(facultyId, ay);
         };
@@ -449,7 +654,7 @@ export default function AparForm() {
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
 
-            console.log('[FRONTEND] 📬 Real-time NEW ENTRY received:', data);
+            // console.log('[FRONTEND] 📬 Real-time NEW ENTRY received:', data);
 
             // Small delay to ensure DB write propagates
             setTimeout(() => {
@@ -480,7 +685,7 @@ export default function AparForm() {
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
 
-            console.log('[FRONTEND] 📬 Real-time DELETE ENTRY received:', data);
+            // console.log('[FRONTEND] 📬 Real-time DELETE ENTRY received:', data);
 
             setTimeout(() => {
                 const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
@@ -491,7 +696,7 @@ export default function AparForm() {
         };
 
         const handleBulkEntries = (data) => {
-            console.log('[FRONTEND] 📬 Bulk entries received:', data);
+            // console.log('[FRONTEND] 📬 Bulk entries received:', data);
             toast.success(`${data.count} new entries synced`);
             if (data.entries && Array.isArray(data.entries)) {
                 data.entries.forEach(e => handleNewEntry(e));
@@ -499,7 +704,7 @@ export default function AparForm() {
         };
 
         const handleRoomJoined = (data) => {
-            console.log('[FRONTEND] ✅ Successfully joined room:', data);
+            // console.log('[FRONTEND] ✅ Successfully joined room:', data);
             // toast.success(`Connected to Sync Stream: ${data.roomName}`);
         };
 
@@ -531,6 +736,79 @@ export default function AparForm() {
 
     const handlePrint = () => window.print();
 
+    const getExportFileBaseName = () => {
+        const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.userId || aparUser?.user_id || aparUser?.id || 'faculty';
+        const ay = reduxAy || loginData.academic_year || location.state?.ay || formData?.personal?.academic_year || 'apar';
+        const name = formData?.personal?.name || aparUser?.name || 'APAR_Form';
+        return sanitizeFileName(`${name}_${facultyId}_${ay}`);
+    };
+
+    const handleExportExcel = () => {
+        try {
+            const workbook = XLSX.utils.book_new();
+            const usedNames = new Map();
+            const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
+            const tables = [
+                createSummaryTable(formData, aparUser, ay),
+                ...createAparExportTables(formData)
+            ];
+
+            tables.forEach((table) => {
+                const baseName = sanitizeSheetName(table.title);
+                const count = usedNames.get(baseName) || 0;
+                usedNames.set(baseName, count + 1);
+                const suffix = count ? `_${count + 1}` : '';
+                const sheetName = `${baseName.slice(0, 31 - suffix.length)}${suffix}`;
+                const worksheet = createExcelWorksheet(table);
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            });
+
+            XLSX.writeFile(workbook, `${getExportFileBaseName()}.xlsx`);
+            toast.success('Excel file downloaded');
+        } catch (error) {
+            console.error('Excel export failed', error);
+            toast.error('Excel export failed');
+        }
+    };
+
+    const handleExportWord = async () => {
+        try {
+            const ay = reduxAy || loginData.academic_year || location.state?.ay || getAcademicYearFromDates(formData.personal?.report_start_date, formData.personal?.report_end_date);
+            const tables = [
+                createSummaryTable(formData, aparUser, ay),
+                ...createAparExportTables(formData)
+            ];
+            const children = [
+                new Paragraph({
+                    text: 'Annual Performance Assessment Report Form',
+                    heading: HeadingLevel.TITLE
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: `Faculty: ${formData?.personal?.name || aparUser?.name || ''}` }),
+                        new TextRun({ text: ` | Academic Year: ${ay || ''}` })
+                    ]
+                })
+            ];
+
+            tables.forEach((table) => {
+                children.push(
+                    new Paragraph({ text: table.title, heading: HeadingLevel.HEADING_1 }),
+                    createWordTable(table.columns, table.rows),
+                    new Paragraph({ text: '' })
+                );
+            });
+
+            const document = new Document({ sections: [{ children }] });
+            const blob = await Packer.toBlob(document);
+            saveAs(blob, `${getExportFileBaseName()}.docx`);
+            toast.success('Word file downloaded');
+        } catch (error) {
+            console.error('Word export failed', error);
+            toast.error('Word export failed');
+        }
+    };
+
     const isReadOnlyMode = () => {
         const role = aparRole || loginData.role;
         // Reporting/Reviewing are always read-only for Parts I-IV
@@ -546,11 +824,7 @@ export default function AparForm() {
         if (!gradedId) return;
         let ay = reduxAy || loginData.academic_year || (location.state?.ay);
         if (!ay && formData.personal?.report_start_date && formData.personal?.report_end_date) {
-            try {
-                const s = new Date(formData.personal.report_start_date).getFullYear();
-                const e = new Date(formData.personal.report_end_date).getFullYear();
-                ay = `${s}-${e}`;
-            } catch (e) { }
+            ay = getAcademicYearFromDates(formData.personal.report_start_date, formData.personal.report_end_date);
         }
         if (gradedId && ay) {
             fetchFormData(gradedId, ay);
@@ -566,14 +840,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })()
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
@@ -590,7 +857,7 @@ export default function AparForm() {
                 formData: formData
             };
 
-            console.log('[APAR SAVE] Sending Draft Payload:', payload);
+            // console.log('[APAR SAVE] Sending Draft Payload:', payload);
 
             await AparFormGradedService.saveDraft(payload);
             if (!silent) toast.success('Progress saved and synced to profile');
@@ -617,14 +884,7 @@ export default function AparForm() {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })();
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
@@ -655,7 +915,64 @@ export default function AparForm() {
     };
 
     const nextStep = async () => {
+        // Validate current step before moving forward
+        const validateCurrentStep = () => {
+            try {
+                const container = typeof document !== 'undefined' ? document.getElementById(`apar-step-${currentStep}`) : null;
+                if (!container) return true;
+
+                const nodes = Array.from(container.querySelectorAll('[required], [aria-required="true"]')).filter(el => !el.disabled);
+                const missing = [];
+
+                for (const el of nodes) {
+                    let valid = true;
+                    const tag = (el.tagName || '').toLowerCase();
+                    const type = el.type || '';
+
+                    if (type === 'checkbox') {
+                        valid = el.checked;
+                    } else if (tag === 'select') {
+                        valid = el.value !== '' && el.value !== null && el.value !== undefined;
+                    } else {
+                        valid = el.value !== null && el.value !== undefined && String(el.value).trim() !== '';
+                    }
+
+                    if (!valid) {
+                        let labelText = '';
+                        const parent = el.closest('div') || el.parentElement;
+                        if (parent) {
+                            const label = parent.querySelector('label');
+                            if (label) labelText = label.textContent.replace('*', '').trim();
+                        }
+                        if (!labelText) labelText = el.name || el.placeholder || 'Required field';
+                        missing.push(labelText);
+                    }
+                }
+
+                if (missing.length > 0) {
+                    const firstInvalid = nodes.find(el => {
+                        const tag = (el.tagName || '').toLowerCase();
+                        const type = el.type || '';
+                        if (type === 'checkbox') return !el.checked;
+                        if (tag === 'select') return !(el.value !== '' && el.value !== null && el.value !== undefined);
+                        return !(el.value !== null && el.value !== undefined && String(el.value).trim() !== '');
+                    });
+                    if (firstInvalid && typeof firstInvalid.reportValidity === 'function') firstInvalid.reportValidity();
+                    else if (firstInvalid && firstInvalid.focus) firstInvalid.focus();
+
+                    toast.error(`Please fill required fields: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
+                    return false;
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Validation error:', e);
+                return true;
+            }
+        };
+
         if (currentStep < totalSteps) {
+            if (!validateCurrentStep()) return;
             // Auto-save on next
             await handleSaveDraft(true);
             setCurrentStep(currentStep + 1);
@@ -663,24 +980,110 @@ export default function AparForm() {
         }
     };
 
+    const validateFormData = () => {
+        const errors = [];
+
+        // Validate Personal Data (Part I)
+        const personal = formData.personal || {};
+        if (!personal.name || !personal.name.trim()) errors.push('Name is required');
+        if (!personal.department_id || !personal.department_id.trim()) errors.push('Department is required');
+        if (!personal.designation || !personal.designation.trim()) errors.push('Designation is required');
+        if (!personal.date_of_birth) errors.push('Date of birth is required');
+        if (!personal.qualification || !personal.qualification.trim()) errors.push('Qualification is required');
+        if (!personal.sc_st_status || !personal.sc_st_status.trim()) errors.push('Caste category is required');
+        if (!personal.joining_date) errors.push('Joining date is required');
+        if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');
+        if (!personal.absence_period || !personal.absence_period.trim()) errors.push('Absence period is required');
+
+        // Validate email format if provided
+        if (personal.email && personal.email.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(personal.email.trim())) {
+                errors.push('Invalid email format');
+            }
+        }
+
+        // Validate Assessment Scores (Part V) - must be between 1-10
+        const assessment = formData.assessment || {};
+        const validateScore = (value, fieldName) => {
+            if (value && value.trim()) {
+                const num = parseInt(value);
+                if (isNaN(num) || num < 1 || num > 10) {
+                    errors.push(`${fieldName} must be between 1 and 10`);
+                }
+            }
+        };
+
+        if (assessment.section_a) {
+            validateScore(assessment.section_a.q1, 'Section A Q1');
+            validateScore(assessment.section_a.q2, 'Section A Q2');
+            validateScore(assessment.section_a.q3, 'Section A Q3');
+            validateScore(assessment.section_a.q4, 'Section A Q4');
+            validateScore(assessment.section_a.overall_grading, 'Section A Overall Grading');
+        }
+
+        if (assessment.section_b) {
+            validateScore(assessment.section_b.q1, 'Section B Q1');
+            validateScore(assessment.section_b.q2, 'Section B Q2');
+            validateScore(assessment.section_b.q3, 'Section B Q3');
+            validateScore(assessment.section_b.q4, 'Section B Q4');
+            validateScore(assessment.section_b.q5, 'Section B Q5');
+            validateScore(assessment.section_b.q6, 'Section B Q6');
+            validateScore(assessment.section_b.q7a, 'Section B Q7a');
+            validateScore(assessment.section_b.q7b, 'Section B Q7b');
+            validateScore(assessment.section_b.q8, 'Section B Q8');
+            validateScore(assessment.section_b.q9, 'Section B Q9');
+            validateScore(assessment.section_b.q10, 'Section B Q10');
+            validateScore(assessment.section_b.overall_grading, 'Section B Overall Grading');
+        }
+
+        if (assessment.section_c) {
+            validateScore(assessment.section_c.q1, 'Section C Q1');
+            validateScore(assessment.section_c.q2, 'Section C Q2');
+            validateScore(assessment.section_c.q3, 'Section C Q3');
+            validateScore(assessment.section_c.q4, 'Section C Q4');
+            validateScore(assessment.section_c.q5, 'Section C Q5');
+            validateScore(assessment.section_c.q6, 'Section C Q6');
+            validateScore(assessment.section_c.overall_grading, 'Section C Overall Grading');
+        }
+
+        if (assessment.general) {
+            validateScore(assessment.general.q6, 'Overall Numerical Grading');
+        }
+
+        // Validate Remarks (Part VI) - if disagree, reason is required
+        const remarks = formData.remarks || {};
+        if (remarks.agree_with_assessment === 'No' && (!remarks.disagreement_reason || !remarks.disagreement_reason.trim())) {
+            errors.push('Please provide reason for disagreement with assessment');
+        }
+
+        return errors;
+    };
+
     const handleSubmit = async () => {
         try {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
                 const start = formData.personal.report_start_date
                 const end = formData.personal.report_end_date
-                if (start && end) {
-                    try {
-                        const s = new Date(start).getFullYear()
-                        const e = new Date(end).getFullYear()
-                        return `${s}-${e}`
-                    } catch (e) { return '' }
-                }
-                return ''
+                return getAcademicYearFromDates(start, end)
             })()
 
             const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
             if (!ay || !facultyId || ay === 'undefined') {
                 toast.error("Invalid Academic Year or Faculty ID");
+                return;
+            }
+
+            // Validate form data before submission
+            const validationErrors = validateFormData();
+            if (validationErrors.length > 0) {
+                toast.error(`Validation errors: ${validationErrors.slice(0, 5).join(', ')}${validationErrors.length > 5 ? '...' : ''}`);
+                return;
+            }
+
+            // Enforce final certification for editable submissions
+            if (!isReadOnlyMode() && !certified) {
+                toast.error('Please certify the form before submitting.');
                 return;
             }
 
@@ -952,7 +1355,7 @@ export default function AparForm() {
         );
     }
 
-    console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
+    // console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">
@@ -987,6 +1390,20 @@ export default function AparForm() {
                             className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                         >
                             <FiPrinter className="mr-2" /> Print Form
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportWord}
+                            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            <FiFileText className="mr-2" /> Word
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportExcel}
+                            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                        >
+                            <FiGrid className="mr-2" /> Excel
                         </button>
                         <ProfileDropdown />
                     </div>
@@ -1083,7 +1500,7 @@ export default function AparForm() {
                         <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
 
                             {/* Step 1: Personal Data - Mapped to 'faculty' table */}
-                            <div className={currentStep === 1 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-1" className={currentStep === 1 ? 'block' : 'hidden print:block'}>
                                 <div className="shadow-lg">
                                     {/* Import Part I component to render the personal data fields */}
                                     <div>
@@ -1094,23 +1511,23 @@ export default function AparForm() {
                             </div>
 
                             {/* Step 2: Self Appraisal */}
-                            <div className={currentStep === 2 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-2" className={currentStep === 2 ? 'block' : 'hidden print:block'}>
                                 <PartII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateAssessment={updateAssessment} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 3: Research - HEAVY Schema Mapping */}
-                            <div className={currentStep === 3 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-3" className={currentStep === 3 ? 'block' : 'hidden print:block'}>
                                 <PartIII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 4: Corporate Life */}
-                            <div className={currentStep === 4 ? 'block' : 'hidden print:block'}>
+                            <div id="apar-step-4" className={currentStep === 4 ? 'block' : 'hidden print:block'}>
                                 <PartIV formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
                             {/* Step 5: Numerical Assessment (Reporting Officer Only - Read/Write, Reviewing Officer - Read Only) */}
                             {(activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') && (
-                                <div className={currentStep === 5 ? 'block' : 'hidden print:block'}>
+                                <div id="apar-step-5" className={currentStep === 5 ? 'block' : 'hidden print:block'}>
                                     <PartV formData={formData} updateAssessment={updateAssessment} activeRole={activeRole} formStatus={formStatus} />
                                 </div>
                             )}
@@ -1118,13 +1535,13 @@ export default function AparForm() {
 
                             {/* Step 6: Remarks of the Reviewing Officer (Reviewing Officer Only) */}
                             {activeRole === 'Reviewing Officer' && (
-                                <div className={currentStep === 6 ? 'block' : 'hidden print:block'}>
+                                <div id="apar-step-6" className={currentStep === 6 ? 'block' : 'hidden print:block'}>
                                     <PartVIRemarks formData={formData} updateRemarks={updateRemarks} formStatus={formStatus} />
                                 </div>
                             )}
 
                             {/* Step 5/6/7: Review & Submit */}
-                            <div className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
+                            <div id={`apar-step-${totalSteps}`} className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
                                 <div className="border-2 border-gray-900 rounded-xl p-6 shadow-lg">
                                     <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">One Final Check</h3>
                                     <p className="text-gray-600 mb-6 font-medium">
@@ -1135,7 +1552,17 @@ export default function AparForm() {
 
                                     <div className="mt-8 pt-4 border-t border-gray-100">
                                         <div className="flex bg-gray-50 p-4 rounded-md">
-                                            <input type="checkbox" className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" id="certification" checked={certified} onChange={(e) => setCertified(e.target.checked)} />
+                                            <input
+                                                type="checkbox"
+                                                id="certification"
+                                                name="certification"
+                                                disabled={isReadOnlyMode()}
+                                                required={!isReadOnlyMode()}
+                                                aria-required={!isReadOnlyMode()}
+                                                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                checked={certified}
+                                                onChange={(e) => setCertified(e.target.checked)}
+                                            />
                                             <div className="ml-3">
                                                 <label htmlFor="certification" className="text-sm font-medium text-gray-900 cursor-pointer">I certify that the information’s given above are correct and factual to the best of my knowledge.</label>
                                             </div>

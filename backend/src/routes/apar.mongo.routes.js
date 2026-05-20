@@ -13,24 +13,27 @@ import {
     saveToMonthlyData
 } from "../controllers/apar.mongo.controller.js";
 import checkDuplicate from "../controllers/duplicate-check.controller.js";
+import { authenticate } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { aparDraftSchema, aparFormSchema, aparAssessmentSchema } from '../validators/apar-form.validator.js';
 
 const router = Router();
 
-router.route("/form").get(getForm);
-router.route("/save").post(saveForm);
-router.route("/save-to-monthly").post(saveToMonthlyData);
-router.route("/submit").post(submitForm);
-router.route("/list").get(listAllForms);
-router.route("/info").get(getFacultyInfo);
-router.route("/history").get(getFacultyHistory);
+router.route("/form").get(authenticate, getForm);
+router.route("/save").post(authenticate, validate(aparDraftSchema), saveForm);
+router.route("/save-to-monthly").post(authenticate, saveToMonthlyData);
+router.route("/submit").post(authenticate, validate(aparFormSchema), submitForm);
+router.route("/list").get(authenticate, listAllForms);
+router.route("/info").get(authenticate, getFacultyInfo);
+router.route("/history").get(authenticate, getFacultyHistory);
 
 // Duplicate detection
-router.route("/check-duplicate").post(checkDuplicate);
+router.route("/check-duplicate").post(authenticate, checkDuplicate);
 
-router.route("/reporting/pending").get(getPendingReporting);
-router.route("/reporting/submit").post(submitReportingAssessment);
+router.route("/reporting/pending").get(authenticate, getPendingReporting);
+router.route("/reporting/submit").post(authenticate, validate(aparAssessmentSchema), submitReportingAssessment);
 
-router.route("/reviewing/pending").get(getPendingReviewing);
-router.route("/reviewing/submit").post(submitReviewingRemarks);
+router.route("/reviewing/pending").get(authenticate, getPendingReviewing);
+router.route("/reviewing/submit").post(authenticate, submitReviewingRemarks);
 
 export default router;

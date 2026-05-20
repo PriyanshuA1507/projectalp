@@ -97,7 +97,7 @@ const UserSchema = new mongoose.Schema({
 
     must_change_password: {
         type: Boolean,
-        default: true
+        default: false
     },
 
     failed_login_attempts: {
@@ -127,6 +127,14 @@ const UserSchema = new mongoose.Schema({
     updated_at: {
         type: Date,
         default: Date.now
+    }
+
+    ,
+    avatar_url: {
+        type: String,
+        required: false,
+        trim: true,
+        default: null
     }
 
 }, {

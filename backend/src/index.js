@@ -16,11 +16,10 @@ initializeSocket(httpServer);
 
 connectDB()
     .catch((err) => {
-        console.log("MONGO db connection failed !!! ", err);
+        console.error("MONGO db connection failed !!! ", err);
     })
 
 httpServer.listen(port, () => {
-    console.log(`✅ Server started on port ${port}`)
-    console.log(`✅ Socket.IO ready for real-time sync`)
+    // // console.log(`✅ Server started on port ${port}`)
+    // console.log(`✅ Socket.IO ready for real-time sync`)
 })
-

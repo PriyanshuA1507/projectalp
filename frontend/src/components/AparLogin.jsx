@@ -19,6 +19,26 @@ export default function AparLogin({ loginData, setLoginData }) {
   const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
   const effectiveLoginData = loginData ?? localLoginData;
   const effectiveSetLoginData = setLoginData ?? setLocalLoginData;
+  const normalizedIdLive = effectiveLoginData.id?.trim().toLowerCase();
+  const isEmailValidLive = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdLive || '');
+  const [aparRoleOptions, setAparRoleOptions] = useState(["Officer (Graded)", "Reporting Officer", "Reviewing Officer"]);
+
+  const fetchAparAllowedRoles = async (emailValue) => {
+    const normalized = emailValue?.trim().toLowerCase();
+    if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
+    try {
+      const resp = await aparAuthService.getAllowedRoles(normalized);
+      const allowed = resp?.allowedRoles ?? [];
+      if (allowed && allowed.length > 0) {
+        setAparRoleOptions(allowed);
+        if (!aparRoleOptions.includes(effectiveLoginData.role)) {
+          effectiveSetLoginData({ ...effectiveLoginData, role: allowed[0] });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -43,12 +63,25 @@ export default function AparLogin({ loginData, setLoginData }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setLocalError('');
-    if (!effectiveLoginData.id || !effectiveLoginData.password || !effectiveLoginData.role) {
-      setLocalError('All fields are required');
+    const normalizedEmail = effectiveLoginData.id?.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!normalizedEmail) {
+      setLocalError('Please enter your email address.');
       return;
     }
 
-    dispatch(aparLogin({ email: effectiveLoginData.id, password: effectiveLoginData.password, role: effectiveLoginData.role }));
+    if (!emailRegex.test(normalizedEmail)) {
+      setLocalError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!effectiveLoginData.password || !effectiveLoginData.role) {
+      setLocalError('Password and role are required');
+      return;
+    }
+
+    dispatch(aparLogin({ email: normalizedEmail, password: effectiveLoginData.password, role: effectiveLoginData.role }));
   };
 
   const handlePasswordChange = async (e) => {
@@ -144,24 +177,24 @@ export default function AparLogin({ loginData, setLoginData }) {
             <div>
               <label htmlFor="id" className="block text-sm font-medium text-gray-700 mb-1"> Login ID </label>
               <div className="mt-1">
-                <input id="id" name="id" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.id} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value })} />
+                <input id="id" name="id" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.id} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value }); if (localError) setLocalError(''); }} onBlur={() => fetchAparAllowedRoles(effectiveLoginData.id)} />
               </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1"> Password </label>
               <div className="mt-1">
-                <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.password} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value })} />
+                <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.password} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value }); if (localError) setLocalError(''); }} />
               </div>
             </div>
 
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1"> Role </label>
               <div className="mt-1">
-                <select id="role" name="role" className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value })}>
-                  <option>Officer (Graded)</option>
-                  <option>Reporting Officer</option>
-                  <option>Reviewing Officer</option>
+                <select id="role" name="role" disabled={!isEmailValidLive} title={!isEmailValidLive ? 'Enter a valid email to select role' : ''} className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value }); if (localError) setLocalError(''); }}>
+                  {aparRoleOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </select>
               </div>
             </div>

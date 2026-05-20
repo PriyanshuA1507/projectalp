@@ -25,6 +25,10 @@ class AuthService {
     return this.api.post('/auth/verify-role', { role });
   }
 
+  async getAllowedRoles(email) {
+    return this.api.post('/auth/allowed-roles', { email });
+  }
+
 
 }
 

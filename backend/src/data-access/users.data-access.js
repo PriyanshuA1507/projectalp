@@ -23,6 +23,7 @@ const mapUser = (user) => {
     lockedUntil: user.locked_until,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
+    avatar: user.avatar_url || null,
     passwordHash: user.password_hash // Often needed internally for checks
   };
 };
@@ -38,7 +39,9 @@ export const createUser = async ({
   reportingOfficerId = null,
   reviewingOfficerId = null,
   departmentId = null,
-  mustChangePassword = true
+  // Default to false: do not force password change on first login for newly created users.
+  // Historically this was true; switched to false per request.
+  mustChangePassword = false
 }) => {
   const normalizedRole = normalizeRoleValue(role);
   if (!normalizedRole) {
@@ -188,7 +191,8 @@ export const updateUserAttributes = async ({
   name,
   designation,
   departmentId,
-  mustChangePassword
+  mustChangePassword,
+  avatar
 }) => {
   if (!id) {
     throw new Error('User ID is required for attribute update');
@@ -208,7 +212,8 @@ export const updateUserAttributes = async ({
     ...(name !== undefined ? { name } : {}),
     ...(designation !== undefined ? { designation } : {}),
     ...(departmentId !== undefined ? { department_id: departmentId } : {}),
-    ...(mustChangePassword !== undefined ? { must_change_password: mustChangePassword } : {})
+    ...(mustChangePassword !== undefined ? { must_change_password: mustChangePassword } : {}),
+    ...(avatar !== undefined ? { avatar_url: avatar } : {})
   };
   if (email !== undefined && email !== null) updateData.email = email.toLowerCase();
 

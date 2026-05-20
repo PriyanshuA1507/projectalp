@@ -148,12 +148,13 @@ export default function Header() {
   // ... 
 
   const handleLogout = async () => {
-    // Keep UX simple: attempt cleanup, then go back to login.
+    // Keep UX simple: attempt cleanup, then do a full navigation back to login
+    // Use a full-page replace to avoid leaving stale SPA state / CSRF tokens.
     try {
       await dispatch(aparLogout());
       await dispatch(logoutThunk());
     } finally {
-      navigate('/login', { replace: true });
+      window.location.replace('/login');
     }
   };
 

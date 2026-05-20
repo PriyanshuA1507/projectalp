@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import { aparLogin, aparLogout, aparProfile, aparVerifyRole, aparChangePassword } from "../controllers/aparAuth.controller.js";
+import { aparLogin, aparLogout, aparProfile, aparVerifyRole, aparChangePassword, aparAllowedRoles, aparUploadAvatar } from "../controllers/aparAuth.controller.js";
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { aparLoginSchema, changePasswordSchema, verifyRoleSchema } from '../validators/apar-auth.validator.js';
+import { aparLoginSchema, changePasswordSchema, verifyRoleSchema, allowedRolesSchema } from '../validators/apar-auth.validator.js';
+import { upload } from '../middlewares/multer.middleware.js';
 
 const router = Router();
 
 router.post('/login', validate(aparLoginSchema), aparLogin);
+router.post('/allowed-roles', validate(allowedRolesSchema), aparAllowedRoles);
 router.post('/logout', authenticate, aparLogout);
 router.get('/profile', authenticate, aparProfile);
+router.post('/profile/avatar', authenticate, upload.single('file'), aparUploadAvatar);
 router.post('/verify-role', authenticate, validate(verifyRoleSchema), aparVerifyRole);
 router.post('/change-password', authenticate, validate(changePasswordSchema), aparChangePassword);
 

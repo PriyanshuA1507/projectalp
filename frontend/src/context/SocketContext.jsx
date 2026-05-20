@@ -28,15 +28,17 @@ export const SocketProvider = ({ children }) => {
         }
 
         const backendUrl = import.meta.env.VITE_BASEURL || 'http://localhost:8000';
+        // Remove /api/v1 or any API path for Socket.IO connection (Socket.IO runs on root)
+        const socketUrl = backendUrl.replace(/\/api\/v\d+$/, '').replace(/\/api$/, '');
 
         if (!socketRef.current) {
-            socketRef.current = io(backendUrl, {
+            socketRef.current = io(socketUrl, {
                 withCredentials: true,
                 transports: ['websocket', 'polling']
             });
 
             socketRef.current.on('connect', () => {
-                console.log('✅ Global Socket Connected');
+                // console.log('✅ Global Socket Connected');
                 setConnected(true);
 
                 // Join personal notification room
@@ -45,7 +47,7 @@ export const SocketProvider = ({ children }) => {
             });
 
             socketRef.current.on('disconnect', () => {
-                console.log('🔌 Global Socket Disconnected');
+                // console.log('🔌 Global Socket Disconnected');
                 setConnected(false);
             });
         } else {
@@ -55,8 +57,8 @@ export const SocketProvider = ({ children }) => {
         }
 
         return () => {
-            // Usually we don't disconnect global socket on every small change
-            // as it's meant to be persistent while logged in.
+            // Only disconnect on unmount, not on user/role changes
+            // Socket should remain persistent while logged in
         };
     }, [user, role]);
 
@@ -67,4 +69,4 @@ export const SocketProvider = ({ children }) => {
     );
 };
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocket = () => useContext(SocketContext); // eslint-disable-line react-refresh/only-export-components

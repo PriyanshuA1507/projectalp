@@ -18,6 +18,7 @@ import {
 import { findById as findFacultyById, findByEmail as findFacultyByEmail, listFacultyIds } from '../data-access/faculty.data-access.js';
 import { normalizeRoleValue, ROLES } from '../config/roles.js';
 import { validatePasswordPolicy } from '../utils/password-policy.js';
+import { isValidEmail } from '../utils/validation.js';
 
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 12); // 12 hours
 const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
@@ -144,6 +145,9 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   if (email) {
+    if (!isValidEmail(email)) {
+      throw new ApiError(400, 'Invalid email address');
+    }
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
       throw new ApiError(409, 'Email is already registered');
@@ -169,6 +173,10 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   if (!normalizedEmail || !password || !requestedRole) {
     throw new ApiError(400, 'Email, password and role are required');
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email address');
   }
 
   const normalizedRequestedRole = validateRole(requestedRole);
@@ -402,4 +410,44 @@ export const verifyRole = asyncHandler(async (req, res) => {
 export const listUserIds = asyncHandler(async (req, res) => {
   const ids = await listFacultyIds();
   res.status(200).json(new ApiResponse(200, { userIds: ids }, 'User IDs fetched'));
+});
+
+export const allowedRoles = asyncHandler(async (req, res) => {
+  const { email } = req.body ?? {};
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email address');
+  }
+
+  let userRecord = await findUserByEmail(normalizedEmail);
+  let facultyMember = null;
+
+  if (userRecord?.userId) {
+    facultyMember = await findFacultyById(userRecord.userId);
+  }
+
+  if (!facultyMember) {
+    facultyMember = await findFacultyByEmail(normalizedEmail);
+  }
+
+  let baseRole = null;
+  if (userRecord && userRecord.role) baseRole = normalizeRoleValue(userRecord.role) ?? userRecord.role;
+  else if (facultyMember && (facultyMember.role || facultyMember.designation)) baseRole = normalizeRoleValue(facultyMember.role ?? facultyMember.designation) ?? (facultyMember.role ?? facultyMember.designation);
+
+  let allowed = [];
+  if (baseRole) {
+    allowed = getAllowedRolesFor(baseRole);
+  }
+
+  // Fallback to common roles if nothing found
+  if (!allowed || allowed.length === 0) {
+    allowed = [ROLES.FACULTY];
+  }
+
+  res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed roles fetched'));
 });

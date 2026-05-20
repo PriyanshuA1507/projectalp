@@ -26,6 +26,7 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || '/app';
   const roleOptions = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
+  const [roleOptionsState, setRoleOptionsState] = useState(roleOptions);
 
   if (initializeStatus === 'loading') {
     return (
@@ -45,8 +46,15 @@ export default function Login() {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Client-side: validate presence and basic email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!normalizedEmail) {
       setError('Please enter your email address.');
+      return;
+    }
+
+    if (!emailRegex.test(normalizedEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -69,6 +77,24 @@ export default function Login() {
       setError(message);
     }
   };
+
+  const fetchAllowedRoles = async (emailValue) => {
+    const normalized = emailValue?.trim().toLowerCase();
+    if (!normalized || !emailRegex.test(normalized)) return;
+    try {
+      const resp = await authService.getAllowedRoles(normalized);
+      const allowed = resp?.allowedRoles ?? [];
+      if (allowed && allowed.length > 0) {
+        setRoleOptionsState(allowed);
+        if (!allowed.includes(selectedRole)) setSelectedRole(allowed[0]);
+      }
+    } catch (e) {
+      // ignore and keep defaults
+      // console.warn('failed to fetch allowed roles', e);
+    }
+  };
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isEmailValid = emailRegex.test(email.trim().toLowerCase());
 
 
   return (
@@ -116,6 +142,7 @@ export default function Login() {
                   setEmail(event.target.value);
                   if (error) setError('');
                 }}
+                onBlur={() => fetchAllowedRoles(email)}
                 className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="name@college.edu"
               />
@@ -129,16 +156,18 @@ export default function Login() {
                 id="role"
                 name="role"
                 value={selectedRole}
+                disabled={!isEmailValid}
+                title={!isEmailValid ? 'Enter a valid email to select role' : ''}
                 onChange={(event) => {
                   setSelectedRole(event.target.value);
                   if (error) setError('');
                 }}
                 className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
-                {roleOptions.map((roleOption) => (
-                  <option key={roleOption} value={roleOption}>
-                    {roleOption}
-                  </option>
+                {roleOptionsState.map((roleOption) => (
+                    <option key={roleOption} value={roleOption}>
+                      {roleOption}
+                    </option>
                 ))}
               </select>
             </div>

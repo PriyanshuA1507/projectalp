@@ -45,7 +45,7 @@ const normalizeDepartmentId = async (deptIdInput) => {
             const dept = await Department.findOne({ department_name: deptId });
             if (dept) {
                 deptId = dept.department_id;
-                console.log(`Resolved department "${deptId}" from name "${deptIdInput}"`);
+                // console.log(`Resolved department "${deptId}" from name "${deptIdInput}"`);
             } else {
                 console.warn(`Could not find department with name "${deptId}". Using as-is.`);
             }
@@ -105,9 +105,50 @@ const computeChanges = (existingDoc, updateData) => {
 };
 
 
-        // saveToMonthlyData is disabled temporarily to avoid parse/runtime issues.
+        // Save APAR form data to monthly data collection for reporting
         const saveToMonthlyData = asyncHandler(async (req, res) => {
-            return res.status(501).json(new ApiResponse(501, {}, "saveToMonthlyData is temporarily disabled"));
+            const { faculty_id, ay, formData } = req.body;
+
+            if (!faculty_id || !ay) {
+                throw new ApiError(400, "Faculty ID and Academic Year are required");
+            }
+
+            // Clean empty strings from form data
+            const cleanedFormData = cleanEmptyStrings(formData || {});
+
+            // Find or create monthly data record
+            const existingMonthly = await AparForm.findOne({
+                faculty_id: { $regex: new RegExp(`^${faculty_id}$`, 'i') },
+                ay,
+                is_monthly: true
+            });
+
+            if (existingMonthly) {
+                // Update existing monthly record
+                existingMonthly.formData = cleanedFormData;
+                existingMonthly.timeline.push({
+                    action: 'updated_monthly',
+                    timestamp: new Date(),
+                    actor: faculty_id
+                });
+                await existingMonthly.save();
+            } else {
+                // Create new monthly record
+                await AparForm.create({
+                    faculty_id,
+                    ay,
+                    formData: cleanedFormData,
+                    status: 'Monthly',
+                    is_monthly: true,
+                    timeline: [{
+                        action: 'created_monthly',
+                        timestamp: new Date(),
+                        actor: faculty_id
+                    }]
+                });
+            }
+
+            return res.status(200).json(new ApiResponse(200, {}, "Data saved to monthly successfully"));
         });
 
 // === Faculty Actions ===
@@ -310,7 +351,7 @@ const syncIqacToAparForm = async (form, faculty_id, ay) => {
             academic_year: { $in: ayVariants }
         }).lean();
 
-        console.log(`[PATENT DEBUG] Found ${patents.length} patents:`, JSON.stringify(patents, null, 2));
+        // console.log(`[PATENT DEBUG] Found ${patents.length} patents:`, JSON.stringify(patents, null, 2));
 
         merge('patents', patents, 'patent_id', 'patents');
 
@@ -392,7 +433,7 @@ const getForm = asyncHandler(async (req, res) => {
 
         // IF form doesn't exist, create it + sync
         if (!form) {
-            console.log(`[APAR] No form found for Faculty=${faculty_id}, AY=${ay}. Creating new draft.`);
+            // console.log(`[APAR] No form found for Faculty=${faculty_id}, AY=${ay}. Creating new draft.`);
 
             const newForm = new AparForm({
                 faculty_id,
@@ -546,15 +587,15 @@ const saveForm = asyncHandler(async (req, res) => {
 
     // Clean formData to replace "" with undefined for Dates/Numbers to avoid CastError
     if (formData) {
-        console.log('[SAVE FORM DEBUG] Received Research Keys:', Object.keys(formData.research || {}));
+        // console.log('[SAVE FORM DEBUG] Received Research Keys:', Object.keys(formData.research || {}));
         if (formData.research?.journals) {
-            console.log('[SAVE FORM DEBUG] Raw Journals:', JSON.stringify(formData.research.journals, null, 2));
+            // console.log('[SAVE FORM DEBUG] Raw Journals:', JSON.stringify(formData.research.journals, null, 2));
         }
 
         formData = cleanEmptyStrings(formData);
 
         if (formData.research?.journals) {
-            console.log('[SAVE FORM DEBUG] Cleaned Journals:', JSON.stringify(formData.research.journals, null, 2));
+            // console.log('[SAVE FORM DEBUG] Cleaned Journals:', JSON.stringify(formData.research.journals, null, 2));
         }
 
         // Check for internal duplicates in the draft data being saved
@@ -694,12 +735,12 @@ const getPendingReporting = asyncHandler(async (req, res) => {
     if (req.user?.id && req.user.id !== reportingOfficerId) possibleOfficerIds.push(req.user.id);
     if (req.user?.sub && req.user.sub !== reportingOfficerId) possibleOfficerIds.push(req.user.sub);
 
-    console.log(`[REPORTING VIEW] Checking assignments for Officer IDs: ${possibleOfficerIds.join(', ')}`);
+    // console.log(`[REPORTING VIEW] Checking assignments for Officer IDs: ${possibleOfficerIds.join(', ')}`);
 
     // Direct query to User model instead of helper to support multiple IDs
     const assignedUsers = await User.find({ reporting_officer_id: { $in: possibleOfficerIds } });
     const assignedUserIds = assignedUsers.map(u => u.user_id);
-    console.log(`[REPORTING VIEW] Found ${assignedUsers.length} assigned users: ${assignedUserIds.join(', ')}`);
+    // console.log(`[REPORTING VIEW] Found ${assignedUsers.length} assigned users: ${assignedUserIds.join(', ')}`);
 
 
     if (!assignedUserIds.length) {
@@ -726,9 +767,9 @@ const getPendingReporting = asyncHandler(async (req, res) => {
 
     if (ay) query.ay = ay;
 
-    console.log(`[REPORTING VIEW] Querying Forms:`, JSON.stringify(query));
+    // console.log(`[REPORTING VIEW] Querying Forms:`, JSON.stringify(query));
     const forms = await AparForm.find(query).sort({ updatedAt: -1 }).lean();
-    console.log(`[REPORTING VIEW] Forms found: ${forms.length}`);
+    // console.log(`[REPORTING VIEW] Forms found: ${forms.length}`);
 
     const list = forms.map(f => ({
         faculty_id: f.faculty_id,
@@ -866,12 +907,12 @@ const getPendingReviewing = asyncHandler(async (req, res) => {
     if (req.user?.id && req.user.id !== reviewingOfficerId) possibleOfficerIds.push(req.user.id);
     if (req.user?.sub && req.user.sub !== reviewingOfficerId) possibleOfficerIds.push(req.user.sub);
 
-    console.log(`[REVIEWING VIEW] Checking assignments for Officer IDs: ${possibleOfficerIds.join(', ')}`);
+    // console.log(`[REVIEWING VIEW] Checking assignments for Officer IDs: ${possibleOfficerIds.join(', ')}`);
 
     // Direct query to User model
     const assignedUsers = await User.find({ reviewing_officer_id: { $in: possibleOfficerIds } });
     const assignedUserIds = assignedUsers.map(u => u.user_id);
-    console.log(`[REVIEWING VIEW] Found ${assignedUsers.length} assigned users: ${assignedUserIds.join(', ')}`);
+    // console.log(`[REVIEWING VIEW] Found ${assignedUsers.length} assigned users: ${assignedUserIds.join(', ')}`);
 
 
     if (!assignedUserIds.length) {
@@ -895,7 +936,7 @@ const getPendingReviewing = asyncHandler(async (req, res) => {
 
     if (ay) query.ay = ay;
 
-    console.log(`[REVIEWING VIEW] Querying Forms:`, JSON.stringify(query));
+    // console.log(`[REVIEWING VIEW] Querying Forms:`, JSON.stringify(query));
     const forms = await AparForm.find(query).lean();
     console.log(`[REVIEWING VIEW] Forms found: ${forms.length}`);
     const list = forms.map(f => ({
@@ -1160,7 +1201,7 @@ const handleCrossFacultyEntry = async (
             entryTitle: entryTitle
         });
 
-        console.log(`✅ Removed duplicate ${entryType} from ${otherFacultyId}'s draft`);
+        // console.log(`✅ Removed duplicate ${entryType} from ${otherFacultyId}'s draft`);
     }
 };
 

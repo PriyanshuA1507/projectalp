@@ -39,3 +39,11 @@ export const verifyRoleSchema = z.object({
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough()
 });
+
+export const allowedRolesSchema = z.object({
+  body: z.object({
+    email: nonEmptyString('Email')
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough()
+});
