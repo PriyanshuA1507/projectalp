@@ -57,9 +57,9 @@ const getAllowedRolesFor = (role) => {
   const normalized = normalizeRoleValue(role) ?? role;
   switch (normalized) {
     case ROLES.REPORTING_OFFICER:
-      return [ROLES.REPORTING_OFFICER];
+      return [ROLES.REPORTING_OFFICER, ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
     case ROLES.REVIEWING_OFFICER:
-      return [ROLES.REVIEWING_OFFICER];
+      return [ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
     case ROLES.OFFICER:
       return [ROLES.OFFICER];
     default:
@@ -284,6 +284,8 @@ export const aparAllowedRoles = asyncHandler(async (req, res) => {
 
   // Determine allowed APAR roles
   let baseAparRole = userRecord?.aparRole ?? null;
+  
+  // Only derive from faculty/system role if no explicit APAR role is set
   if (!baseAparRole && facultyMember) {
     // derive from faculty/system role
     const derived = facultyMember.role ?? facultyMember.designation ?? null;
@@ -291,6 +293,8 @@ export const aparAllowedRoles = asyncHandler(async (req, res) => {
       // map to APAR default: Officer for most, Reporting/Reviewing for specific titles
       const lc = String(derived).toLowerCase();
       if (lc.includes('hod') || lc.includes('head')) baseAparRole = ROLES.OFFICER;
+      else if (lc.includes('reviewing')) baseAparRole = ROLES.REVIEWING_OFFICER;
+      else if (lc.includes('reporting')) baseAparRole = ROLES.REPORTING_OFFICER;
       else baseAparRole = ROLES.OFFICER;
     }
   }

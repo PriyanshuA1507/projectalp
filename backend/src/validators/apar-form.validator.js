@@ -10,7 +10,7 @@ const personalSchema = z.object({
   name: nonEmptyString('Name'),
   designation: nonEmptyString('Designation'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  email: z.string().email('Invalid email format').optional(),
+  email: z.union([z.string().email('Invalid email format'), z.literal('')]).optional(),
   phone: optionalString,
   department_id: nonEmptyString('Department'),
   qualification: nonEmptyString('Qualification'),
@@ -322,7 +322,7 @@ const corporateSchema = z.object({
   sports_community: optionalString,
   admin_assignment: optionalString,
   any_other: optionalString,
-  certify: optionalString
+  certify: z.union([z.string().trim(), z.boolean()]).optional()
 });
 
 // Assessment Validation (scores must be between 1-10)
@@ -346,7 +346,7 @@ const assessmentSectionBSchema = z.object({
   q8: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
   q9: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
   q10: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q11: z.enum(['Outstanding', 'Very Good', 'Good', 'Average', 'Below Average']).optional(),
+  q11: z.union([z.enum(['Outstanding', 'Very Good', 'Good', 'Average', 'Below Average']), z.literal('')]).optional(),
   overall_grading: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' })
 });
 

@@ -380,7 +380,6 @@ export default function AparForm() {
     const [queryModalOpen, setQueryModalOpen] = useState(false);
     const [queryComment, setQueryComment] = useState('');
     const [isSavingDraft, setIsSavingDraft] = useState(false);
-    const [isSyncing, setIsSyncing] = useState(false);
     const [pendingAction, setPendingAction] = useState(null); // { type: 'reporting' | 'reviewing', status: string }
     const [deleteModal, setDeleteModal] = useState({ open: false, section: null, field: null, index: null });
 
@@ -874,45 +873,7 @@ export default function AparForm() {
         }
     };
 
-    const handleSaveToMonthly = async () => {
-        setIsSyncing(true);
-        try {
-            // First save as draft
-            await handleSaveDraft(true);
 
-            // Then sync to monthly
-            const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
-                const start = formData.personal.report_start_date
-                const end = formData.personal.report_end_date
-                return getAcademicYearFromDates(start, end)
-            })();
-
-            const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
-
-            if (!ay || !facultyId || ay === 'undefined') {
-                toast.error("Invalid Academic Year or Faculty ID");
-                return;
-            }
-
-            const payload = {
-                faculty_id: facultyId,
-                ay: ay,
-                formData: formData
-            };
-
-            await AparFormGradedService.saveToMonthly(payload);
-            toast.success('Synced to Monthly Data successfully');
-
-            // Re-fetch logic or update needs to happen here ideally to get new IDs, 
-            // but for now relying on user page refresh or subsequent edits working via ID/Title match
-        } catch (e) {
-            console.error('Save to monthly failed:', e);
-            const msg = e.response?.data?.message || 'Failed to sync to monthly data';
-            toast.error(msg);
-        } finally {
-            setIsSyncing(false);
-        }
-    };
 
     const nextStep = async () => {
         // Validate current step before moving forward
@@ -1590,26 +1551,10 @@ export default function AparForm() {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleSaveDraft(false)}
-                                                    disabled={isSavingDraft || isSyncing}
+                                                    disabled={isSavingDraft}
                                                     className={`px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center ${isSavingDraft ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 >
                                                     {isSavingDraft ? 'Saving...' : 'Save Draft'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleSaveToMonthly}
-                                                    disabled={isSyncing || isSavingDraft}
-                                                    className={`px-6 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    {isSyncing ? (
-                                                        <>
-                                                            <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-indigo-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg>
-                                                            Syncing...
-                                                        </>
-                                                    ) : 'Save to Monthly Data'}
                                                 </button>
                                             </>
                                         )}

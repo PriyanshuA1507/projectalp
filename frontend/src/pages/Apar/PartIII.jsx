@@ -7,6 +7,17 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
     const user = useSelector(selectAparUser);
     const currentFacultyId = user?.teacherId || user?.faculty_id || user?.userId || user?.user_id || '';
 
+    // Derive Course options from APAR draft (teaching.courses_taught)
+    const draftCourses = (formData?.teaching?.courses_taught || []).filter(Boolean);
+    // Try to pick course_id if present, else fallback to name_of_course
+    const courseIds = Array.from(new Set(
+        draftCourses
+            .map(c => (c?.course_id ?? c?.name_of_course ?? ''))
+            .map(v => String(v || '').trim())
+            .filter(v => v !== '')
+    ));
+    const courseOptionsFromDraft = courseIds.map(id => ({ value: id, label: id }));
+
     // Helper handlers generator
     const createHandlers = (field) => ({
         onAdd: (item) => addItem('research', field, item),
@@ -331,7 +342,8 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
 
 
                     { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: user?.faculty_id },
-                    { label: 'Course ID', key: 'course_id', type: 'entitySelect', entityType: 'course', required: true },
+                    // Use draft-derived course IDs if available; fallback to global course list via entityType
+                    { label: 'Course ID', key: 'course_id', type: 'entitySelect', entityType: 'course', required: true, optionsOverride: courseOptionsFromDraft },
                     { label: 'Module Name', key: 'name_of_module', required: true, placeholder: 'Enter module name' },
                     { label: 'Type', key: 'type_of_content', type: 'select', options: ['Video', 'Module', 'Quiz', 'PPT', 'Simulation', 'eBook', 'Other'], required: true, placeholder: 'Select type' },
                     { label: 'Platform', key: 'platform', required: true, placeholder: 'Enter platform' },

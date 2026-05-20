@@ -31,9 +31,6 @@ export default function AparLogin({ loginData, setLoginData }) {
       const allowed = resp?.allowedRoles ?? [];
       if (allowed && allowed.length > 0) {
         setAparRoleOptions(allowed);
-        if (!aparRoleOptions.includes(effectiveLoginData.role)) {
-          effectiveSetLoginData({ ...effectiveLoginData, role: allowed[0] });
-        }
       }
     } catch (e) {
       // ignore

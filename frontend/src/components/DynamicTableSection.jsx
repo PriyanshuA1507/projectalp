@@ -408,6 +408,7 @@ export default function DynamicTableSection({
                                         onChange={(val) => handleChange(f.key, val)}
                                         required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         disabled={f.disabled || f.readOnly || readOnly}
+                                        optionsOverride={f.optionsOverride || []}
                                         className="w-full"
                                     />
                                 ) : f.type === 'file' ? (
