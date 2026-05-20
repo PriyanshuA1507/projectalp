@@ -51,18 +51,19 @@ const sanitizeUser = (user, additionalInfo = {}) => {
   };
 };
 
-const getAllowedRolesFor = (role) => {
-  const normalized = normalizeRoleValue(role) ?? role;
-  switch (normalized) {
-    case ROLES.REPORTING_OFFICER:
-      return [ROLES.REPORTING_OFFICER, ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
-    case ROLES.REVIEWING_OFFICER:
-      return [ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
-    case ROLES.OFFICER:
-      return [ROLES.OFFICER];
-    default:
-      return normalized ? [normalized] : [];
+const getAllowedRolesFor = (aparRole) => {
+  // Always include Officer (Graded) as everyone can login as Faculty/Officer
+  const allowed = [ROLES.OFFICER];
+
+  // Add specific APAR role if assigned
+  if (aparRole) {
+    const normalized = normalizeRoleValue(aparRole);
+    if (normalized === ROLES.REPORTING_OFFICER || normalized === ROLES.REVIEWING_OFFICER) {
+      allowed.push(normalized);
+    }
   }
+
+  return allowed;
 };
 
 const canLoginAsRole = (userRecord, requestedRole) => {
@@ -71,29 +72,15 @@ const canLoginAsRole = (userRecord, requestedRole) => {
   const normalizedRequested = normalizeRoleValue(requestedRole);
   if (!normalizedRequested) return false;
 
-  // 1. Check if they have an explicit APAR role assigned
-  if (userRecord.aparRole) {
-    // If they have a high-level role, they MUST login as that role or its specific allowed sub-roles
-    const allowed = getAllowedRolesFor(userRecord.aparRole);
-    if (allowed.includes(normalizedRequested)) return true;
-
-    // If they have an APAR role but requested something else (like Officer (Graded) when they are a Reporting Officer), 
-    // we strictly deny based on user request.
-    return false;
+  // Always allow login as Officer (Graded) - everyone can login as Faculty/Officer
+  if (normalizedRequested === ROLES.OFFICER) {
+    return true;
   }
 
-  // 2. Check their system role for hierarchy (only for users with no explicit APAR role)
-  const systemRole = userRecord.role;
-  if (systemRole) {
-    const lc = systemRole.toLowerCase();
-
-    // HODs and IQAC heads can always login as Officers (Graded)
-    if (normalizedRequested === ROLES.OFFICER) {
-      if (lc.includes('iqac') || lc.includes('head') || lc.includes('hod')) return true;
-    }
-
-    // Faculty members can login as Officers (Graded) by default
-    if (normalizedRequested === ROLES.OFFICER && lc.includes('faculty')) return true;
+  // If user has an explicit APAR role, allow login as that specific role
+  if (userRecord.aparRole) {
+    const normalizedAparRole = normalizeRoleValue(userRecord.aparRole);
+    return normalizedRequested === normalizedAparRole;
   }
 
   return false;
@@ -280,31 +267,9 @@ export const aparAllowedRoles = asyncHandler(async (req, res) => {
     facultyMember = await findFacultyByEmail(normalizedEmail);
   }
 
-  // Determine allowed APAR roles
-  let baseAparRole = userRecord?.aparRole ?? null;
-  
-  // Only derive from faculty/system role if no explicit APAR role is set
-  if (!baseAparRole && facultyMember) {
-    // derive from faculty/system role
-    const derived = facultyMember.role ?? facultyMember.designation ?? null;
-    if (derived) {
-      // map to APAR default: Officer for most, Reporting/Reviewing for specific titles
-      const lc = String(derived).toLowerCase();
-      if (lc.includes('hod') || lc.includes('head')) baseAparRole = ROLES.OFFICER;
-      else if (lc.includes('reviewing')) baseAparRole = ROLES.REVIEWING_OFFICER;
-      else if (lc.includes('reporting')) baseAparRole = ROLES.REPORTING_OFFICER;
-      else baseAparRole = ROLES.OFFICER;
-    }
-  }
-
-  let allowed = [];
-  if (baseAparRole) {
-    allowed = getAllowedRolesFor(baseAparRole);
-  }
-
-  if (!allowed || allowed.length === 0) {
-    allowed = [ROLES.OFFICER];
-  }
+  // Use getAllowedRolesFor to determine allowed roles
+  // This always includes Officer (Graded) and optionally adds specific APAR role if assigned
+  const allowed = getAllowedRolesFor(userRecord?.aparRole ?? null);
 
   res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed APAR roles fetched'));
 });
