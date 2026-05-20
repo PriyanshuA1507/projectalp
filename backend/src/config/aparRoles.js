@@ -11,6 +11,9 @@ const ROLE_ALIASES = {
   'officer (graded)': ROLES.OFFICER,
   reviewing_officer: ROLES.REVIEWING_OFFICER,
   'reviewing officer': ROLES.REVIEWING_OFFICER,
+  // Accept common alternative phrasing/typo used by users
+  receiving_officer: ROLES.REVIEWING_OFFICER,
+  'receiving officer': ROLES.REVIEWING_OFFICER,
   reporting_officer: ROLES.REPORTING_OFFICER,
   'reporting officer': ROLES.REPORTING_OFFICER
 };

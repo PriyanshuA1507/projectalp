@@ -57,9 +57,9 @@ const getAllowedRolesFor = (role) => {
   const normalized = normalizeRoleValue(role) ?? role;
   switch (normalized) {
     case ROLES.REPORTING_OFFICER:
-      return [ROLES.REPORTING_OFFICER];
+      return [ROLES.REPORTING_OFFICER, ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
     case ROLES.REVIEWING_OFFICER:
-      return [ROLES.REVIEWING_OFFICER];
+      return [ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
     case ROLES.OFFICER:
       return [ROLES.OFFICER];
     default:
