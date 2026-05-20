@@ -76,6 +76,7 @@ export class Api {
                 const responseMessage = error.response?.data?.message || error.response?.data?.error || '';
                 const isCsrfError = status === 403 && String(responseMessage).toLowerCase().includes('csrf');
                 const originalRequest = error.config || {};
+                const isPasswordChangeRequired = status === 403 && String(responseMessage).toLowerCase().includes('password change');
 
                 if (isCsrfError && !originalRequest._csrfRetry) {
                     originalRequest._csrfRetry = true;
@@ -90,6 +91,13 @@ export class Api {
                         return this.client(originalRequest);
                     } catch (retryError) {
                         return Promise.reject(retryError);
+                    }
+                }
+
+                if (isPasswordChangeRequired) {
+                    // Redirect to APAR login where password change UI is presented
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/apar/login';
                     }
                 }
 

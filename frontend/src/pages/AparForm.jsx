@@ -1121,16 +1121,78 @@ export default function AparForm() {
     };
 
     const updateAssessment = (section, key, value) => {
-        setFormData(prev => ({
-            ...prev,
-            assessment: {
-                ...prev.assessment,
-                [section]: {
-                    ...prev.assessment[section],
-                    [key]: value
+        setFormData(prev => {
+            const next = {
+                ...prev,
+                assessment: {
+                    ...prev.assessment,
+                    [section]: {
+                        ...prev.assessment[section],
+                        [key]: value
+                    }
+                }
+            };
+
+            // Auto-calculate per-section overall grading as average of numeric questions
+            const numericKeys = {
+                section_a: ['q1', 'q2', 'q3', 'q4'],
+                section_b: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7a', 'q7b', 'q8', 'q9', 'q10'],
+                section_c: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6']
+            };
+
+            if (section in numericKeys) {
+                const vals = numericKeys[section]
+                    .map((k) => parseInt((next.assessment[section]?.[k] ?? '').toString(), 10))
+                    .filter((n) => Number.isFinite(n));
+                if (vals.length > 0) {
+                    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+                    next.assessment[section].overall_grading = String(avg);
+                } else {
+                    next.assessment[section].overall_grading = '';
                 }
             }
-        }));
+
+            // Auto-calculate overall numerical grading (Weighted A+B+C) into general.q6
+            const a = parseInt((next.assessment.section_a?.overall_grading ?? '').toString(), 10);
+            const b = parseInt((next.assessment.section_b?.overall_grading ?? '').toString(), 10);
+            const c = parseInt((next.assessment.section_c?.overall_grading ?? '').toString(), 10);
+
+            const parts = [];
+            if (Number.isFinite(a)) parts.push({ val: a, w: 0.4 });
+            if (Number.isFinite(b)) parts.push({ val: b, w: 0.3 });
+            if (Number.isFinite(c)) parts.push({ val: c, w: 0.3 });
+
+            if (parts.length > 0) {
+                const wsum = parts.reduce((s, p) => s + p.w, 0);
+                const weighted = parts.reduce((s, p) => s + p.val * p.w, 0) / (wsum || 1);
+                next.assessment.general = {
+                    ...next.assessment.general,
+                    q6: String(Math.round(weighted))
+                };
+            }
+
+            // Auto-select Section B q11 (textual grade) based on Section B overall_grading
+            const bOverall = parseInt((next.assessment.section_b?.overall_grading ?? '').toString(), 10);
+            if (Number.isFinite(bOverall)) {
+                let gradeText = '';
+                if (bOverall >= 9) gradeText = 'Outstanding';
+                else if (bOverall >= 8) gradeText = 'Very Good';
+                else if (bOverall >= 6) gradeText = 'Good';
+                else if (bOverall >= 4) gradeText = 'Average';
+                else gradeText = 'Below Average';
+                next.assessment.section_b = {
+                    ...next.assessment.section_b,
+                    q11: gradeText
+                };
+            } else {
+                next.assessment.section_b = {
+                    ...next.assessment.section_b,
+                    q11: ''
+                };
+            }
+
+            return next;
+        });
     };
 
     // Generic updater for simple fields inside a named section (e.g., teaching.description_of_duties)
