@@ -25,6 +25,10 @@ class AparAuthService {
   async changePassword(oldPassword, newPassword) {
     return this.api.post('/apar/auth/change-password', { oldPassword, newPassword });
   }
+
+  async getAllowedRoles(email) {
+    return this.api.post('/apar/auth/allowed-roles', { email });
+  }
 }
 
 export const aparAuthService = new AparAuthService();

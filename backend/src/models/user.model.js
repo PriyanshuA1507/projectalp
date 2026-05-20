@@ -129,6 +129,14 @@ const UserSchema = new mongoose.Schema({
         default: Date.now
     }
 
+    ,
+    avatar_url: {
+        type: String,
+        required: false,
+        trim: true,
+        default: null
+    }
+
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     collection: 'users'
