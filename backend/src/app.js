@@ -7,7 +7,6 @@ import { errorHandler } from './middlewares/error.middleware.js'
 import { authenticate, createRouteGuard } from './middlewares/auth.middleware.js'
 import { csrfProtection, getCsrfToken } from './middlewares/csrf.middleware.js'
 import { authRateLimiter, globalRateLimiter } from './middlewares/rate-limit.middleware.js'
-import { requirePasswordChangeComplete } from './middlewares/must-change-password.middleware.js'
 
 const app = express()
 //const upload = multer()
@@ -148,12 +147,12 @@ import aparMongoRoutes from "./routes/apar.mongo.routes.js"
 
 // ...
 
-app.use('/api/v1/apar/mongo', authenticate, requirePasswordChangeComplete, aparMongoRoutes)
+app.use('/api/v1/apar/mongo', authenticate, aparMongoRoutes)
 
 
 const registerProtectedRoute = (path, router) => {
     // console.log(`[app] registering protected route: ${path}`)
-    app.use(path, authenticate, requirePasswordChangeComplete, createRouteGuard(path), router)
+    app.use(path, authenticate, createRouteGuard(path), router)
 }
 
 app.use('/api/v1/auth/login', authRateLimiter)

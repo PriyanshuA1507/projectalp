@@ -42,8 +42,7 @@ const sanitizeUser = (user, additionalInfo = {}) => {
     name: additionalInfo.name || user.name,
     designation: additionalInfo.designation || user.designation,
     role: normalizeRoleValue(user.role) ?? user.role,
-    departmentId: additionalInfo.departmentId || user.departmentId || null,
-    mustChangePassword: Boolean(user.mustChangePassword)
+    departmentId: additionalInfo.departmentId || user.departmentId || null
   };
 };
 

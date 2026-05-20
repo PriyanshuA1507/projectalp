@@ -7,7 +7,6 @@ export default function ProtectedAparRoute({ children }) {
   const location = useLocation();
   const isAuthenticated = useSelector(selectAparIsAuthenticated);
   const initializeStatus = useSelector((state) => state.aparAuth?.initializeStatus);
-  const mustChangePassword = useSelector((state) => Boolean(state.aparAuth?.user?.mustChangePassword));
 
   if (initializeStatus === 'loading') {
     return (
@@ -18,10 +17,6 @@ export default function ProtectedAparRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/apar/login" replace state={{ from: location }} />;
-  }
-
-  if (mustChangePassword) {
     return <Navigate to="/apar/login" replace state={{ from: location }} />;
   }
 

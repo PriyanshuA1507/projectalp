@@ -48,8 +48,7 @@ export const authenticate = async (req, res, next) => {
         systemRole: normalizeRoleValue(user.role) ?? user.role,
         aparRole: user.aparRole ?? null,
         academicYear: decoded.academicYear ?? null,
-        departmentId: user.departmentId ?? null,
-        mustChangePassword: user.mustChangePassword
+        departmentId: user.departmentId ?? null
       };
       req.authTokenPayload = decoded;
       return next();
