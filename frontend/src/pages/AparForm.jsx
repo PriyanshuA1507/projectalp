@@ -286,6 +286,21 @@ export default function AparForm() {
 
     console.log("Hello DTU!!!")
 
+    // Ensure departments are available early for Part I rendering
+    React.useEffect(() => {
+        (async () => {
+            try {
+                if (!departments || departments.length === 0) {
+                    const deptRes = await DepartmentService.getDepartments();
+                    const depts = deptRes?.data || deptRes || [];
+                    setDepartments(depts);
+                }
+            } catch (deptErr) {
+                console.error('Failed to fetch departments', deptErr);
+            }
+        })();
+    }, []);
+
     React.useEffect(() => {
         if (aparUser) {
             const roleToUse = aparRole || loginData.role;
@@ -1565,9 +1580,9 @@ export default function AparForm() {
 
                             {/* Step 5/6/7: Review & Submit */}
                             <div id={`apar-step-${totalSteps}`} className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
-                                <div className="border-2 border-gray-900 rounded-xl p-6 shadow-lg">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">One Final Check</h3>
-                                    <p className="text-gray-600 mb-6 font-medium">
+                                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">One Final Check</h3>
+                                    <p className="text-sm text-gray-600 mb-6">
                                         {loginData.role === 'Reporting Officer' || loginData.role === 'Reviewing Officer'
                                             ? "Please review your entries. By submitting, you confirm the details are final."
                                             : "Please review all the information provided. All data entered corresponds to the institutional IQAC standards."}
