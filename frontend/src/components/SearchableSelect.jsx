@@ -102,6 +102,7 @@ const SearchableSelect = ({
   disabled = false,
   className = '',
   excludeValues = [],
+  optionsOverride = [],
 }) => {
   const [options, setOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,15 +115,40 @@ const SearchableSelect = ({
     return <div className="text-red-500">Unknown entity type: {entityType}</div>;
   }
 
-  // Fetch all options on mount
+  // Fetch all options on mount or use override if provided
   useEffect(() => {
-    const fetchOptions = async () => {
+    const load = async () => {
       setIsLoading(true);
       try {
+        const override = Array.isArray(optionsOverride) ? optionsOverride : [];
+        if (override.length > 0) {
+          const normalized = override.map((opt) => {
+            if (typeof opt === 'string') return { value: String(opt).trim(), label: String(opt) };
+            return { value: String(opt?.value ?? '').trim(), label: opt?.label ?? String(opt?.value ?? '') };
+          });
+          setOptions(normalized);
+          // Select current value if present
+          if (value !== undefined && value !== null && value !== '') {
+            const valStr = String(value).trim();
+            const selected = normalized.find((o) => o.value === valStr);
+            setSelectedOption(selected || null);
+          }
+          return;
+        }
+
         const response = await config.service();
         console.log(`[SearchableSelect] ${entityType} raw response:`, response);
 
-        const data = response?.data || response || [];
+        let data = [];
+        if (Array.isArray(response)) {
+          data = response;
+        } else if (Array.isArray(response?.data)) {
+          data = response.data;
+        } else if (Array.isArray(response?.data?.data)) {
+          data = response.data.data;
+        } else if (Array.isArray(response?.rows)) {
+          data = response.rows;
+        }
         console.log(`[SearchableSelect] ${entityType} processed data:`, data);
 
         if (!Array.isArray(data)) {
@@ -132,7 +158,7 @@ const SearchableSelect = ({
         }
 
         const formattedOptions = data.map((item) => ({
-          value: item[config.valueKey],
+          value: String(item[config.valueKey] ?? '').trim(),
           label: `${item[config.valueKey]} - ${item[config.labelKey] || 'Unknown'}`,
           data: item,
         }));
@@ -140,9 +166,9 @@ const SearchableSelect = ({
         console.log(`[SearchableSelect] ${entityType} formatted options:`, formattedOptions);
         setOptions(formattedOptions);
 
-        // Set selected option if value exists
-        if (value) {
-          const selected = formattedOptions.find((opt) => opt.value === value);
+        if (value !== undefined && value !== null && value !== '') {
+          const valStr = String(value).trim();
+          const selected = formattedOptions.find((opt) => opt.value === valStr);
           setSelectedOption(selected || null);
         }
       } catch (error) {
@@ -153,22 +179,26 @@ const SearchableSelect = ({
       }
     };
 
-    fetchOptions();
-  }, [entityType]);
+    load();
+  }, [entityType, JSON.stringify(optionsOverride)]);
 
   // Update selected option when value prop changes
   useEffect(() => {
-    if (value && options.length > 0) {
-      const selected = options.find((opt) => opt.value === value);
+    if ((value !== undefined && value !== null && value !== '') && options.length > 0) {
+      const valStr = String(value).trim();
+      const selected = options.find((opt) => opt.value === valStr);
       setSelectedOption(selected || null);
-    } else if (!value) {
+    } else if (value === undefined || value === null || value === '') {
       setSelectedOption(null);
     }
   }, [value, options]);
 
   // Filter out excluded values (already-added entities) from the dropdown
   const filteredOptions = excludeValues.length > 0
-    ? options.filter(opt => !excludeValues.includes(opt.value))
+    ? (() => {
+        const excludeSet = new Set((excludeValues || []).map(v => String(v).trim()));
+        return options.filter(opt => !excludeSet.has(opt.value));
+      })()
     : options;
 
   // Handle selection change
