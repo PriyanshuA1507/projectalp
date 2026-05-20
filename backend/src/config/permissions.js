@@ -76,6 +76,7 @@ const ALL_PROTECTED_PATHS = [
 
 const DEFAULT_GET_ROLES = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
 const DEFAULT_POST_ROLES = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
+const INCLUDE_FACULTY_ROLES = false;
 
 const FACULTY_GET_PATHS = new Set([
   '/api/v1/faculty',
@@ -88,11 +89,11 @@ export const routePermissions = ALL_PROTECTED_PATHS.reduce((accumulator, path) =
   let getRoles = ADMIN_ONLY_PATHS.has(path) ? [ROLES.IQAC_HEAD] : DEFAULT_GET_ROLES;
   let postRoles = ADMIN_ONLY_PATHS.has(path) ? [ROLES.IQAC_HEAD] : DEFAULT_POST_ROLES;
 
-  if (FACULTY_POST_PATHS.has(path)) {
+  if (INCLUDE_FACULTY_ROLES && FACULTY_POST_PATHS.has(path)) {
     postRoles = [...new Set([...postRoles, ROLES.FACULTY])];
   }
 
-  if (FACULTY_GET_PATHS.has(path)) {
+  if (INCLUDE_FACULTY_ROLES && FACULTY_GET_PATHS.has(path)) {
     getRoles = [...new Set([...getRoles, ROLES.FACULTY])];
   }
 

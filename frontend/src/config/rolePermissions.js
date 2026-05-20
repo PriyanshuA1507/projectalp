@@ -6,35 +6,6 @@ export const ROLES = {
 
 const ADMIN_ONLY_RESOURCES = new Set(['departments', 'programmes', 'students', 'courses']);
 
-const FACULTY_FORM_RESOURCES = new Set([
-  'books_chapters_published',
-  'capability_enhancement_schemes',
-  'collaborative_activities',
-  'collaborative_research_exchanges',
-  'conference_research_papers',
-  'developed_e_contents',
-  'extension_outreach_activities',
-  'faculty_development_programs',
-  'faculty_visits',
-  'financial_support_events',
-  'functional_mous',
-  'journal_research_papers',
-  'mentors_stress_support',
-  'patents',
-  'professional_affiliations',
-  'professional_training_staff',
-  'research_innovation_awards',
-  'staff_trainings',
-  'student_centric_methods',
-  'student_financial_support_events',
-  'student_performance_activities',
-  'students_competitive_exams',
-  'students_higher_education',
-  'teachers_using_ict'
-]);
-
-const FACULTY_TABLE_RESOURCES = new Set();
-
 export const canAccessForm = (role, resourceId) => {
   if (!role || !resourceId) {
     return false;
@@ -49,7 +20,7 @@ export const canAccessForm = (role, resourceId) => {
   }
 
   if (role === ROLES.FACULTY) {
-    return FACULTY_FORM_RESOURCES.has(resourceId);
+    return false;
   }
 
   return false;
@@ -69,7 +40,7 @@ export const canAccessTable = (role, resourceId) => {
   }
 
   if (role === ROLES.FACULTY) {
-    return FACULTY_TABLE_RESOURCES.has(resourceId);
+    return false;
   }
 
   return false;

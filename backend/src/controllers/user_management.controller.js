@@ -3,8 +3,10 @@ import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 import { hashPassword } from '../utils/password.js';
 import { ROLES, normalizeRoleValue } from '../config/roles.js';
+import { ROLES as APAR_ROLES } from '../config/aparRoles.js';
 import {
   createUser,
+  deleteUserById,
   findUserByEmail,
   findUserById,
   findUserByUserId,
@@ -12,6 +14,8 @@ import {
   updateUserAttributes,
   updateUserPassword
 } from '../data-access/users.data-access.js';
+import { getByDepartmentId } from '../data-access/departments.data-access.js';
+import { set as createFaculty, findByEmail as findFacultyByEmail, findById as findFacultyById } from '../data-access/faculty.data-access.js';
 
 const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '12345';
 const MIN_PASSWORD_LENGTH = Number(process.env.MIN_PASSWORD_LENGTH || 5);
@@ -32,6 +36,8 @@ const normalizeEmail = (value) => {
   return trimmed || null;
 };
 
+const normalizeBoolean = (value) => value === true || value === 'true' || value === 'yes';
+
 const sanitizeAdminUser = (user) => ({
   id: user.id,
   userId: user.userId,
@@ -40,6 +46,7 @@ const sanitizeAdminUser = (user) => ({
   designation: user.designation,
   role: normalizeRoleValue(user.role) ?? user.role,
   departmentId: user.departmentId ?? null,
+  aparRole: user.aparRole ?? null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
@@ -66,7 +73,10 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     designation = null,
     password = DEFAULT_INITIAL_PASSWORD,
     role,
-    departmentId = null
+    departmentId = null,
+    isFaculty = undefined,
+    isReportingOfficer = false,
+    isReviewingOfficer = false
   } = req.body ?? {};
 
   const normalizedUserId = userId?.trim();
@@ -84,9 +94,39 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Email is required');
   }
 
+  const normalizedDepartmentId = departmentId?.trim();
+  if (!normalizedDepartmentId) {
+    throw new ApiError(400, 'Department is required');
+  }
+
+  const department = await getByDepartmentId(normalizedDepartmentId);
+  if (!department) {
+    throw new ApiError(400, 'Valid department is required');
+  }
+
   if (password && password.length < MIN_PASSWORD_LENGTH) {
     throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
   }
+
+  const shouldCreateFaculty = isFaculty !== undefined ? normalizeBoolean(isFaculty) : normalizedRole === 'Faculty Member';
+  const shouldBeReportingOfficer = normalizeBoolean(isReportingOfficer);
+  const shouldBeReviewingOfficer = normalizeBoolean(isReviewingOfficer);
+
+  if (shouldBeReportingOfficer && shouldBeReviewingOfficer) {
+    throw new ApiError(400, 'A user cannot be both Reporting Officer and Reviewing Officer');
+  }
+
+  if (shouldCreateFaculty && !designation?.trim()) {
+    throw new ApiError(400, 'Designation is required for faculty details');
+  }
+
+  const aparRole = shouldBeReportingOfficer
+    ? APAR_ROLES.REPORTING_OFFICER
+    : shouldBeReviewingOfficer
+      ? APAR_ROLES.REVIEWING_OFFICER
+      : shouldCreateFaculty
+        ? APAR_ROLES.OFFICER
+        : null;
 
   const existingByUserId = await findUserByUserId(normalizedUserId);
   if (existingByUserId) {
@@ -98,6 +138,18 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, 'Email is already registered');
   }
 
+  if (shouldCreateFaculty) {
+    const existingFacultyById = await findFacultyById(normalizedUserId);
+    if (existingFacultyById) {
+      throw new ApiError(409, 'A faculty profile already exists for this user ID');
+    }
+
+    const existingFacultyByEmail = await findFacultyByEmail(emailToUse);
+    if (existingFacultyByEmail) {
+      throw new ApiError(409, 'A faculty profile already exists for this email');
+    }
+  }
+
   const passwordHash = await hashPassword(password || DEFAULT_INITIAL_PASSWORD);
   const createdUser = await createUser({
     userId: normalizedUserId,
@@ -106,8 +158,23 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     role: normalizedRole,
     name: name?.trim() || null,
     designation: designation?.trim() || null,
-    departmentId: departmentId?.trim() || null
+    aparRole,
+    departmentId: normalizedDepartmentId
   });
+
+  if (shouldCreateFaculty) {
+    await createFaculty({
+      faculty_id: normalizedUserId,
+      email: emailToUse,
+      name: name.trim(),
+      designation: designation.trim(),
+      department_id: normalizedDepartmentId,
+      employment_type: 'Regular'
+    }, {
+      id: req.user?.id,
+      userId: req.user?.userId || req.user?.id
+    });
+  }
 
   res.status(201).json(
     new ApiResponse(201, { user: sanitizeAdminUser(createdUser) }, 'User created successfully')
@@ -128,7 +195,8 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
     email,
     role,
     departmentId = undefined,
-    password = undefined
+    password = undefined,
+    aparRole = undefined
   } = req.body ?? {};
 
   const emailToUse = email === undefined ? existingUser.email : normalizeEmail(email);
@@ -154,7 +222,8 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
     role: normalizedRole,
     name: existingUser.name,
     designation: existingUser.designation,
-    departmentId: departmentId === undefined ? existingUser.departmentId : departmentId
+    departmentId: departmentId === undefined ? existingUser.departmentId : departmentId,
+    aparRole: aparRole === undefined ? existingUser.aparRole : aparRole
   });
 
   // If admin provided a new password, hash and update it
@@ -170,5 +239,22 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
 
   res.status(200).json(
     new ApiResponse(200, { user: sanitizeAdminUser(finalUser) }, 'User updated successfully')
+  );
+});
+
+export const deleteManagedUser = asyncHandler(async (req, res) => {
+  assertIqacHead(req);
+
+  const { id } = req.params;
+  const existingUser = await findUserById(id);
+
+  if (!existingUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  await deleteUserById(id);
+
+  res.status(200).json(
+    new ApiResponse(200, null, 'User deleted successfully')
   );
 });

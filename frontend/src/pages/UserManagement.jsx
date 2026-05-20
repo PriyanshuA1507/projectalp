@@ -6,17 +6,29 @@ import AccessDenied from '../components/AccessDenied.jsx';
 import { selectInitializeStatus, selectRole } from '../store/slices/authSlice.js';
 import { ROLES } from '../config/rolePermissions.js';
 import { userManagementService } from '../services/user_management.service.js';
+import { DepartmentService } from '../services/department.services.js';
 
 const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
+const APAR_ROLE_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'Reporting Officer', label: 'Reporting Officer' },
+  { value: 'Reviewing Officer', label: 'Reviewing Officer' }
+];
+const YES_NO_OPTIONS = [
+  { value: 'no', label: 'No' },
+  { value: 'yes', label: 'Yes' }
+];
 
 const emptyCreateForm = {
-  userId: '',
-  name: '',
-  email: '',
-  designation: '',
-  role: ROLES.FACULTY,
-  password: '',
-  departmentId: ''
+  userId: null,
+  name: null,
+  email: null,
+  designation: null,
+  role: null,
+  password: null,
+  departmentId: null,
+  isReportingOfficer: 'no',
+  isReviewingOfficer: 'no'
 };
 
 const formatDate = (value) => {
@@ -31,6 +43,7 @@ export default function UserManagement() {
   const initializeStatus = useSelector(selectInitializeStatus);
 
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
@@ -64,22 +77,28 @@ export default function UserManagement() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const usersResponse = await userManagementService.listUsers();
+        const [usersResponse, departmentsResponse] = await Promise.all([
+          userManagementService.listUsers(),
+          DepartmentService.getDepartments()
+        ]);
 
         if (cancelled) {
           return;
         }
 
         const fetchedUsers = Array.isArray(usersResponse?.users) ? usersResponse.users : [];
+        const fetchedDepartments = Array.isArray(departmentsResponse) ? departmentsResponse : [];
 
         setUsers(fetchedUsers);
+        setDepartments(fetchedDepartments);
         setDrafts(
           Object.fromEntries(
             fetchedUsers.map((user) => [user.id, {
               role: user.role,
               email: user.email || '',
               departmentId: user.departmentId || '',
-              password: ''
+              password: '',
+              aparRole: user.aparRole || ''
             }])
           )
         );
@@ -112,7 +131,8 @@ export default function UserManagement() {
           role: user.role,
           email: user.email || '',
           departmentId: user.departmentId || '',
-          password: ''
+          password: '',
+          aparRole: user.aparRole || ''
         }])
       )
     );
@@ -125,34 +145,62 @@ export default function UserManagement() {
     }));
   };
 
+  const handleCreateRoleChange = (value) => {
+    setCreateForm((current) => ({
+      ...current,
+      role: value
+    }));
+  };
+
+  const handleCreateFlagChange = (field, value) => {
+    setCreateForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === 'isReportingOfficer' && value === 'yes' ? { isReviewingOfficer: 'no' } : {}),
+      ...(field === 'isReviewingOfficer' && value === 'yes' ? { isReportingOfficer: 'no' } : {})
+    }));
+  };
+
   const handleCreate = async (event) => {
     event.preventDefault();
 
-    if (!createForm.userId) {
+    if (!createForm.userId?.trim()) {
       toast.error('User ID is required');
       return;
     }
 
-    if (!createForm.name.trim()) {
+    if (!createForm.name?.trim()) {
       toast.error('Name is required');
       return;
     }
 
-    if (!createForm.email.trim()) {
+    if (!createForm.email?.trim()) {
       toast.error('Email is required');
+      return;
+    }
+
+    if (!createForm.role) {
+      toast.error('Role is required');
+      return;
+    }
+
+    if (!createForm.departmentId?.trim()) {
+      toast.error('Department is required');
       return;
     }
 
     setSaving(true);
     try {
       await userManagementService.createUser({
-        userId: createForm.userId,
+        userId: createForm.userId.trim(),
         name: createForm.name.trim(),
         email: createForm.email.trim(),
-        designation: createForm.designation.trim(),
+        designation: createForm.designation?.trim() || null,
         role: createForm.role,
-        password: createForm.password,
-        departmentId: createForm.departmentId || null
+        password: createForm.password?.trim() || null,
+        departmentId: createForm.departmentId.trim(),
+        isReportingOfficer: createForm.isReportingOfficer === 'yes',
+        isReviewingOfficer: createForm.isReviewingOfficer === 'yes'
       });
       toast.success('User created successfully');
       setCreateForm(emptyCreateForm);
@@ -188,7 +236,8 @@ export default function UserManagement() {
       const payload = {
         role: draft.role ?? user.role,
         email: draft.email?.trim() || user.email,
-        departmentId: draft.departmentId === undefined ? user.departmentId : (draft.departmentId || null)
+        departmentId: draft.departmentId === undefined ? user.departmentId : (draft.departmentId || null),
+        aparRole: draft.aparRole || null
       };
 
       if (password) {
@@ -200,6 +249,23 @@ export default function UserManagement() {
       await refreshData();
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Unable to update user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!confirm(`Are you sure you want to delete user "${user.name || user.userId}"?`)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await userManagementService.deleteUser(user.id);
+      toast.success('User deleted successfully');
+      await refreshData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Unable to delete user');
     } finally {
       setSaving(false);
     }
@@ -266,7 +332,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[1.05fr_1.4fr]">
+      <div className="grid gap-8">
         <form onSubmit={handleCreate} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600">
@@ -284,7 +350,7 @@ export default function UserManagement() {
                 <span className="mb-2 block text-sm font-medium text-gray-700">User ID</span>
                 <input
                   type="text"
-                  value={createForm.userId}
+                  value={createForm.userId || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, userId: event.target.value }))}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   placeholder="e.g. FAC001 or U1001"
@@ -295,7 +361,7 @@ export default function UserManagement() {
                 <span className="mb-2 block text-sm font-medium text-gray-700">Name</span>
                 <input
                   type="text"
-                  value={createForm.name}
+                  value={createForm.name || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   placeholder="Full name"
@@ -308,7 +374,7 @@ export default function UserManagement() {
                 <span className="mb-2 block text-sm font-medium text-gray-700">Email</span>
                 <input
                   type="email"
-                  value={createForm.email}
+                  value={createForm.email || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   placeholder="user@example.com"
@@ -319,7 +385,7 @@ export default function UserManagement() {
                 <span className="mb-2 block text-sm font-medium text-gray-700">Designation</span>
                 <input
                   type="text"
-                  value={createForm.designation}
+                  value={createForm.designation || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, designation: event.target.value }))}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   placeholder="Optional"
@@ -331,22 +397,33 @@ export default function UserManagement() {
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-gray-700">Role</span>
                 <select
-                  value={createForm.role}
-                  onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}
+                  value={createForm.role || ''}
+                  onChange={(event) => handleCreateRoleChange(event.target.value)}
+                  required
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
+                  <option value="" disabled>Select role</option>
                   {ROLE_OPTIONS.map((option) => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
                 <span className="mb-2 mt-4 block text-sm font-medium text-gray-700">Department</span>
-                <input
-                  type="text"
-                  value={createForm.departmentId}
+                <select
+                  value={createForm.departmentId || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, departmentId: event.target.value }))}
+                  required
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Optional"
-                />
+                >
+                  <option value="" disabled>Select department</option>
+                  {departments.map((department) => (
+                    <option
+                      key={department.department_id || department.department_name}
+                      value={department.department_id || ''}
+                    >
+                      {department.department_name || department.department_id}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="block">
@@ -354,7 +431,7 @@ export default function UserManagement() {
                 <div className="relative">
                   <input
                     type={createPasswordVisible ? 'text' : 'password'}
-                    value={createForm.password}
+                    value={createForm.password || ''}
                     onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
@@ -367,6 +444,34 @@ export default function UserManagement() {
                     {createPasswordVisible ? <FiEyeOff /> : <FiEye />}
                   </button>
                 </div>
+              </label>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">Is Reporting Officer</span>
+                <select
+                  value={createForm.isReportingOfficer}
+                  onChange={(event) => handleCreateFlagChange('isReportingOfficer', event.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  {YES_NO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">Is Reviewing Officer</span>
+                <select
+                  value={createForm.isReviewingOfficer}
+                  onChange={(event) => handleCreateFlagChange('isReviewingOfficer', event.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  {YES_NO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </label>
             </div>
 
@@ -404,6 +509,7 @@ export default function UserManagement() {
                   <th className="px-3 py-3">User</th>
                   <th className="px-3 py-3">Email</th>
                   <th className="px-3 py-3">Role</th>
+                  <th className="px-3 py-3">APAR Role</th>
                   <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Password</th>
                   <th className="px-3 py-3">Created</th>
@@ -416,7 +522,8 @@ export default function UserManagement() {
                     role: user.role,
                     email: user.email || '',
                     departmentId: user.departmentId || '',
-                    password: ''
+                    password: '',
+                    aparRole: user.aparRole || ''
                   };
                   const isPasswordVisible = !!passwordVisibility[user.id];
 
@@ -443,6 +550,17 @@ export default function UserManagement() {
                         >
                           {ROLE_OPTIONS.map((option) => (
                             <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-4">
+                        <select
+                          value={draft.aparRole}
+                          onChange={(event) => handleDraftChange(user.id, 'aparRole', event.target.value)}
+                          className="w-full min-w-[150px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none"
+                        >
+                          {APAR_ROLE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
                           ))}
                         </select>
                       </td>
@@ -476,14 +594,26 @@ export default function UserManagement() {
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
                       <td className="px-3 py-4">
-                        <button
-                          type="button"
-                          onClick={() => handleSaveUser(user)}
-                          disabled={saving}
-                          className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Save
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveUser(user)}
+                            disabled={saving}
+                            className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Save
+                          </button>
+                          {(Object.keys(drafts[user.id] || {}).length > 0 || !user.aparRole) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={saving}
+                              className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -62,13 +62,13 @@ const getAllowedRolesFor = (role) => {
 
   switch (normalizedRole) {
     case ROLES.IQAC_HEAD:
-      return [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
+      return [ROLES.IQAC_HEAD];
     case ROLES.DEPARTMENT_HOD:
-      return [ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
+      return [ROLES.DEPARTMENT_HOD];
     case ROLES.FACULTY:
-      return [ROLES.FACULTY];
+      return [];
     default:
-      return normalizedRole ? [normalizedRole] : [];
+      return [];
   }
 };
 
@@ -443,9 +443,8 @@ export const allowedRoles = asyncHandler(async (req, res) => {
     allowed = getAllowedRolesFor(baseRole);
   }
 
-  // Fallback to common roles if nothing found
   if (!allowed || allowed.length === 0) {
-    allowed = [ROLES.FACULTY];
+    allowed = [];
   }
 
   res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed roles fetched'));
