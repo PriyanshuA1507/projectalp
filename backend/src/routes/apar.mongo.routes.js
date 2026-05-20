@@ -9,8 +9,7 @@ import {
     submitReviewingRemarks,
     listAllForms,
     getFacultyInfo,
-    getFacultyHistory,
-    saveToMonthlyData
+    getFacultyHistory
 } from "../controllers/apar.mongo.controller.js";
 import checkDuplicate from "../controllers/duplicate-check.controller.js";
 import { authenticate } from '../middlewares/auth.middleware.js';
@@ -21,7 +20,6 @@ const router = Router();
 
 router.route("/form").get(authenticate, getForm);
 router.route("/save").post(authenticate, validate(aparDraftSchema), saveForm);
-router.route("/save-to-monthly").post(authenticate, saveToMonthlyData);
 router.route("/submit").post(authenticate, validate(aparFormSchema), submitForm);
 router.route("/list").get(authenticate, listAllForms);
 router.route("/info").get(authenticate, getFacultyInfo);

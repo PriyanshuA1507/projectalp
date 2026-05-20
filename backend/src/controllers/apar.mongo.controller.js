@@ -104,53 +104,6 @@ const computeChanges = (existingDoc, updateData) => {
     return changes.length > 0 ? changes.join(', ') : 'Synced from APAR (No field changes detected)';
 };
 
-
-        // Save APAR form data to monthly data collection for reporting
-        const saveToMonthlyData = asyncHandler(async (req, res) => {
-            const { faculty_id, ay, formData } = req.body;
-
-            if (!faculty_id || !ay) {
-                throw new ApiError(400, "Faculty ID and Academic Year are required");
-            }
-
-            // Clean empty strings from form data
-            const cleanedFormData = cleanEmptyStrings(formData || {});
-
-            // Find or create monthly data record
-            const existingMonthly = await AparForm.findOne({
-                faculty_id: { $regex: new RegExp(`^${faculty_id}$`, 'i') },
-                ay,
-                is_monthly: true
-            });
-
-            if (existingMonthly) {
-                // Update existing monthly record
-                existingMonthly.formData = cleanedFormData;
-                existingMonthly.timeline.push({
-                    action: 'updated_monthly',
-                    timestamp: new Date(),
-                    actor: faculty_id
-                });
-                await existingMonthly.save();
-            } else {
-                // Create new monthly record
-                await AparForm.create({
-                    faculty_id,
-                    ay,
-                    formData: cleanedFormData,
-                    status: 'Monthly',
-                    is_monthly: true,
-                    timeline: [{
-                        action: 'created_monthly',
-                        timestamp: new Date(),
-                        actor: faculty_id
-                    }]
-                });
-            }
-
-            return res.status(200).json(new ApiResponse(200, {}, "Data saved to monthly successfully"));
-        });
-
 // === Faculty Actions ===
 
 
@@ -1261,6 +1214,5 @@ export {
     submitReviewingRemarks,
     listAllForms,
     getFacultyInfo,
-    saveToMonthlyData,
     syncIqacToAparForm  // Export for auto-sync utility
 };
