@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { AparFormGradedService } from '../../services/apar_form_graded.services.js';
@@ -25,20 +25,43 @@ export default function OfficerDashboard() {
     const fileInputRef = useRef(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
-    // Define current academic year logic (fallback)
-    const CURRENT_AY = '2026-27';
+    // 1. Replaced hardcoded CURRENT_AY with state
+    const [currentAY, setCurrentAY] = useState('2026-27');
 
-    // Defensive: ensure both ay and CURRENT_AY are strings and trimmed
+    // Defensive: ensure both ay and currentAY are strings and trimmed
     const normalizeAY = (val) =>
         String(val)
             .replace(/\s+/g, '')
             .replace(/\//g, '-')
             .trim();
 
+    // 2. Generate a dynamic list of Academic Years for the dropdown
+    const availableYears = useMemo(() => {
+        const yearsSet = new Set();
+        // Add the last 5 years based on the current date automatically
+        const currentYear = new Date().getFullYear();
+        for (let i = -1; i <= 5; i++) {
+            const start = currentYear - i;
+            const end = String(start + 1).slice(-2);
+            yearsSet.add(`${start}-${end}`);
+        }
+        // Add any years that exist in the user's history
+        history.forEach(h => {
+            if (h?.ay) yearsSet.add(normalizeAY(h.ay));
+        });
+
+        // Sort descending (newest first)
+        return Array.from(yearsSet).sort((a, b) => {
+            const aStart = parseInt(String(a).split('-')[0]) || 0;
+            const bStart = parseInt(String(b).split('-')[0]) || 0;
+            return bStart - aStart;
+        });
+    }, [history]);
+
     // Derive archive years from fetched history + current AY (most recent first)
     const archiveYears = (() => {
         const yearsSet = new Set();
-        if (CURRENT_AY) yearsSet.add(normalizeAY(CURRENT_AY));
+        if (currentAY) yearsSet.add(normalizeAY(currentAY));
         history.forEach(h => {
             if (h && h.ay) yearsSet.add(normalizeAY(h.ay));
         });
@@ -73,7 +96,7 @@ export default function OfficerDashboard() {
         })();
     }, [user, fetchHistory]);
 
-    // Real-time refresh when APAR/IQAC pushes a notification (no manual refresh needed)
+    // Real-time refresh when APAR/IQAC pushes a notification
     useEffect(() => {
         if (!socket || !user) return;
 
@@ -103,7 +126,6 @@ export default function OfficerDashboard() {
         try {
             setLogoutLoading(true);
             await dispatch(aparLogout());
-            // Force full page navigation to login to clear any session/CSRF state
             window.location.replace('/apar/login');
         } catch (e) {
             console.error(e);
@@ -113,12 +135,10 @@ export default function OfficerDashboard() {
     };
 
     const handleStartOrEdit = (ay) => {
-        // Navigate to form with specific AY
         navigate('/apar-form', { state: { ay } });
     };
 
-    // Debug log to check what is in history and CURRENT_AY
-    console.log('APAR Dashboard Debug:', { history, CURRENT_AY });
+    console.log('APAR Dashboard Debug:', { history, currentAY });
 
     const computedExternalImage = (name) => `https://dtu.ac.in/modules/facilities/people/faculty/userimages/${String(name || '').replace(/^(Dr\.|Dr|Professor|Prof\.|Prof|Mr\.|Mr|Ms\.|Ms|Mrs\.|Mrs)\s+/i, '').toLowerCase().replace(/\s+/g, '')}.jpg`;
 
@@ -155,9 +175,9 @@ export default function OfficerDashboard() {
         }
     };
 
-const currentYearForm = history.find(
-  f => normalizeAY(f.ay) === normalizeAY(CURRENT_AY)
-);
+    const currentYearForm = history.find(
+        f => normalizeAY(f.ay) === normalizeAY(currentAY)
+    );
 
     const getStatusColor = (s) => {
         if (!s) return 'bg-gray-100 text-gray-800';
@@ -179,7 +199,6 @@ const currentYearForm = history.find(
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
     }
-    console.log(history.map(h => h.ay));
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -252,12 +271,22 @@ const currentYearForm = history.find(
                     </div>
                 )}
 
-                {/* Current Year Section */}
+                {/* Selected Year Section */}
                 <div className="bg-white shadow-lg rounded-2xl overflow-hidden mb-8 border border-indigo-100">
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white flex justify-between items-center">
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
                         <h2 className="text-lg font-bold flex items-center">
-                            <FiClock className="mr-2" /> Current Academic Year ({CURRENT_AY})
+                            <FiClock className="mr-2" /> Selected Academic Year
                         </h2>
+                        {/* 3. Added Dropdown Selector */}
+                        <select
+                            value={currentAY}
+                            onChange={(e) => setCurrentAY(e.target.value)}
+                            className="bg-white text-indigo-700 font-bold py-2 px-4 rounded-lg border-0 shadow-sm focus:ring-2 focus:ring-indigo-300 outline-none cursor-pointer"
+                        >
+                            {availableYears.map(year => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="p-8 text-center">
                         {currentYearForm ? (
@@ -287,7 +316,7 @@ const currentYearForm = history.find(
                                 </p>
                                 <div className="flex gap-4">
                                     <button
-                                        onClick={() => handleStartOrEdit(CURRENT_AY)}
+                                        onClick={() => handleStartOrEdit(currentAY)}
                                         className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-md"
                                     >
                                         {currentYearForm.status === 'Submitted' || currentYearForm.status?.includes('Forwarded') || currentYearForm.status?.includes('Accepted') ? 'View Form' : 'Continue Editing'}
@@ -307,10 +336,10 @@ const currentYearForm = history.find(
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-800 mb-2">No APAR Filed Yet</h3>
                                 <p className="text-gray-500 mb-6 max-w-md">
-                                    You haven't started your Annual Performance Appraisal Report for the academic year {CURRENT_AY}.
+                                    You haven't started your Annual Performance Appraisal Report for the academic year {currentAY}.
                                 </p>
                                 <button
-                                    onClick={() => handleStartOrEdit(CURRENT_AY)}
+                                    onClick={() => handleStartOrEdit(currentAY)}
                                     className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transform hover:-translate-y-0.5 transition-all flex items-center"
                                 >
                                     <FiPlus className="mr-2" />
