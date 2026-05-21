@@ -16,9 +16,28 @@ export default function IqacReports() {
     dashboardYear !== 'All' ? dashboardYear : '2023-24'
   );
   const [monthYear, setMonthYear] = useState('');
+  const [monthYearDisplay, setMonthYearDisplay] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const academicYears = getLastAcademicYears(10);
+
+  const toStoredMonthYear = (value) => {
+    if (!value) return '';
+    const match = value.match(/^(\d{4})-(\d{2})$/);
+    if (match) {
+      return `${match[2]}-${match[1]}`;
+    }
+    return value;
+  };
+
+  const toDisplayMonthYear = (value) => {
+    if (!value) return '';
+    const match = value.match(/^(\d{2})-(\d{4})$/);
+    if (match) {
+      return `${match[2]}-${match[1]}`;
+    }
+    return value;
+  };
 
   const filterData = (data) => {
     if (!data || !Array.isArray(data)) return [];
@@ -33,10 +52,42 @@ export default function IqacReports() {
         return true;
       } else if (reportType === 'monthly') {
         if (!monthYear) return true;
-        const [selectedYear, selectedMonth] = monthYear.split('-');
+
+        // Check month-year fields (stored as MM-YYYY)
+        const monthYearFields = [
+          'year', 'year_of_publication', 'year_of_sanction', 'year_of_consultancy',
+          'year_of_training', 'year_of_qualifying', 'year_of_joining', 'year_of_signing',
+          'year_of_award', 'year_of_introduction', 'year_of_installation', 'year_of_purchase'
+        ];
+
+        // Check top-level fields
+        for (const field of monthYearFields) {
+          if (item[field] && item[field] === monthYear) {
+            return true;
+          }
+        }
+
+        // Check nested objectList arrays for month-year fields
+        const arrayFields = ['faculty_involved', 'students_involved', 'faculty_participants',
+          'student_participants', 'external_participants', 'external_collaborators',
+          'faculty_members', 'students', 'faculty_recipients', 'student_recipients',
+          'external_recipients', 'recognitions'];
         
-        // Find a date field
+        for (const arrField of arrayFields) {
+          if (Array.isArray(item[arrField])) {
+            for (const nestedItem of item[arrField]) {
+              for (const field of monthYearFields) {
+                if (nestedItem[field] && nestedItem[field] === monthYear) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+
+        // Also check date fields for records without month-year fields
         const dateFields = ['start_date', 'end_date', 'date_of_launching', 'date', 'createdAt'];
+        const [selectedYear, selectedMonth] = monthYear.split('-').reverse(); // MM-YYYY to YYYY, MM
         let recordDate = null;
         for (const field of dateFields) {
           if (item[field]) {
@@ -45,12 +96,12 @@ export default function IqacReports() {
           }
         }
         if (!recordDate && item.updatedAt) recordDate = new Date(item.updatedAt);
-        
+
         if (recordDate) {
-          return recordDate.getFullYear() === parseInt(selectedYear) && 
+          return recordDate.getFullYear() === parseInt(selectedYear) &&
                  (recordDate.getMonth() + 1) === parseInt(selectedMonth);
         }
-        return false; // If no date field, exclude from monthly
+        return false;
       }
       return true;
     });
@@ -90,7 +141,7 @@ export default function IqacReports() {
     if (!reportData) return;
 
     const doc = new jsPDF();
-    const periodStr = reportType === 'annually' ? `Academic Year ${academicYear}` : `Month ${monthYear}`;
+    const periodStr = reportType === 'annually' ? `Academic Year ${academicYear}` : `Month ${monthYearDisplay}`;
     
     // Title Page
     doc.setFontSize(22);
@@ -153,7 +204,7 @@ export default function IqacReports() {
     const reportData = await generateReportData();
     if (!reportData) return;
 
-    const periodStr = reportType === 'annually' ? `Academic_Year_${academicYear}` : `Month_${monthYear}`;
+    const periodStr = reportType === 'annually' ? `Academic_Year_${academicYear}` : `Month_${monthYearDisplay}`;
     const wb = XLSX.utils.book_new();
 
     // Summary Sheet
@@ -249,8 +300,11 @@ export default function IqacReports() {
               ) : (
                 <input
                   type="month"
-                  value={monthYear}
-                  onChange={(e) => setMonthYear(e.target.value)}
+                  value={monthYearDisplay}
+                  onChange={(e) => {
+                    setMonthYearDisplay(e.target.value);
+                    setMonthYear(toStoredMonthYear(e.target.value));
+                  }}
                   className="w-full h-14 rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 text-lg px-4"
                 />
               )}
