@@ -274,6 +274,7 @@ const researchSchema = z.object({
     thesis_type: optionalString,
     supervisor_name: optionalString,
     supervisor_id: optionalString,
+    registration_year: optionalString,
     date_of_defence: optionalString,
     date_of_result_notification: optionalString,
     result_outcome: optionalString,

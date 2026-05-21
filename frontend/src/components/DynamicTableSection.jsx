@@ -25,6 +25,62 @@ export default function DynamicTableSection({
     const [tempSubItems, setTempSubItems] = useState({}); // State for nested objectList forms
     const [activeSubForms, setActiveSubForms] = useState({}); // State to toggle visibility of sub-item forms
 
+    const formatMonthYearValue = (value) => {
+        const normalized = String(value || '').trim();
+        if (!normalized) return '';
+        const monthYearMatch = normalized.match(/^(\d{2})-(\d{4})$/);
+        if (monthYearMatch) return normalized;
+        const inputMonthMatch = normalized.match(/^(\d{4})-(\d{2})$/);
+        if (inputMonthMatch) return `${inputMonthMatch[2]}-${inputMonthMatch[1]}`;
+        if (/^\d{4}$/.test(normalized)) return `01-${normalized}`;
+        return normalized;
+    };
+
+    const getMonthInputValue = (value) => {
+        const formatted = formatMonthYearValue(value);
+        const match = formatted.match(/^(\d{2})-(\d{4})$/);
+        return match ? `${match[2]}-${match[1]}` : '';
+    };
+
+    const formatInputMonthToMonthYear = (value) => {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})$/);
+        return match ? `${match[2]}-${match[1]}` : '';
+    };
+
+    const getMonthInputBoundary = (value, month) => {
+        if (value === undefined || value === null || value === '') return undefined;
+        const normalized = String(value).trim();
+        if (/^\d{4}$/.test(normalized)) return `${normalized}-${month}`;
+        const inputMonthMatch = normalized.match(/^(\d{4})-(\d{2})$/);
+        if (inputMonthMatch) return normalized;
+        const monthYearMatch = normalized.match(/^(\d{2})-(\d{4})$/);
+        return monthYearMatch ? `${monthYearMatch[2]}-${monthYearMatch[1]}` : undefined;
+    };
+
+    const isValidMonthYearValue = (value, field) => {
+        const formatted = formatMonthYearValue(value);
+        const match = formatted.match(/^(\d{2})-(\d{4})$/);
+        if (!match) return false;
+        const monthNum = Number(match[1]);
+        const yearNum = Number(match[2]);
+        const minYear = field.min || 0;
+        const maxYear = field.max || 9999;
+        return monthNum >= 1 && monthNum <= 12 && !Number.isNaN(yearNum) && yearNum >= minYear && yearNum <= maxYear;
+    };
+
+    const normalizeMonthYearFields = (item, fieldsList = fields) => {
+        const nextItem = { ...item };
+        fieldsList.forEach(field => {
+            if (field.type === 'monthYear' && nextItem[field.key]) {
+                nextItem[field.key] = formatMonthYearValue(nextItem[field.key]);
+            }
+            if (field.type === 'objectList' && Array.isArray(nextItem[field.key]) && Array.isArray(field.subFields)) {
+                nextItem[field.key] = nextItem[field.key].map(subItem => normalizeMonthYearFields(subItem, field.subFields));
+            }
+        });
+        return nextItem;
+    };
+
     const handleStartAdd = () => {
         const itemWithDefaults = { ...initialItem };
         fields.forEach(field => {
@@ -32,7 +88,7 @@ export default function DynamicTableSection({
                 itemWithDefaults[field.key] = field.defaultValue;
             }
         });
-        setTempItem(itemWithDefaults);
+        setTempItem(normalizeMonthYearFields(itemWithDefaults));
         // Reset sub-forms visibility: all hidden by default
         setActiveSubForms({});
 
@@ -58,7 +114,7 @@ export default function DynamicTableSection({
     };
 
     const handleStartEdit = (index, item) => {
-        setTempItem(item);
+        setTempItem(normalizeMonthYearFields(item));
         setTempSubItems({});
         setActiveSubForms({});
         setEditingIndex(index);
@@ -156,6 +212,13 @@ export default function DynamicTableSection({
                     validationErrors.push(`${field.label} must be a 4-digit year between ${minYear} and ${maxYear}`);
                 }
             }
+            if (field.type === 'monthYear' && val) {
+                const minYear = field.min || 0;
+                const maxYear = field.max || 9999;
+                if (!isValidMonthYearValue(val, field)) {
+                    validationErrors.push(`${field.label} must be a valid month-year in MM-YYYY format between ${minYear} and ${maxYear}`);
+                }
+            }
             if (field.type === 'email' && val) {
                 const normalized = String(val).trim();
                 if (!emailRegex.test(normalized)) {
@@ -184,6 +247,9 @@ export default function DynamicTableSection({
                                 validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label} must be a valid email address`);
                             }
                         }
+                        if (!isEmpty && subF.type === 'monthYear' && !isValidMonthYearValue(subVal, subF)) {
+                            validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label} must be a valid month-year in MM-YYYY format`);
+                        }
                     });
                 });
             }
@@ -203,12 +269,14 @@ export default function DynamicTableSection({
             return;
         }
 
+        const itemToSave = normalizeMonthYearFields(tempItem);
+
         if (editingIndex !== null) {
             // Updated to pass the full item to avoid partial state update race conditions
-            onUpdate(editingIndex, tempItem);
+            onUpdate(editingIndex, itemToSave);
         } else {
             // Add new
-            onAdd(tempItem);
+            onAdd(itemToSave);
         }
         handleCancel();
     };
@@ -260,6 +328,18 @@ export default function DynamicTableSection({
             return;
         }
 
+        const invalidMonthYears = [];
+        subFields.forEach(subF => {
+            if (subF.type === 'monthYear') {
+                const val = (newItem[subF.key] || '').toString().trim();
+                if (val && !isValidMonthYearValue(val, subF)) invalidMonthYears.push(subF.label);
+            }
+        });
+        if (invalidMonthYears.length > 0) {
+            toast.error(`Invalid month-year format: ${invalidMonthYears.join(', ')}`);
+            return;
+        }
+
         // Check for duplicates (uniqueness based on entitySelect fields)
         const duplicate = currentList.some(existing => {
             return subFields.some(subF => {
@@ -280,7 +360,7 @@ export default function DynamicTableSection({
             return;
         }
 
-        handleChange(parentKey, [...currentList, newItem]);
+        handleChange(parentKey, [...currentList, normalizeMonthYearFields(newItem, subFields)]);
 
         // Reset sub-item form for this parent field, preserving defaults if any? 
         // User request implies they want to add themselves, then maybe others. 
@@ -325,6 +405,8 @@ export default function DynamicTableSection({
                                                 ) : <span className="text-gray-400">No file</span>
                                             ) : f.type === 'date' ? (
                                                 item[f.key] ? new Date(item[f.key]).toLocaleDateString() : ''
+                                            ) : f.type === 'monthYear' ? (
+                                                formatMonthYearValue(item[f.key])
                                             ) : f.type === 'objectList' ? (
                                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
                                                     {(item[f.key] || []).slice(0, 2).map((sub, sIdx) => (
@@ -506,11 +588,13 @@ export default function DynamicTableSection({
                                                                     })()
                                                                 ) : (
                                                                     <input
-                                                                        type={subF.type === 'year' ? 'text' : subF.type || 'text'}
-                                                                        value={subDefaults[subF.key] || ''}
+                                                                        type={subF.type === 'year' ? 'text' : subF.type === 'monthYear' ? 'month' : subF.type || 'text'}
+                                                                        value={subF.type === 'monthYear' ? getMonthInputValue(subDefaults[subF.key]) : subDefaults[subF.key] || ''}
                                                                         onChange={(e) => {
                                                                             let inputValue = e.target.value;
-                                                                            if (subF.type === 'year') {
+                                                                            if (subF.type === 'monthYear') {
+                                                                                inputValue = formatInputMonthToMonthYear(inputValue);
+                                                                            } else if (subF.type === 'year') {
                                                                                 inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
                                                                             } else if (subF.type === 'number') {
                                                                                 inputValue = inputValue.replace(/[^0-9.-]/g, '');
@@ -522,8 +606,8 @@ export default function DynamicTableSection({
                                                                             }
                                                                             handleSubItemChange(f.key, subF.key, inputValue);
                                                                         }}
-                                                                        min={subF.min}
-                                                                        max={subF.max}
+                                                                        min={subF.type === 'monthYear' ? getMonthInputBoundary(subF.min, '01') : subF.min}
+                                                                        max={subF.type === 'monthYear' ? getMonthInputBoundary(subF.max, '12') : subF.max}
                                                                         step={subF.step}
                                                                         inputMode={subF.inputMode}
                                                                         pattern={subF.pattern}
@@ -555,11 +639,13 @@ export default function DynamicTableSection({
                                 ) : (
                                     <>
                                         <input
-                                            type={f.type === 'year' ? 'text' : f.type || 'text'}
-                                            value={tempItem[f.key] || ''}
+                                            type={f.type === 'year' ? 'text' : f.type === 'monthYear' ? 'month' : f.type || 'text'}
+                                            value={f.type === 'monthYear' ? getMonthInputValue(tempItem[f.key]) : tempItem[f.key] || ''}
                                             onChange={(e) => {
                                                 let inputValue = e.target.value;
-                                                if (f.type === 'year') {
+                                                if (f.type === 'monthYear') {
+                                                    inputValue = formatInputMonthToMonthYear(inputValue);
+                                                } else if (f.type === 'year') {
                                                     inputValue = inputValue.replace(/\D/g, '').slice(0, 4);
                                                 } else if (f.type === 'number') {
                                                     inputValue = inputValue.replace(/[^0-9.-]/g, '');
@@ -571,8 +657,8 @@ export default function DynamicTableSection({
                                                 }
                                                 handleChange(f.key, inputValue);
                                             }}
-                                            min={f.min}
-                                            max={f.max}
+                                            min={f.type === 'monthYear' ? getMonthInputBoundary(f.min, '01') : f.min}
+                                            max={f.type === 'monthYear' ? getMonthInputBoundary(f.max, '12') : f.max}
                                             step={f.step}
                                             inputMode={f.inputMode}
                                             pattern={f.pattern}
