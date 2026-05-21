@@ -950,7 +950,8 @@ export default function AparForm() {
         if (currentStep < totalSteps) {
             if (!validateCurrentStep()) return;
             // Auto-save on next
-            await handleSaveDraft(true);
+            const saved = await handleSaveDraft(true);
+            if (saved) toast.success('Draft saved');
             setCurrentStep(currentStep + 1);
             window.scrollTo(0, 0);
         }
