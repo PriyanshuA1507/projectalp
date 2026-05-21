@@ -12,6 +12,52 @@ import { StudentActivity } from '../models/studentActivity.model.js';
 import { DepartmentResource } from '../models/departmentResource.model.js';
 import { ResearchProject } from '../models/researchProject.model.js';
 import { Notification } from '../models/notification.model.js';
+import { FacultyActivity } from '../models/facultyActivity.model.js';
+import { Collaboration } from '../models/collaboration.model.js';
+import { Training } from '../models/training.model.js';
+
+const CHART_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
+
+const PUBLICATION_LABELS = { journal: 'Journals', conference: 'Conferences', book: 'Books/Chapters' };
+const STUDENT_ACTIVITY_LABELS = {
+    exam: 'Competitive Exams',
+    higher_ed: 'Higher Education',
+    performance: 'Performance Awards',
+    financial_support: 'Financial Support'
+};
+const FACULTY_ACTIVITY_LABELS = {
+    fdp: 'Faculty Development',
+    visit: 'Faculty Visits',
+    affiliation: 'Affiliations',
+    ict: 'ICT in Teaching',
+    award: 'Research Awards',
+    econtent: 'E-Content',
+    financial_support: 'Financial Support'
+};
+const COLLABORATION_LABELS = {
+    activity: 'Collaborative Activities',
+    exchange: 'Research Exchange',
+    mou: 'Functional MoUs',
+    outreach: 'Extension & Outreach'
+};
+const RESEARCH_PROJECT_LABELS = {
+    funding: 'Research Funding',
+    consultancy: 'Consultancy',
+    corporate_training: 'Corporate Training'
+};
+const TRAINING_LABELS = {
+    staff: 'Staff Training',
+    professional: 'Professional Training',
+    mentoring: 'Mentor Support',
+    capability: 'Capability Schemes'
+};
+const APAR_STATUS_COLORS = {
+    Draft: '#94a3b8',
+    Submitted: '#3b82f6',
+    Verified: '#10b981',
+    Reviewed: '#8b5cf6',
+    'Query Raised': '#f59e0b'
+};
 
 const FEEDBACK_COLORS = {
     'Teaching Learning': '#2563eb',
@@ -345,6 +391,110 @@ const buildAparProgress = (aparMetrics) => {
     ];
 };
 
+const aggregateCountByField = async (Model, match, field, labelMap = {}) => {
+    const rows = await Model.aggregate([
+        { $match: match },
+        { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+    ]);
+
+    return rows
+        .filter((row) => row.count > 0)
+        .map((row, index) => ({
+            name: labelMap[row._id] || row._id || 'Other',
+            value: row.count,
+            color: CHART_COLORS[index % CHART_COLORS.length]
+        }));
+};
+
+const buildDepartmentStrength = async (academicYear, departmentId, departments) => {
+    const studentFilter = { ...withDepartment(departmentId), ...buildStudentYearFilter(academicYear) };
+    const facultyFilter = { ...withDepartment(departmentId), ...buildFacultyYearFilter(academicYear) };
+
+    const [studentGroups, facultyGroups] = await Promise.all([
+        Student.aggregate([
+            { $match: studentFilter },
+            { $group: { _id: '$department_id', count: { $sum: 1 } } }
+        ]),
+        Faculty.aggregate([
+            { $match: facultyFilter },
+            { $group: { _id: '$department_id', count: { $sum: 1 } } }
+        ])
+    ]);
+
+    const studentsByDept = new Map(studentGroups.map((row) => [row._id, row.count]));
+    const facultyByDept = new Map(facultyGroups.map((row) => [row._id, row.count]));
+
+    const visibleDepartments = departmentId && departmentId !== 'All'
+        ? departments.filter((dept) => dept.id === departmentId)
+        : departments;
+
+    return visibleDepartments.map((dept) => ({
+        name: dept.id,
+        students: studentsByDept.get(dept.id) ?? 0,
+        faculty: facultyByDept.get(dept.id) ?? 0
+    }));
+};
+
+const buildAparStatusChart = async (academicYear, departmentId) => {
+    const queryFilter = { ...buildAcademicYearFilter(academicYear) };
+    if (departmentId && departmentId !== 'All') {
+        queryFilter['personal.department_id'] = departmentId;
+    }
+
+    const rows = await AparForm.aggregate([
+        { $match: queryFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+    ]);
+
+    return rows
+        .filter((row) => row.count > 0)
+        .map((row, index) => ({
+            name: row._id || 'Unknown',
+            value: row.count,
+            color: APAR_STATUS_COLORS[row._id] || CHART_COLORS[index % CHART_COLORS.length]
+        }));
+};
+
+const buildExtendedCharts = async (academicYear, departmentId, departments) => {
+    const scopedFilter = { ...withDepartment(departmentId), ...buildAcademicYearFilter(academicYear) };
+
+    const [
+        departmentStrength,
+        publicationTypes,
+        patentStatus,
+        studentEngagements,
+        facultyPrograms,
+        collaborations,
+        researchProjects,
+        staffTraining,
+        aparStatus
+    ] = await Promise.all([
+        buildDepartmentStrength(academicYear, departmentId, departments),
+        aggregateCountByField(Publication, scopedFilter, 'type', PUBLICATION_LABELS),
+        aggregateCountByField(Patent, scopedFilter, 'status', {}),
+        aggregateCountByField(StudentActivity, scopedFilter, 'type', STUDENT_ACTIVITY_LABELS),
+        aggregateCountByField(FacultyActivity, scopedFilter, 'type', FACULTY_ACTIVITY_LABELS),
+        aggregateCountByField(Collaboration, scopedFilter, 'type', COLLABORATION_LABELS),
+        aggregateCountByField(ResearchProject, scopedFilter, 'type', RESEARCH_PROJECT_LABELS),
+        aggregateCountByField(Training, scopedFilter, 'type', TRAINING_LABELS),
+        buildAparStatusChart(academicYear, departmentId)
+    ]);
+
+    return {
+        departmentStrength,
+        publicationTypes,
+        patentStatus,
+        studentEngagements,
+        facultyPrograms,
+        collaborations,
+        researchProjects,
+        staffTraining,
+        aparStatus
+    };
+};
+
 const fetchRecentActivities = async (role, departmentId, userId) => {
     const query = {};
 
@@ -417,7 +567,10 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         fetchRecentActivities(req.user?.role, departmentId, req.user?.userId)
     ]);
 
-    const studentProgression = await buildStudentProgression(academicYear, departmentId, totalStudents);
+    const [studentProgression, extendedCharts] = await Promise.all([
+        buildStudentProgression(academicYear, departmentId, totalStudents),
+        buildExtendedCharts(academicYear, departmentId, departments)
+    ]);
 
     const researchPapers = Math.max(researchPapersCount, aparMetrics.researchPapers);
     const booksChapters = Math.max(booksChaptersCount, aparMetrics.booksChapters);
@@ -461,7 +614,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
                     academicPerformance,
                     feedback,
                     infrastructureScore,
-                    studentProgression
+                    studentProgression,
+                    ...extendedCharts
                 },
                 aparProgress,
                 recentActivities

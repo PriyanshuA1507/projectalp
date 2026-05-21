@@ -561,7 +561,7 @@ import {
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Label, LabelList
+  PieChart, Pie, Cell, Label, LabelList, Legend
 } from 'recharts';
 import { resources, resourceMap } from '../config/tableConfig';
 import { canAccessForm, canAccessTable, ROLES } from '../config/rolePermissions.js';
@@ -615,6 +615,72 @@ const WidgetBlock = ({ title, children, className = "" }) => (
     {children}
   </div>
 );
+
+const EmptyChart = ({ message = 'No records for this session and branch.' }) => (
+  <div className="h-full min-h-[200px] flex items-center justify-center text-xs text-gray-400 text-center px-4">
+    {message}
+  </div>
+);
+
+const PieChartPanel = ({ title, data, centerLabel }) => {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  return (
+    <WidgetBlock title={title}>
+      {data.length > 0 && total > 0 ? (
+        <div className="h-56 flex items-center gap-2">
+          <div className="flex-1 h-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  innerRadius={52}
+                  outerRadius={78}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+                  ))}
+                  {centerLabel && (
+                    <Label
+                      value={String(total)}
+                      position="center"
+                      className="text-2xl font-bold fill-slate-800"
+                      dy={-4}
+                    />
+                  )}
+                  {centerLabel && (
+                    <Label
+                      value={centerLabel}
+                      position="center"
+                      className="text-[10px] fill-slate-500 font-medium"
+                      dy={14}
+                    />
+                  )}
+                </Pie>
+                <RechartsTooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-col gap-2 text-[10px] shrink-0 max-w-[110px]">
+            {data.map((item) => (
+              <div key={item.name} className="flex items-start gap-1.5">
+                <div className="w-2 h-2 rounded-full mt-0.5 shrink-0" style={{ backgroundColor: item.color }} />
+                <div>
+                  <div className="text-slate-600 leading-tight">{item.name}</div>
+                  <div className="font-semibold text-slate-800">{item.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyChart />
+      )}
+    </WidgetBlock>
+  );
+};
 
 const QuickLink = ({ to, icon, label }) => (
   <Link
@@ -693,7 +759,16 @@ export default function Dashboard() {
       higherStudies: '0%',
       entrepreneurship: '0%',
       competitiveExams: '0%'
-    }
+    },
+    departmentStrength: [],
+    publicationTypes: [],
+    patentStatus: [],
+    studentEngagements: [],
+    facultyPrograms: [],
+    collaborations: [],
+    researchProjects: [],
+    staffTraining: [],
+    aparStatus: []
   });
 
   const [aparProgress, setAparProgress] = useState([]);
@@ -746,7 +821,16 @@ export default function Dashboard() {
               higherStudies: '0%',
               entrepreneurship: '0%',
               competitiveExams: '0%'
-            }
+            },
+            departmentStrength: data.charts.departmentStrength || [],
+            publicationTypes: data.charts.publicationTypes || [],
+            patentStatus: data.charts.patentStatus || [],
+            studentEngagements: data.charts.studentEngagements || [],
+            facultyPrograms: data.charts.facultyPrograms || [],
+            collaborations: data.charts.collaborations || [],
+            researchProjects: data.charts.researchProjects || [],
+            staffTraining: data.charts.staffTraining || [],
+            aparStatus: data.charts.aparStatus || []
           });
         }
 
@@ -1036,6 +1120,94 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+        </WidgetBlock>
+      </div>
+
+      {/* Extended analytics from IQAC tables */}
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-800">Extended Analytics</h2>
+        <p className="text-xs text-gray-500">Live counts from IQAC data tables · {selectedYear === 'All' ? 'All sessions' : selectedYear} · {deptLabel}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <WidgetBlock title={`Students & Faculty by Department`}>
+          {chartData.departmentStrength.length > 0 ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.departmentStrength} margin={{ top: 16, right: 12, left: 0, bottom: 0 }} barGap={4} barCategoryGap="24%">
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="students" name="Students" fill="#10b981" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="faculty" name="Faculty" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart />
+          )}
+        </WidgetBlock>
+
+        <WidgetBlock title="Faculty Development & Activities">
+          {chartData.facultyPrograms.length > 0 ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.facultyPrograms} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+                    {chartData.facultyPrograms.map((entry, index) => (
+                      <Cell key={`faculty-prog-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart message="No faculty development records for this scope." />
+          )}
+        </WidgetBlock>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
+        <PieChartPanel title="Publications by Type" data={chartData.publicationTypes} centerLabel="Total" />
+        <PieChartPanel title="Student Engagements" data={chartData.studentEngagements} centerLabel="Records" />
+        <PieChartPanel title="Patents by Status" data={chartData.patentStatus} centerLabel="Patents" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
+        <PieChartPanel title="Collaborations & Outreach" data={chartData.collaborations} centerLabel="Total" />
+        <PieChartPanel title="Research & Consultancy Projects" data={chartData.researchProjects} centerLabel="Projects" />
+        <PieChartPanel title="Staff Training & Support" data={chartData.staffTraining} centerLabel="Programs" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <PieChartPanel title="APAR Workflow Status" data={chartData.aparStatus} centerLabel="Forms" />
+        <WidgetBlock title="Student Activity Breakdown (Bar)">
+          {chartData.studentEngagements.length > 0 ? (
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.studentEngagements} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} angle={-12} textAnchor="end" height={50} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                    {chartData.studentEngagements.map((entry, index) => (
+                      <Cell key={`student-eng-${index}`} fill={entry.color} />
+                    ))}
+                    <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart message="No student activity records for this scope." />
+          )}
         </WidgetBlock>
       </div>
 
