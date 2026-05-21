@@ -9,14 +9,18 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
 
     // Derive Course options from APAR draft (teaching.courses_taught)
     const draftCourses = (formData?.teaching?.courses_taught || []).filter(Boolean);
-    // Try to pick course_id if present, else fallback to name_of_course
-    const courseIds = Array.from(new Set(
-        draftCourses
-            .map(c => (c?.course_id ?? c?.name_of_course ?? ''))
-            .map(v => String(v || '').trim())
-            .filter(v => v !== '')
-    ));
-    const courseOptionsFromDraft = courseIds.map(id => ({ value: id, label: id }));
+    // Build a map of { value: course_id (or name if no id), label: course_name }
+    const coursePairs = draftCourses
+        .map(c => {
+            const value = String((c?.course_id ?? c?.name_of_course ?? '') || '').trim();
+            if (!value) return null;
+            const label = String((c?.name_of_course ?? c?.course_name ?? value) || '').trim();
+            return { value, label };
+        })
+        .filter(Boolean);
+    const courseMap = new Map();
+    coursePairs.forEach(({ value, label }) => { if (value && !courseMap.has(value)) courseMap.set(value, label); });
+    const courseOptionsFromDraft = Array.from(courseMap.entries()).map(([value, label]) => ({ value, label }));
 
     // Helper handlers generator
     const createHandlers = (field) => ({
@@ -350,7 +354,7 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
 
                     { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: user?.faculty_id },
                     // Use draft-derived course IDs if available; fallback to global course list via entityType
-                    { label: 'Course ID', key: 'course_id', type: 'entitySelect', entityType: 'course', required: true, optionsOverride: courseOptionsFromDraft },
+                    { label: 'Course Name', key: 'course_id', type: 'entitySelect', entityType: 'course', required: true, optionsOverride: courseOptionsFromDraft },
                     { label: 'Module Name', key: 'name_of_module', required: true, placeholder: 'Enter module name' },
                     { label: 'Type', key: 'type_of_content', type: 'select', options: ['Video', 'Module', 'Quiz', 'PPT', 'Simulation', 'eBook', 'Other'], required: true, placeholder: 'Select type' },
                     { label: 'Platform', key: 'platform', required: true, placeholder: 'Enter platform' },

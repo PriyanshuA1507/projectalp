@@ -157,11 +157,16 @@ const SearchableSelect = ({
           return;
         }
 
-        const formattedOptions = data.map((item) => ({
-          value: String(item[config.valueKey] ?? '').trim(),
-          label: `${item[config.valueKey]} - ${item[config.labelKey] || 'Unknown'}`,
-          data: item,
-        }));
+        const formattedOptions = data.map((item) => {
+          const value = String(item[config.valueKey] ?? '').trim();
+          const nameOnly = String(item[config.labelKey] ?? item[config.valueKey] ?? 'Unknown');
+          const idThenName = `${item[config.valueKey]} - ${item[config.labelKey] || 'Unknown'}`;
+          return {
+            value,
+            label: entityType === 'course' ? nameOnly : idThenName,
+            data: item,
+          };
+        });
 
         console.log(`[SearchableSelect] ${entityType} formatted options:`, formattedOptions);
         setOptions(formattedOptions);
