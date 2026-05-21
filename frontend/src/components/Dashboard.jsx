@@ -568,6 +568,7 @@ import { canAccessForm, canAccessTable, ROLES } from '../config/rolePermissions.
 import { selectRole } from '../store/slices/authSlice.js';
 import { dashboardService } from '../services/dashboard.service';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
+import { getSessionFilterOptions } from '../utils/academicYears.js';
 import TablePage from './TablePage';
 
 const StatCard = ({ icon, label, value, subtext, trend, trendUp, color, onClick, isActive, hideArrow }) => {
@@ -735,7 +736,7 @@ export default function Dashboard() {
   const [activeTable, setActiveTable] = useState(null);
   const tableRef = useRef(null);
   
-  const [academicYears, setAcademicYears] = useState(['All']);
+  const [academicYears, setAcademicYears] = useState(getSessionFilterOptions);
   const [departmentsList, setDepartmentsList] = useState([{ id: 'All', name: 'All Departments' }]);
 
   const [stats, setStats] = useState({ 
@@ -753,6 +754,8 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState({
     academicPerformance: [],
     feedback: [],
+    feedbackHasData: false,
+    feedbackOverallScore: 0,
     infrastructureScore: 0,
     studentProgression: {
       placements: '0%',
@@ -815,6 +818,8 @@ export default function Dashboard() {
           setChartData({
             academicPerformance: data.charts.academicPerformance || [],
             feedback: data.charts.feedback || [],
+            feedbackHasData: Boolean(data.charts.feedbackHasData),
+            feedbackOverallScore: data.charts.feedbackOverallScore ?? 0,
             infrastructureScore: data.charts.infrastructureScore || 0,
             studentProgression: data.charts.studentProgression || {
               placements: '0%',
@@ -854,10 +859,24 @@ export default function Dashboard() {
     [chartData.feedback]
   );
 
+  const feedbackChartData = useMemo(
+    () => dynamicFeedbackData.filter((item) => item.value > 0),
+    [dynamicFeedbackData]
+  );
+
   const overallFeedbackScore = useMemo(() => {
-    const sum = dynamicFeedbackData.reduce((acc, curr) => acc + curr.value, 0);
-    return sum > 0 ? (sum / dynamicFeedbackData.length).toFixed(2) : '0.00';
-  }, [dynamicFeedbackData]);
+    if (!chartData.feedbackHasData) {
+      return '—';
+    }
+    if (chartData.feedbackOverallScore > 0) {
+      return Number(chartData.feedbackOverallScore).toFixed(2);
+    }
+    const active = dynamicFeedbackData.filter((item) => item.value > 0);
+    if (!active.length) {
+      return '0.00';
+    }
+    return (active.reduce((sum, item) => sum + item.value, 0) / active.length).toFixed(2);
+  }, [dynamicFeedbackData, chartData.feedbackHasData, chartData.feedbackOverallScore]);
 
   const dynamicQualityData = useMemo(() => {
     return [
@@ -1052,39 +1071,49 @@ export default function Dashboard() {
           </div>
         </WidgetBlock>
 
-        {/* Dynamic Feedback Donut Chart */}
-        <WidgetBlock title={`Feedback Analysis (${selectedYear === 'All' ? 'Cumulative' : `Session ${selectedYear}`})`}>
-          <div className="h-60 flex items-center justify-between gap-4">
-            <div className="flex-1 h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={dynamicFeedbackData} innerRadius={60} outerRadius={85} paddingAngle={2} dataKey="value" stroke="none">
-                    {dynamicFeedbackData.map((entry, index) => (
-                      <Cell key={'cell-'+index} fill={entry.color} />
-                    ))}
-                    <Label 
-                      value={overallFeedbackScore} position="center" className="text-3xl font-bold fill-slate-800" dy={-5}
-                    />
-                    <Label 
-                      value="Out of 5" position="center" className="text-[10px] fill-slate-500 font-medium" dy={15}
-                    />
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-col gap-3 text-[11px] shrink-0 justify-center">
-              {dynamicFeedbackData.map(item => (
-                <div key={item.name} className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></div>
-                    <span className="text-slate-600 truncate w-24">{item.name}</span>
+        {/* Feedback indices derived from IQAC records for selected session */}
+        <WidgetBlock title={`Quality Indices (${selectedYear === 'All' ? 'Cumulative' : `Session ${selectedYear}`})`}>
+          {chartData.feedbackHasData ? (
+            <div className="h-60 flex items-center justify-between gap-4">
+              <div className="flex-1 h-full w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={feedbackChartData} innerRadius={60} outerRadius={85} paddingAngle={2} dataKey="value" stroke="none">
+                      {feedbackChartData.map((entry, index) => (
+                        <Cell key={'cell-'+index} fill={entry.color} />
+                      ))}
+                      <Label
+                        value={overallFeedbackScore}
+                        position="center"
+                        className="text-3xl font-bold fill-slate-800"
+                        dy={-5}
+                      />
+                      <Label
+                        value="Out of 5"
+                        position="center"
+                        className="text-[10px] fill-slate-500 font-medium"
+                        dy={15}
+                      />
+                    </Pie>
+                    <RechartsTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col gap-3 text-[11px] shrink-0 justify-center">
+                {dynamicFeedbackData.map(item => (
+                  <div key={item.name} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-slate-600 truncate w-24">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-slate-700">{item.value.toFixed(2)}</span>
                   </div>
-                  <span className="font-semibold text-slate-700">{item.value.toFixed(2)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <EmptyChart message={`No IQAC activity records for ${selectedYear === 'All' ? 'any session' : `session ${selectedYear}`} in this branch. Upload feedback via Feedback Analysis or add teaching, programme, and support data for this period.`} />
+          )}
         </WidgetBlock>
 
         {/* Live Quality Initiatives Pie Chart Composition */}
