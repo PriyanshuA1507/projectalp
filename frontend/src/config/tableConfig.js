@@ -52,8 +52,8 @@ const rawResources = [
         required: true,
         placeholder: 'Select publication type'
       },
-      { header: 'Title of Book', accessor: 'title_of_book', required: true, placeholder: 'Enter book title' },
-      { header: 'Title of Chapter', accessor: 'title_of_chapter', placeholder: 'Enter chapter title (if applicable)' },
+      { header: 'Title of Book', accessor: 'title_of_book', requiredIf: (item) => item.publication_type === 'Book', placeholder: 'Enter book title' },
+      { header: 'Title of Chapter', accessor: 'title_of_chapter', requiredIf: (item) => item.publication_type === 'Chapter', placeholder: 'Enter chapter title (if applicable)' },
       {
         header: 'Role',
         accessor: 'role',
@@ -62,7 +62,7 @@ const rawResources = [
         placeholder: 'Select Role',
         required: true
       },
-      { header: 'Year', accessor: 'year', type: 'number', required: true, placeholder: 'e.g., 2024' },
+      { header: 'Year', accessor: 'year', type: 'year', required: true, min: 1900, max: 2099, placeholder: 'e.g., 2024' },
       { header: 'Academic Year', accessor: 'academic_year', required: true, placeholder: 'e.g., 2023-24' },
       { header: 'ISBN', accessor: 'isbn_number', placeholder: 'e.g., 978-3-16-148410-0' },
       { header: 'Publisher', accessor: 'name_of_publisher', required: true, placeholder: 'Enter publisher name' },
