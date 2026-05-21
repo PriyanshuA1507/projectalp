@@ -172,47 +172,20 @@
 // }
 
 
-import React, { useMemo } from 'react';
-import { FiAward, FiCheckCircle } from 'react-icons/fi';
+import React from 'react';
+import { FiCheckCircle } from 'react-icons/fi';
 
 export default function PartIV({ formData, updateField, readOnly }) {
     const corporate = formData.corporate || {};
 
-    // ==========================================
-    // Gamification: Corporate Impact Score
-    // ==========================================
-    const currentScore = useMemo(() => {
-        let score = 0;
-        
-        // Award 15-20 points for each section they contributed to (must be > 10 chars)
-        if (corporate.curriculum_development?.trim().length > 10) score += 15;
-        if (corporate.course_development_details?.trim().length > 10) score += 15;
-        if (corporate.lab_development?.trim().length > 10) score += 20; // Lab dev is high effort
-        if (corporate.cultural_activities?.trim().length > 10) score += 15;
-        if (corporate.sports_community?.trim().length > 10) score += 15;
-        if (corporate.admin_assignment?.trim().length > 10) score += 20; // Admin is high effort
-
-        return Math.min(score, 100); // Cap at 100
-    }, [corporate]);
-
-    const getScoreColor = () => {
-        if (currentScore >= 70) return 'bg-green-100 text-green-800 border-green-200';
-        if (currentScore >= 40) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    };
+    
 
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-8">
             
-            {/* Header & Score Badge */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4">
                 <h3 className="text-xl font-bold text-gray-800">PART IV - CONTRIBUTION TO INSTITUTE CORPORATE LIFE</h3>
-                <div className={`mt-4 md:mt-0 flex items-center px-4 py-2 rounded-full border ${getScoreColor()} shadow-sm transition-all duration-300`}>
-                    <FiAward className="mr-2 text-lg" />
-                    <span className="font-semibold text-sm">
-                        Corporate Impact Score: {currentScore} / 100
-                    </span>
-                </div>
             </div>
 
             {/* Box: 1 a) and 1 b) */}

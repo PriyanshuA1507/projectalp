@@ -628,8 +628,8 @@
 // }
 
 
-import React, { useMemo } from 'react';
-import { FiPlus, FiTrash2, FiAward } from 'react-icons/fi';
+import React from 'react';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 
 export default function PartII({ formData, addItem, removeItem, updateArrayField, updateAssessment, updateField, readOnly }) {
     // Safely extract teaching data to prevent crashes
@@ -642,73 +642,12 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
     const workloadWeek = teachingData?.workload_week || { odd_semester: {}, even_semester: {} };
     const tutorialsTests = teachingData?.tutorials_tests || { ug_odd: {}, ug_even: {}, pg_odd: {}, pg_even: {} };
 
-    // ==========================================
-    // NEW FEATURE: Real-Time Cumulative Score
-    // ==========================================
-    const currentScore = useMemo(() => {
-        let score = 0;
-
-        // 1. Course Engagement Score (Max 40 points)
-        if (coursesTaught.length > 0) {
-            coursesTaught.forEach(course => {
-                const scheduled = Number(course.total_lectures_scheduled) || 0;
-                const engaged = Number(course.total_lectures_engaged) || 0;
-                
-                if (scheduled > 0) {
-                    // Give up to 10 points per course based on engagement percentage
-                    const engagementRatio = Math.min(engaged / scheduled, 1); 
-                    score += (10 * engagementRatio);
-                }
-            });
-        }
-
-        // Cap course score at 40
-        score = Math.min(score, 40);
-
-        // 2. Teaching Methods (Max 15 points)
-        if (teachingData?.teaching_methods?.trim().length > 20) score += 15;
-        else if (teachingData?.teaching_methods?.trim().length > 0) score += 5;
-
-        // 3. ICT Tools (Max 15 points)
-        if (teachingData?.ict_tools?.trim().length > 10) score += 15;
-
-        // 4. Student Centric Methods (Max 15 points)
-        if (teachingData?.student_centric_methods?.trim().length > 10) score += 15;
-
-        // 5. Assessments & Tutorials (Max 15 points)
-        // Award points if any tests were held
-        const hasTests = 
-            Number(tutorialsTests?.ug_odd?.number_of_tests) > 0 ||
-            Number(tutorialsTests?.ug_even?.number_of_tests) > 0 ||
-            Number(tutorialsTests?.pg_odd?.number_of_tests) > 0 ||
-            Number(tutorialsTests?.pg_even?.number_of_tests) > 0;
-            
-        if (hasTests) score += 15;
-
-        return Math.round(score); // Return a clean whole number out of 100
-    }, [coursesTaught, teachingData, tutorialsTests]);
-
-    // Determine color based on score
-    const getScoreColor = () => {
-        if (currentScore >= 80) return 'bg-green-100 text-green-800 border-green-200';
-        if (currentScore >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        return 'bg-red-100 text-red-800 border-red-200';
-    };
-
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
             
             {/* Header & Score Badge */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4">
                 <h3 className="text-xl font-bold text-gray-800">Part II - SELF APPRAISAL (Teaching)</h3>
-                
-                {/* NEW FEATURE UI: Score Card */}
-                <div className={`mt-4 md:mt-0 flex items-center px-4 py-2 rounded-full border ${getScoreColor()} shadow-sm transition-all duration-300`}>
-                    <FiAward className="mr-2 text-lg" />
-                    <span className="font-semibold text-sm">
-                        Teaching Impact Score: {currentScore} / 100
-                    </span>
-                </div>
             </div>
 
             <div className="space-y-6">
