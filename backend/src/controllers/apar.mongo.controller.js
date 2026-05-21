@@ -489,11 +489,11 @@ const getForm = asyncHandler(async (req, res) => {
         // With upsert, we don't know if it was inserted or found unless we check via rawResult (which mongoose wraps).
         // However, we generally want to sync IQAC data if it's new OR draft.
 
-        if (form.status === 'Draft' || form.status === 'check_submit_status' || !form.status) {
-            // ... strict sync logic below applies to both new and existing drafts ...
-            // Just ensure we call sync.
-            const modified = await syncIqacToAparForm(form, faculty_id, ay);
+        // Always sync IQAC data into the in-memory form so response reflects latest entries (e.g., patents)
+        const modified = await syncIqacToAparForm(form, faculty_id, ay);
 
+        // Only persist changes for editable (Draft-like) statuses
+        if (form.status === 'Draft' || form.status === 'check_submit_status' || !form.status) {
             // Check if personal info needs update (for existing drafts that missed it)
             if (facultyProfile) {
                 if (!form.personal) form.personal = {};
