@@ -1095,6 +1095,17 @@ export default function AparForm() {
                 formData: formData
             };
 
+            // 1) Save Section III to monthly collections before final submission
+            try {
+                await AparFormGradedService.saveToMonthly(payload);
+            } catch (e) {
+                console.error('Monthly save before submit failed:', e);
+                const msg = e.response?.data?.message || 'Failed to save monthly data before submission';
+                toast.error(msg);
+                return; // Do not proceed to submit if monthly save failed
+            }
+
+            // 2) Proceed with final submission
             await AparFormGradedService.submit(payload);
             toast.success('APAR Form Submitted Successfully!');
             navigate('/apar/dashboard');
