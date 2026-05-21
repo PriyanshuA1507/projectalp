@@ -19,7 +19,7 @@ export default function Login() {
   const globalError = useSelector(selectAuthError);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState(ROLES.DEPARTMENT_HOD);
+  const [selectedRole, setSelectedRole] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,6 +63,11 @@ export default function Login() {
       return;
     }
 
+    if (!roleOptions.includes(selectedRole)) {
+      setError('Only IQAC Head and Department HOD can sign in.');
+      return;
+    }
+
     if (!password.trim()) {
       setError('Please enter your password.');
       return;
@@ -83,12 +88,15 @@ export default function Login() {
     if (!normalized || !emailRegex.test(normalized)) return;
     try {
       const resp = await authService.getAllowedRoles(normalized);
-      const allowed = resp?.allowedRoles ?? [];
-      if (allowed && allowed.length > 0) {
+      const allowed = (resp?.allowedRoles ?? []).filter((role) => roleOptions.includes(role));
+      if (allowed.length > 0) {
         setRoleOptionsState(allowed);
         if (!allowed.includes(selectedRole)) setSelectedRole(allowed[0]);
+      } else {
+        setRoleOptionsState([]);
+        setSelectedRole('');
       }
-    } catch (e) {
+    } catch {
       // ignore and keep defaults
       // console.warn('failed to fetch allowed roles', e);
     }
@@ -164,6 +172,9 @@ export default function Login() {
                 }}
                 className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
+                {roleOptionsState.length === 0 && (
+                  <option value="">No eligible IQAC role</option>
+                )}
                 {roleOptionsState.map((roleOption) => (
                     <option key={roleOption} value={roleOption}>
                       {roleOption}
@@ -200,10 +211,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={authStatus === 'loading'}
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={authStatus === 'loading' || roleOptionsState.length === 0}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {authStatus === 'loading' ? 'Signing in…' : 'Sign in'}
+            {roleOptionsState.length === 0 ? 'No allowed role' : (authStatus === 'loading' ? 'Signing in…' : 'Sign in')}
           </button>
 
         </form>

@@ -76,6 +76,7 @@ export class Api {
                 const responseMessage = error.response?.data?.message || error.response?.data?.error || '';
                 const isCsrfError = status === 403 && String(responseMessage).toLowerCase().includes('csrf');
                 const originalRequest = error.config || {};
+                
 
                 if (isCsrfError && !originalRequest._csrfRetry) {
                     originalRequest._csrfRetry = true;
@@ -92,6 +93,8 @@ export class Api {
                         return Promise.reject(retryError);
                     }
                 }
+
+                
 
                 if (status && [401, 403, 409].includes(status)) {
                     const pathname = typeof window !== 'undefined' ? window.location.pathname : '';

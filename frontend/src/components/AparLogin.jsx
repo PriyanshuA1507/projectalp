@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { aparLogin, aparChangePassword } from '../store/slices/aparAuthSlice.js';
+import { aparLogin } from '../store/slices/aparAuthSlice.js';
 import { aparAuthService } from '../services/aparAuth.service.js';
 
 export default function AparLogin({ loginData, setLoginData }) {
@@ -10,7 +10,6 @@ export default function AparLogin({ loginData, setLoginData }) {
   const location = useLocation();
   const isAuthenticated = useSelector((state) => Boolean(state.aparAuth.user));
   const aparRole = useSelector((state) => state.aparAuth.role);
-  const mustChangePassword = useSelector((state) => Boolean(state.aparAuth.user?.mustChangePassword));
   const status = useSelector((state) => state.aparAuth.status);
   const authError = useSelector((state) => state.aparAuth.error);
   const [localError, setLocalError] = useState('');
@@ -36,17 +35,13 @@ export default function AparLogin({ loginData, setLoginData }) {
       // ignore
     }
   };
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [changeStatus, setChangeStatus] = useState('idle');
 
   useEffect(() => {
     if (authError) setLocalError(authError);
   }, [authError]);
 
   useEffect(() => {
-    if (isAuthenticated && !mustChangePassword) {
+    if (isAuthenticated) {
       const from = location.state?.from?.pathname;
       const roleToUse = aparRole || effectiveLoginData.role;
       if (roleToUse === 'Reporting Officer' || roleToUse === 'Reviewing Officer') {
@@ -55,7 +50,7 @@ export default function AparLogin({ loginData, setLoginData }) {
       }
       navigate('/apar/dashboard', { replace: true });
     }
-  }, [isAuthenticated, mustChangePassword, navigate, aparRole, effectiveLoginData.role, location.state]);
+  }, [isAuthenticated, navigate, aparRole, effectiveLoginData.role, location.state]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -80,41 +75,6 @@ export default function AparLogin({ loginData, setLoginData }) {
 
     dispatch(aparLogin({ email: normalizedEmail, password: effectiveLoginData.password, role: effectiveLoginData.role }));
   };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setLocalError('');
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setLocalError('All password fields are required');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setLocalError('New passwords do not match');
-      return;
-    }
-
-    if (newPassword.length < 12) {
-      setLocalError('New password must be at least 12 characters and include letters and numbers');
-      return;
-    }
-
-    setChangeStatus('loading');
-    try {
-      await dispatch(aparChangePassword({ oldPassword, newPassword })).unwrap();
-      setChangeStatus('succeeded');
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setLocalError('Password updated. Please sign in with your new password.');
-    } catch (err) {
-      setLocalError(typeof err === 'string' ? err : 'Unable to change password');
-      setChangeStatus('failed');
-    }
-  };
-
-  const showPasswordChange = isAuthenticated && mustChangePassword;
 
   return (
     <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -145,31 +105,6 @@ export default function AparLogin({ loginData, setLoginData }) {
           <p className="mt-2 text-sm text-gray-600">Sign in to access the Annual Performance Appraisal Report system</p>
         </div>
         <div className="bg-white/90 py-5 px-8 shadow-2xl sm:rounded-2xl sm:px-12 border border-gray-100">
-          {showPasswordChange ? (
-            <>
-
-              <h2 className="text-lg font-bold text-indigo-700 mb-2">Change your password</h2>
-              <p className="text-sm text-gray-600 mb-4">For security, set a new password before using APAR.</p>
-              <form className="space-y-4" onSubmit={handlePasswordChange}>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
-                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
-                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
-                  <input type="password" className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                </div>
-                {localError && (<div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">{localError}</div>)}
-                <button type="submit" disabled={changeStatus === 'loading'} className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70">
-                  {changeStatus === 'loading' ? 'Updating…' : 'Update password'}
-                </button>
-              </form>
-            </>
-          ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="id" className="block text-sm font-medium text-gray-700 mb-1"> Login ID </label>
@@ -205,7 +140,6 @@ export default function AparLogin({ loginData, setLoginData }) {
             </div>
 
           </form>
-          )}
         </div>
       </div>
     </div>

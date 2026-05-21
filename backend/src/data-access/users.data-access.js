@@ -246,3 +246,11 @@ export const findUsersByOfficerMapping = async (officerId, type) => {
   return users.map(u => mapUser(u));
 };
 
+export const deleteUserById = async (id) => {
+  const user = await User.findByIdAndDelete(id);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return mapUser(user);
+};
+

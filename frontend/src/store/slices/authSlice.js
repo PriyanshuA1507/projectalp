@@ -18,18 +18,18 @@ const getAllowedRolesFor = (role) => {
   const normalized = role.trim().toLowerCase();
 
   if (normalized === ROLES.IQAC_HEAD.toLowerCase()) {
-    return [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
+    return [ROLES.IQAC_HEAD];
   }
 
   if (normalized === ROLES.DEPARTMENT_HOD.toLowerCase()) {
-    return [ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
+    return [ROLES.DEPARTMENT_HOD];
   }
 
   if (normalized === ROLES.FACULTY.toLowerCase()) {
-    return [ROLES.FACULTY];
+    return [];
   }
 
-  return [role];
+  return [];
 };
 
 const initialState = {

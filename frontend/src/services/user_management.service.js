@@ -16,6 +16,10 @@ class UserManagementService {
   async updateUser(id, payload) {
     return this.api.patch(`/auth/admin/users/${id}`, payload);
   }
+
+  async deleteUser(id) {
+    return this.api.delete(`/auth/admin/users/${id}`);
+  }
 }
 
 export const userManagementService = new UserManagementService();

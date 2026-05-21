@@ -30,7 +30,8 @@ export const assertFacultyAccess = async (user, facultyId) => {
   const currentFacultyId = getCurrentFacultyId(user);
   const role = normalizeRoleValue(user?.role);
 
-  if (role === ROLES.OFFICER && currentFacultyId === normalizedFacultyId) {
+  // Always allow users to access their own record regardless of role
+  if (currentFacultyId === normalizedFacultyId) {
     return true;
   }
 
