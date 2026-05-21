@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FiSearch, FiUser, FiLogOut, FiPlus, FiX } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import { formRoutes } from '../utils/addFormRoutes.js';
 import { canAccessForm, getRoleBadgeColor } from '../config/rolePermissions.js';
 import { ROLE_LABELS } from '../config/rolePermissions.js';
@@ -18,6 +19,8 @@ export default function Header() {
   const user = useSelector(selectUser);
   const role = useSelector(selectRole);
   const navigate = useNavigate();
+  const { academicYear, departmentId } = useIqacFilter();
+  const scopeIsActive = academicYear !== 'All' || departmentId !== 'All';
   const teacherId = user?.teacherId || null;
   const email = user?.email || null;
   const displayName = email || teacherId || 'Guest';
@@ -231,6 +234,17 @@ export default function Header() {
         )}
       </div>
       <div className="flex items-center space-x-6">
+        {scopeIsActive && (
+          <Link
+            to="/app"
+            className="hidden lg:inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+            title="Change filters on Dashboard"
+          >
+            Session: {academicYear === 'All' ? 'All Years' : academicYear}
+            {' · '}
+            Branch: {departmentId === 'All' ? 'All' : departmentId}
+          </Link>
+        )}
         <NotificationBell />
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">

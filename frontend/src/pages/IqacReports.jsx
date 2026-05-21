@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { resources } from '../config/tableConfig';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
+import { filterRecordsByScope } from '../utils/iqacScopeFilter.js';
 import { FiDownload, FiFileText, FiCalendar, FiClock } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
@@ -7,8 +9,11 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 export default function IqacReports() {
+  const { academicYear: dashboardYear, departmentId } = useIqacFilter();
   const [reportType, setReportType] = useState('annually');
-  const [academicYear, setAcademicYear] = useState('2023-24');
+  const [academicYear, setAcademicYear] = useState(
+    dashboardYear !== 'All' ? dashboardYear : '2023-24'
+  );
   const [monthYear, setMonthYear] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -17,15 +22,14 @@ export default function IqacReports() {
   const filterData = (data) => {
     if (!data || !Array.isArray(data)) return [];
 
-    return data.filter(item => {
+    const scoped = filterRecordsByScope(data, {
+      academicYear: reportType === 'annually' ? academicYear : 'All',
+      departmentId
+    });
+
+    return scoped.filter(item => {
       if (reportType === 'annually') {
-        // Fallback checks for year
-        if (item.academic_year) return item.academic_year === academicYear;
-        if (item.year) return String(item.year) === academicYear.split('-')[0];
-        if (item.year_of_publication) return String(item.year_of_publication) === academicYear.split('-')[0];
-        if (item.start_date) return new Date(item.start_date).getFullYear() === parseInt(academicYear.split('-')[0]);
-        if (item.createdAt) return new Date(item.createdAt).getFullYear() === parseInt(academicYear.split('-')[0]);
-        return false;
+        return true;
       } else if (reportType === 'monthly') {
         if (!monthYear) return true;
         const [selectedYear, selectedMonth] = monthYear.split('-');

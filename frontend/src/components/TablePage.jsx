@@ -29,6 +29,8 @@ import {
 import { useSelector } from 'react-redux';
 import { selectRole } from '../store/slices/authSlice';
 import { ROLES } from '../config/rolePermissions';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
+import { filterRecordsByScope } from '../utils/iqacScopeFilter.js';
 
 const getNestedValue = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
 
@@ -556,6 +558,7 @@ export default function TablePage({ config }) {
 
   const navigate = useNavigate();
   const role = useSelector(selectRole);
+  const { academicYear, departmentId, departmentLocked } = useIqacFilter();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -634,7 +637,7 @@ export default function TablePage({ config }) {
     loadData();
 
     return () => { mounted = false; };
-  }, [fetchData, title]);
+  }, [fetchData, title, academicYear, departmentId]);
 
 
   const handleDeleteItem = (id) => {
@@ -672,11 +675,18 @@ export default function TablePage({ config }) {
     navigate(`${addPath}?edit=true&id=${id}`);
   };
 
+  const scopedItems = useMemo(
+    () => filterRecordsByScope(items, { academicYear, departmentId }),
+    [items, academicYear, departmentId]
+  );
+
+  const scopeIsActive = academicYear !== 'All' || departmentId !== 'All';
+
   const filteredItems = useMemo(() => {
     if (Object.keys(filters).length === 0) {
-      return items;
+      return scopedItems;
     }
-    return items.filter(item => {
+    return scopedItems.filter(item => {
       return Object.entries(filters).every(([accessor, filter]) => {
         const itemValue = getNestedValue(item, accessor);
         if (typeof filter.value === 'boolean') {
@@ -703,7 +713,7 @@ export default function TablePage({ config }) {
         return true;
       });
     });
-  }, [items, filters, columns]);
+  }, [scopedItems, filters, columns]);
 
   const handleApplyFilters = () => {
     setFilters(pendingFilters);
@@ -800,8 +810,22 @@ export default function TablePage({ config }) {
 
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">{title}</h1>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">{title}</h1>
+            {scopeIsActive && (
+              <p className="mt-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 inline-flex items-center gap-2">
+                <FiFilter size={12} />
+                Dashboard scope: Session {academicYear === 'All' ? 'All Years' : academicYear}
+                {' | '}
+                Branch {departmentId === 'All' ? 'All Departments' : departmentId}
+                {departmentLocked ? ' (locked to your department)' : ''}
+                <span className="text-indigo-500">
+                  — showing {filteredItems.length} of {items.length} records
+                </span>
+              </p>
+            )}
+          </div>
           <div className="flex items-center space-x-3 mt-4 md:mt-0">
 
             {/* Export Menu */}
