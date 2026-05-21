@@ -22,6 +22,7 @@ import { mergeNewEntry } from '../hooks/useAparRealTimeSync';
 import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
 import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
+import { normalizeQualifications, hasRequiredGraduation } from '../utils/qualification.util.js';
 
 const toTitle = (value) => String(value || '')
     .replace(/_/g, ' ')
@@ -290,7 +291,7 @@ export default function AparForm() {
                             email: info.email || prev.personal.email,
                             phone: info.phone || prev.personal.phone,
                             department_id: info.department_id || prev.personal.department_id,
-                            qualification: info.qualification || prev.personal.qualification,
+                            ...normalizeQualifications(info),
                             joining_date: info.joining_date ? info.joining_date.substring(0, 10) : prev.personal.joining_date,
                             date_of_birth: info.date_of_birth ? info.date_of_birth.substring(0, 10) : prev.personal.date_of_birth,
                             sc_st_status: info.sc_st_status || prev.personal.sc_st_status,
@@ -466,6 +467,9 @@ export default function AparForm() {
             phone: '',
             department_id: '',
             qualification: '',
+            qualification_undergraduate: '',
+            qualification_postgraduate: '',
+            qualification_phd: '',
             joining_date: '',
             report_start_date: '',
             report_end_date: '',
@@ -587,7 +591,7 @@ export default function AparForm() {
                         email: facultyInfo.email || prev.personal.email,
                         phone: facultyInfo.phone || prev.personal.phone,
                         department_id: facultyInfo.department_id || prev.personal.department_id,
-                        qualification: facultyInfo.qualification || prev.personal.qualification,
+                        ...normalizeQualifications(facultyInfo),
                         joining_date: facultyInfo.joining_date ? facultyInfo.joining_date.substring(0, 10) : prev.personal.joining_date,
                         date_of_birth: facultyInfo.date_of_birth ? facultyInfo.date_of_birth.substring(0, 10) : prev.personal.date_of_birth,
                         sc_st_status: facultyInfo.sc_st_status || prev.personal.sc_st_status,
@@ -627,6 +631,7 @@ export default function AparForm() {
                     personal: {
                         ...prev.personal,
                         ...(mongoData.personal || {}),
+                        ...normalizeQualifications(mongoData.personal || {}),
                         date_of_birth: mongoData.personal?.date_of_birth ? mongoData.personal.date_of_birth.substring(0, 10) : prev.personal.date_of_birth,
                         joining_date: mongoData.personal?.joining_date ? mongoData.personal.joining_date.substring(0, 10) : prev.personal.joining_date,
                     },
@@ -991,7 +996,7 @@ export default function AparForm() {
         if (!personal.department_id || !personal.department_id.trim()) errors.push('Department is required');
         if (!personal.designation || !personal.designation.trim()) errors.push('Designation is required');
         if (!personal.date_of_birth) errors.push('Date of birth is required');
-        if (!personal.qualification || !personal.qualification.trim()) errors.push('Qualification is required');
+        if (!hasRequiredGraduation(personal)) errors.push('Graduation qualification is required');
         if (!personal.sc_st_status || !personal.sc_st_status.trim()) errors.push('Caste category is required');
         if (!personal.joining_date) errors.push('Joining date is required');
         if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');

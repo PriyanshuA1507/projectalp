@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hasRequiredGraduation } from '../utils/qualification.util.js';
 
 const nonEmptyString = (fieldName) => z.string().trim().min(1, `${fieldName} is required`);
 const optionalString = z.string().trim().optional();
@@ -13,13 +14,24 @@ const personalSchema = z.object({
   email: z.union([z.string().email('Invalid email format'), z.literal('')]).optional(),
   phone: optionalString,
   department_id: nonEmptyString('Department'),
-  qualification: nonEmptyString('Qualification'),
+  qualification_undergraduate: optionalString,
+  qualification_postgraduate: optionalString,
+  qualification_phd: optionalString,
+  qualification: optionalString,
   joining_date: z.string().min(1, 'Joining date is required'),
   report_start_date: optionalString,
   report_end_date: optionalString,
   sc_st_status: nonEmptyString('Caste category'),
   absence_period: z.string().min(1, 'Absence period is required'),
   grade: z.string().min(1, 'Grade is required')
+}).superRefine((data, ctx) => {
+  if (!hasRequiredGraduation(data)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Graduation qualification is required',
+      path: ['qualification_undergraduate'],
+    });
+  }
 });
 
 // Teaching Validation
@@ -419,6 +431,9 @@ export const aparDraftSchema = z.object({
         phone: z.string().optional(),
         department_id: z.string().optional(),
         qualification: z.string().optional(),
+        qualification_undergraduate: z.string().optional(),
+        qualification_postgraduate: z.string().optional(),
+        qualification_phd: z.string().optional(),
         joining_date: z.string().optional(),
         report_start_date: z.string().optional(),
         report_end_date: z.string().optional(),

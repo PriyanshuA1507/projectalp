@@ -17,6 +17,7 @@ import { User } from "../models/user.model.js";
 import { Faculty } from "../models/faculty.model.js";
 import { createNotification, notifyHeads } from "./notification.controller.js";
 import { v4 as uuidv4 } from 'uuid'; // Assuming uuid is available or use generic ID generator
+import { normalizeQualifications } from '../utils/qualification.util.js';
 
 const generateId = (prefix) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -462,7 +463,7 @@ const getForm = asyncHandler(async (req, res) => {
                     designation: facultyProfile?.designation,
                     date_of_birth: facultyProfile?.date_of_birth,
                     phone: facultyProfile?.phone,
-                    qualification: facultyProfile?.qualification,
+                    ...normalizeQualifications(facultyProfile || {}),
                     joining_date: facultyProfile?.joining_date
                 }
             });
@@ -503,7 +504,16 @@ const getForm = asyncHandler(async (req, res) => {
                 if (!form.personal.designation && facultyProfile.designation) { form.personal.designation = facultyProfile.designation; pChanged = true; }
                 if (!form.personal.date_of_birth && facultyProfile.date_of_birth) { form.personal.date_of_birth = facultyProfile.date_of_birth; pChanged = true; }
                 if (!form.personal.phone && facultyProfile.phone) { form.personal.phone = facultyProfile.phone; pChanged = true; }
-                if (!form.personal.qualification && facultyProfile.qualification) { form.personal.qualification = facultyProfile.qualification; pChanged = true; }
+                const normalizedQuals = normalizeQualifications({
+                    ...(form.personal || {}),
+                    ...(facultyProfile || {}),
+                });
+                ['qualification_undergraduate', 'qualification_postgraduate', 'qualification_phd'].forEach((field) => {
+                    if (!form.personal[field] && normalizedQuals[field]) {
+                        form.personal[field] = normalizedQuals[field];
+                        pChanged = true;
+                    }
+                });
                 if (!form.personal.joining_date && facultyProfile.joining_date) { form.personal.joining_date = facultyProfile.joining_date; pChanged = true; }
 
                 // Backfill Officers

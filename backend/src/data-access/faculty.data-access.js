@@ -237,6 +237,9 @@ export const syncAparToFaculty = async (faculty_id, aparData) => {
       if (personal.designation) updateFields.designation = personal.designation;
       if (personal.department_id) updateFields.department_id = personal.department_id;
       if (personal.date_of_birth) updateFields.date_of_birth = personal.date_of_birth;
+      if (personal.qualification_undergraduate) updateFields.qualification_undergraduate = personal.qualification_undergraduate;
+      if (personal.qualification_postgraduate) updateFields.qualification_postgraduate = personal.qualification_postgraduate;
+      if (personal.qualification_phd) updateFields.qualification_phd = personal.qualification_phd;
       if (personal.qualification) updateFields.qualification = personal.qualification;
       if (personal.specialization) updateFields.specialization = personal.specialization;
       if (personal.email) updateFields.email = personal.email;
