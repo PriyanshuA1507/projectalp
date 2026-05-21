@@ -564,9 +564,10 @@ import {
   PieChart, Pie, Cell, Label, LabelList
 } from 'recharts';
 import { resources, resourceMap } from '../config/tableConfig';
-import { canAccessForm, canAccessTable } from '../config/rolePermissions.js';
+import { canAccessForm, canAccessTable, ROLES } from '../config/rolePermissions.js';
 import { selectRole } from '../store/slices/authSlice.js';
 import { dashboardService } from '../services/dashboard.service';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import TablePage from './TablePage';
 
 const StatCard = ({ icon, label, value, subtext, trend, trendUp, color, onClick, isActive, hideArrow }) => {
@@ -627,19 +628,50 @@ const QuickLink = ({ to, icon, label }) => (
   </Link>
 );
 
+const APAR_STEP_STYLES = {
+  Completed: {
+    icon: <FiCheck />,
+    color: 'bg-emerald-500 text-white border-2 border-emerald-500',
+    textCol: 'text-emerald-500'
+  },
+  'In Progress': {
+    icon: <span className="font-bold text-sm">•</span>,
+    color: 'bg-blue-500 text-white shadow-[0_0_0_3px_#bfdbfe]',
+    textCol: 'text-blue-500'
+  },
+  Pending: {
+    icon: <FiFileText />,
+    color: 'bg-slate-200 text-slate-400 border-2 border-slate-200',
+    textCol: 'text-slate-400'
+  }
+};
+
+const formatGrantAmount = (amount) => {
+  const value = Number(amount) || 0;
+  if (value >= 10000000) {
+    return `₹ ${(value / 10000000).toFixed(1)} Cr`;
+  }
+  if (value >= 100000) {
+    return `₹ ${(value / 100000).toFixed(1)} L`;
+  }
+  return `₹ ${value.toLocaleString('en-IN')}`;
+};
+
 export default function Dashboard() {
   const role = useSelector(selectRole);
+  const {
+    academicYear: selectedYear,
+    departmentId: selectedDept,
+    departmentLocked,
+    setAcademicYear: setSelectedYear,
+    setDepartmentId: setSelectedDept
+  } = useIqacFilter();
   const [activeTable, setActiveTable] = useState(null);
   const tableRef = useRef(null);
   
-  // ACTIVE FILTER SELECTION STATES
-  const [selectedYear, setSelectedYear] = useState('All');
-  const [selectedDept, setSelectedDept] = useState('All');
+  const [academicYears, setAcademicYears] = useState(['All']);
+  const [departmentsList, setDepartmentsList] = useState([{ id: 'All', name: 'All Departments' }]);
 
-  const academicYears = ['All', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25', '2025-26', '2026-27'];
-  const departmentsList = ['All', 'CSE', 'IT', 'ECE', 'EE', 'ME', 'CE', 'AI/ML', 'BioTech'];
-
-  // 🚀 ALL STATS FORCED TO INITIALIZE STRICTLY AT 0
   const [stats, setStats] = useState({ 
     students: 0, 
     faculty: 0, 
@@ -648,59 +680,101 @@ export default function Dashboard() {
     booksChapters: 0,
     patentsFiled: 0,
     patentsGranted: 0,
-    aparSubmitted: 0
+    aparSubmitted: 0,
+    researchGrants: 0
   });
+
+  const [chartData, setChartData] = useState({
+    academicPerformance: [],
+    feedback: [],
+    infrastructureScore: 0,
+    studentProgression: {
+      placements: '0%',
+      higherStudies: '0%',
+      entrepreneurship: '0%',
+      competitiveExams: '0%'
+    }
+  });
+
+  const [aparProgress, setAparProgress] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
     const fetchStats = async () => {
-      console.log(`📡 Dashboard Query Fired -> Year: ${selectedYear} | Branch: ${selectedDept}`);
       try {
         const data = await dashboardService.getStats(selectedYear, selectedDept);
-        console.log("📥 Live API Query Response Data:", data);
-        if (data) {
-          // 🚀 MAP DATA DIRECTLY TO STATE WITH EXPLICIT ZERO FALLBACKS
-          setStats({
-            students: data.students || 0,
-            faculty: data.faculty || 0,
-            departments: data.departments || 0,
-            researchPapers: data.researchPapers || 0,
-            booksChapters: data.booksChapters || 0,
-            patentsFiled: data.patentsFiled || 0,
-            patentsGranted: data.patentsGranted || 0,
-            aparSubmitted: data.aparSubmitted || 0
+        if (!data) return;
+
+        setStats({
+          students: data.students || 0,
+          faculty: data.faculty || 0,
+          departments: data.programmes ?? data.departments ?? 0,
+          researchPapers: data.researchPapers || 0,
+          booksChapters: data.booksChapters || 0,
+          patentsFiled: data.patentsFiled || 0,
+          patentsGranted: data.patentsGranted || 0,
+          aparSubmitted: data.aparSubmitted || 0,
+          researchGrants: data.researchGrants || 0
+        });
+
+        const locked = Boolean(data.filters?.departmentLocked ?? data.scope?.departmentLocked);
+
+        if (data.filters?.academicYears?.length) {
+          setAcademicYears(data.filters.academicYears);
+        }
+
+        if (data.filters?.departments?.length) {
+          const deptOptions = data.filters.departments;
+          setDepartmentsList(
+            locked
+              ? deptOptions
+              : [{ id: 'All', name: 'All Departments' }, ...deptOptions]
+          );
+        }
+
+        if (locked && data.scope?.departmentId) {
+          setSelectedDept(data.scope.departmentId);
+        }
+
+        if (data.charts) {
+          setChartData({
+            academicPerformance: data.charts.academicPerformance || [],
+            feedback: data.charts.feedback || [],
+            infrastructureScore: data.charts.infrastructureScore || 0,
+            studentProgression: data.charts.studentProgression || {
+              placements: '0%',
+              higherStudies: '0%',
+              entrepreneurship: '0%',
+              competitiveExams: '0%'
+            }
           });
         }
+
+        setAparProgress(Array.isArray(data.aparProgress) ? data.aparProgress : []);
+        setRecentActivities(Array.isArray(data.recentActivities) ? data.recentActivities : []);
       } catch (error) {
-        console.error("Failed to fetch real-time stats", error);
+        console.error('Failed to fetch dashboard stats', error);
       }
     };
+
     if (role) fetchStats();
   }, [role, selectedYear, selectedDept]);
 
-  // 🚀 CHARTS REMOVED OF FICTIONAL PLUG NUMBERS - DEFAULT TO 0 INSTEAD
-  const dynamicBarData = useMemo(() => {
-    return [
-      { name: 'CSE', pass: 0 }, { name: 'IT', pass: 0 }, { name: 'ECE', pass: 0 },
-      { name: 'EE', pass: 0 }, { name: 'ME', pass: 0 }, { name: 'CE', pass: 0 },
-      { name: 'AI/ML', pass: 0 }, { name: 'Data Sci', pass: 0 }, { name: 'BioTech', pass: 0 }
-    ];
-  }, []);
+  const dynamicBarData = useMemo(
+    () => chartData.academicPerformance,
+    [chartData.academicPerformance]
+  );
 
-  const dynamicFeedbackData = useMemo(() => {
-    return [
-      { name: 'Teaching Learning', value: 0, color: '#2563eb' },
-      { name: 'Curriculum', value: 0, color: '#10b981' },
-      { name: 'Infrastructure', value: 0, color: '#f59e0b' },
-      { name: 'Support Services', value: 0, color: '#8b5cf6' }
-    ];
-  }, []);
+  const dynamicFeedbackData = useMemo(
+    () => chartData.feedback,
+    [chartData.feedback]
+  );
 
   const overallFeedbackScore = useMemo(() => {
     const sum = dynamicFeedbackData.reduce((acc, curr) => acc + curr.value, 0);
-    return sum > 0 ? (sum / dynamicFeedbackData.length).toFixed(2) : "0.00";
+    return sum > 0 ? (sum / dynamicFeedbackData.length).toFixed(2) : '0.00';
   }, [dynamicFeedbackData]);
 
-  // 🚀 QUALITY COMPOSITION TIED EXCLUSIVELY TO REAL LIVE DATABASE VALUE METRICS
   const dynamicQualityData = useMemo(() => {
     return [
       { name: 'Research Papers', value: stats.researchPapers, color: '#8b5cf6' },
@@ -713,21 +787,42 @@ export default function Dashboard() {
     return stats.researchPapers + stats.booksChapters + stats.patentsFiled;
   }, [stats]);
 
+  const infrastructureScore = useMemo(() => {
+    const raw = Number(chartData.infrastructureScore) || 0;
+    return Math.min(5, Math.max(0, raw));
+  }, [chartData.infrastructureScore]);
+
   const dynamicInfraData = useMemo(() => {
     return [
-      { name: 'Score', value: 0, color: '#2dd4bf' },
-      { name: 'Remaining', value: 5, color: '#f1f5f9' }
+      { name: 'Score', value: infrastructureScore, color: '#2dd4bf' },
+      { name: 'Remaining', value: Math.max(0, 5 - infrastructureScore), color: '#f1f5f9' }
     ];
-  }, []);
+  }, [infrastructureScore]);
+
+  const infrastructureNeedleRotation = useMemo(
+    () => (infrastructureScore - 3) * 45,
+    [infrastructureScore]
+  );
 
   const dynamicStudentProgression = useMemo(() => {
+    const progression = chartData.studentProgression;
     return [
-      { icon: <FiUsers/>, label: 'Placements', val: '0%' },
-      { icon: <FiBookOpen/>, label: 'Higher Studies', val: '0%' },
-      { icon: <FiActivity/>, label: 'Entrepreneurship', val: '0%' },
-      { icon: <FiAward/>, label: 'Competitive Exams', val: '0%' }
+      { icon: <FiUsers/>, label: 'Placements', val: progression.placements },
+      { icon: <FiBookOpen/>, label: 'Higher Studies', val: progression.higherStudies },
+      { icon: <FiActivity/>, label: 'Entrepreneurship', val: progression.entrepreneurship },
+      { icon: <FiAward/>, label: 'Competitive Exams', val: progression.competitiveExams }
     ];
-  }, []);
+  }, [chartData.studentProgression]);
+
+  const aparProgressWidth = useMemo(() => {
+    if (!aparProgress.length) return '0%';
+    const completed = aparProgress.filter((step) => step.status === 'Completed').length;
+    return `${(completed / aparProgress.length) * 100}%`;
+  }, [aparProgress]);
+
+  const deptLabel = selectedDept === 'All'
+    ? 'All'
+    : (departmentsList.find((dept) => dept.id === selectedDept)?.name || selectedDept);
 
   const quickActions = useMemo(() => {
     if (!role) return [];
@@ -787,10 +882,13 @@ export default function Dashboard() {
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="h-10 rounded-lg border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 px-3 shadow-inner min-w-[160px] cursor-pointer w-full md:w-auto border"
+              disabled={departmentLocked}
+              className="h-10 rounded-lg border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 px-3 shadow-inner min-w-[160px] cursor-pointer w-full md:w-auto border disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {departmentsList.map(dept => (
-                <option key={dept} value={dept}>{dept === 'All' ? 'All Departments' : `${dept} Branch`}</option>
+              {departmentsList.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.id === 'All' ? dept.name : `${dept.name} Branch`}
+                </option>
               ))}
             </select>
           </div>
@@ -807,13 +905,13 @@ export default function Dashboard() {
         <StatCard 
           icon={<FiUsers />} label="Total Students" value={stats.students.toLocaleString()} color="green" 
           trend="" hideArrow={true}
-          subtext={`Period: ${selectedYear} | Branch: ${selectedDept}`} isActive={activeTable === 'students'} 
+          subtext={`Period: ${selectedYear} | Branch: ${deptLabel}`} isActive={activeTable === 'students'} 
           onClick={() => handleCardClick('students')}
         />
         <StatCard 
           icon={<FiBriefcase />} label="Total Faculty" value={stats.faculty.toLocaleString()} color="purple" 
           trend="" hideArrow={true}
-          subtext={`Period: ${selectedYear} | Branch: ${selectedDept}`} isActive={activeTable === 'faculty'} 
+          subtext={`Period: ${selectedYear} | Branch: ${deptLabel}`} isActive={activeTable === 'faculty'} 
           onClick={() => handleCardClick('faculty')}
         />
         <StatCard 
@@ -841,7 +939,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="p-6 overflow-x-auto max-h-[600px] overflow-y-auto">
-            <TablePage key={activeTable} config={activeConfig} />
+            <TablePage key={`${activeTable}-${selectedYear}-${selectedDept}`} config={activeConfig} />
           </div>
         </div>
       )}
@@ -973,7 +1071,7 @@ export default function Dashboard() {
             <div className="flex flex-col items-center justify-center p-2 border border-blue-50 rounded-lg text-center shadow-sm col-span-2 bg-white">
               <div className="p-2 bg-blue-100 text-blue-600 rounded-md mb-2"><FiTrendingUp size={16}/></div>
               <div className="text-[10px] text-gray-500 mb-0.5 font-medium">Research Grants</div>
-              <div className="text-lg font-bold text-gray-800">₹ 0</div>
+              <div className="text-lg font-bold text-gray-800">{formatGrantAmount(stats.researchGrants)}</div>
               <div className="text-[10px] text-gray-400 font-medium mt-1">Live DB Feed</div>
             </div>
           </div>
@@ -996,33 +1094,48 @@ export default function Dashboard() {
           </div>
         </WidgetBlock>
 
-        {/* Dynamic Gauge Component Area */}
+        {/* Infrastructure adequacy gauge */}
         <WidgetBlock title="Infrastructure Adequacy" className="flex flex-col">
-          <div className="flex flex-col items-center justify-center flex-grow w-full pt-4">
-            <div className="w-full h-[140px] relative mt-2 flex justify-center">
+          <div className="flex flex-col items-center justify-center flex-grow w-full pt-2 pb-1">
+            <div className="w-full h-[130px] relative flex justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie 
-                    data={dynamicInfraData} cx="50%" cy="100%" startAngle={180} endAngle={0} 
-                    innerRadius={75} outerRadius={105} paddingAngle={0} dataKey="value" stroke="none"
+                  <Pie
+                    data={dynamicInfraData}
+                    cx="50%"
+                    cy="100%"
+                    startAngle={180}
+                    endAngle={0}
+                    innerRadius={68}
+                    outerRadius={96}
+                    paddingAngle={0}
+                    dataKey="value"
+                    stroke="none"
                   >
                     {dynamicInfraData.map((entry, index) => (
-                      <Cell key={'cell-'+index} fill={entry.color} />
+                      <Cell key={`infra-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-slate-800 rounded-full z-20"></div>
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-[90px] bg-slate-800 rounded-t-full z-10 origin-bottom" style={{transform: `rotate(${(dynamicInfraData[0].value - 1) * 45}deg)`}}></div>
 
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                <span className="text-3xl font-extrabold text-slate-800 bg-white/70 px-2 rounded-md">{dynamicInfraData[0].value}</span>
-                <span className="text-xs text-slate-500 font-semibold absolute -bottom-5">Out of 5</span>
+              <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                <div
+                  className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[3px] h-[52px] bg-slate-800 rounded-t-full origin-bottom transition-transform duration-500"
+                  style={{ transform: `rotate(${infrastructureNeedleRotation}deg)` }}
+                />
+                <div className="relative w-3.5 h-3.5 bg-slate-800 rounded-full border-2 border-white shadow-sm" />
               </div>
-              
-              <div className="absolute bottom-0 left-[15%] text-sm font-bold text-slate-600">1</div>
-              <div className="absolute bottom-0 right-[15%] text-sm font-bold text-slate-600">5</div>
+
+              <span className="absolute bottom-0 left-[14%] text-xs font-bold text-slate-500">1</span>
+              <span className="absolute bottom-0 right-[14%] text-xs font-bold text-slate-500">5</span>
+            </div>
+
+            <div className="mt-3 text-center leading-tight">
+              <div className="text-3xl font-extrabold text-slate-800 tabular-nums">
+                {infrastructureScore.toFixed(1)}
+              </div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Out of 5</div>
             </div>
           </div>
         </WidgetBlock>
@@ -1033,29 +1146,46 @@ export default function Dashboard() {
         <WidgetBlock title="APAR Progress" className="lg:col-span-2">
           <div className="flex items-start justify-between px-2 sm:px-6 h-[120px] relative py-6">
             <div className="absolute top-[34px] left-[10%] right-[10%] h-1 bg-gray-200 z-0"></div>
-            <div className="absolute top-[34px] left-[10%] w-[60%] h-1 bg-gray-200 z-0"></div>
+            <div className="absolute top-[34px] left-[10%] h-1 bg-emerald-500 z-0 transition-all duration-500" style={{ width: aparProgressWidth }}></div>
 
-            {[
-              { label: 'Data Collection', status: 'Pending', icon: <FiFileText/>, color: 'bg-slate-200 text-slate-400 border-2 border-slate-200', textCol: 'text-slate-400' },
-              { label: 'Data Validation', status: 'Pending', icon: <FiFileText/>, color: 'bg-slate-200 text-slate-400 border-2 border-slate-200', textCol: 'text-slate-400' },
-              { label: 'Report Drafting', status: 'Pending', icon: <FiFileText/>, color: 'bg-slate-200 text-slate-400 border-2 border-slate-200', textCol: 'text-slate-400' },
-              { label: 'Final Review', status: 'Pending', icon: <FiFileText/>, color: 'bg-slate-200 text-slate-400 border-2 border-slate-200', textCol: 'text-slate-400' },
-              { label: 'Submitted', status: 'Pending', icon: <FiFileText/>, color: 'bg-slate-200 text-slate-400 border-2 border-slate-200', textCol: 'text-slate-400' }
-            ].map((step, i) => (
+            {(aparProgress.length ? aparProgress : [
+              { label: 'Data Collection', status: 'Pending' },
+              { label: 'Data Validation', status: 'Pending' },
+              { label: 'Report Drafting', status: 'Pending' },
+              { label: 'Final Review', status: 'Pending' },
+              { label: 'Submitted', status: 'Pending' }
+            ]).map((step, i) => {
+              const styles = APAR_STEP_STYLES[step.status] || APAR_STEP_STYLES.Pending;
+              return (
               <div key={i} className="flex flex-col items-center z-10 w-24">
-                <div className={'w-6 h-6 rounded-full flex items-center justify-center mb-2 ' + step.color}>
-                  {React.cloneElement(step.icon, { size: 12 })}
+                <div className={'w-6 h-6 rounded-full flex items-center justify-center mb-2 ' + styles.color}>
+                  {React.cloneElement(styles.icon, { size: 12 })}
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 text-center leading-tight mb-1">{step.label}</div>
-                <div className={'text-[10px] bg-white ' + step.textCol}>{step.status}</div>
+                <div className={'text-[10px] bg-white ' + styles.textCol}>{step.status}</div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </WidgetBlock>
 
         <WidgetBlock title="Recent Activities">
-          <div className="flex flex-col justify-center space-y-4 h-[120px] pt-1 text-center text-xs text-gray-400">
-             No recent session activities registered.
+          <div className="flex flex-col justify-center space-y-4 h-[120px] pt-1">
+            {recentActivities.length > 0 ? recentActivities.map((act, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="p-1.5 rounded text-xs bg-indigo-100 text-indigo-600">
+                  <FiActivity size={12} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[11px] font-medium text-slate-700 truncate" title={act.title}>{act.title}</h4>
+                </div>
+                <div className="text-[10px] text-slate-400 whitespace-nowrap">{act.date}</div>
+              </div>
+            )) : (
+              <div className="text-center text-xs text-gray-400">
+                No recent session activities registered.
+              </div>
+            )}
           </div>
         </WidgetBlock>
       </div>

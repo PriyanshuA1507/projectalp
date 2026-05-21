@@ -1,285 +1,472 @@
-// // import { asyncHandler } from '../utils/async-handler.js';
-// // import { ApiResponse } from '../utils/api-response.js';
-// // import { Student } from '../models/student.model.js';
-// // import { Faculty } from '../models/faculty.model.js';
-// // import { Department } from '../models/department.model.js';
-
-// // export const getDashboardStats = asyncHandler(async (req, res) => {
-// //     // 🚀 READ BOTH FILTERS FROM THE ROUTE QUERY PARAMS
-// //     const { academic_year, department_id } = req.query;
-
-// //     // Build a dynamic query evaluation object
-// //     const queryFilter = {};
-    
-// //     if (academic_year && academic_year !== 'All') {
-// //         queryFilter.academic_year = academic_year;
-// //     }
-    
-// //     if (department_id && department_id !== 'All') {
-// //         queryFilter.department_id = department_id;
-// //     }
-
-// //     // Apply the combined filters to the count aggregates
-// //     const totalStudents = await Student.countDocuments(queryFilter);
-// //     const totalFaculty = await Faculty.countDocuments(queryFilter);
-
-// //     // For the department count card: if a specific branch is selected, keep it focused or lifetime total
-// //     const deptFilter = {};
-// //     if (department_id && department_id !== 'All') {
-// //         deptFilter.department_id = department_id;
-// //     }
-// //     const totalDepartments = await Department.countDocuments(deptFilter);
-
-// //     return res.status(200).json(
-// //         new ApiResponse(
-// //             200,
-// //             {
-// //                 students: totalStudents,
-// //                 faculty: totalFaculty,
-// //                 departments: totalDepartments
-// //             },
-// //             "Dashboard stats fetched successfully"
-// //         )
-// //     );
-// // });
-
-// import { asyncHandler } from '../utils/async-handler.js';
-// import { ApiResponse } from '../utils/api-response.js';
-// import { Student } from '../models/student.model.js';
-// import { Faculty } from '../models/faculty.model.js';
-// import { Department } from '../models/department.model.js';
-// import { Publication } from '../models/publication.model.js'; // 🚀 Import Publication Model
-// import { Patent } from '../models/patent.model.js';           // 🚀 Import Patent Model
-
-// export const getDashboardStats = asyncHandler(async (req, res) => {
-//     const { academic_year, department_id } = req.query;
-
-//     // 1. Build a dynamic evaluation object for cross-collection consistency
-//     const queryFilter = {};
-//     if (academic_year && academic_year !== 'All') {
-//         queryFilter.academic_year = academic_year;
-//     }
-//     if (department_id && department_id !== 'All') {
-//         queryFilter.department_id = department_id;
-//     }
-
-//     // 2. Execute counts concurrently for real-time reporting metrics
-//     const [
-//         totalStudents,
-//         totalFaculty,
-//         totalDepartments,
-//         researchPapersCount,
-//         booksChaptersCount,
-//         patentsFiledCount,
-//         patentsGrantedCount
-//     ] = await Promise.all([
-//         Student.countDocuments(queryFilter),
-//         Faculty.countDocuments(queryFilter),
-//         Department.countDocuments(department_id && department_id !== 'All' ? { department_id } : {}),
-        
-//         // Count Journal and Conference entries inside the Publication schema
-//         Publication.countDocuments({ ...queryFilter, type: { $in: ['journal', 'conference'] } }),
-        
-//         // Count Book/Chapter entries inside the Publication schema
-//         Publication.countDocuments({ ...queryFilter, type: 'book' }),
-        
-//         // Extract metrics from the Patent collection based on status indicators
-//         Patent.countDocuments({ ...queryFilter, status: 'Filed' }),
-//         Patent.countDocuments({ ...queryFilter, status: 'Granted' })
-//     ]);
-
-//     // 💡 OPTIONAL ADVANCED AGGREGATION: Dynamically group pass percentages for the Bar Chart
-//     // You can replace your static barData array with real values generated like this:
-//     /*
-//     const dynamicBarData = await Student.aggregate([
-//         { $match: queryFilter },
-//         { $group: { _id: "$department_id", total: { $sum: 1 }, passed: { $sum: { $cond: [{ $eq: ["$status", "Pass"] }, 1, 0] } } } }
-//     ]);
-//     */
-
-//     return res.status(200).json(
-//         new ApiResponse(
-//             200,
-//             {
-//                 students: totalStudents,
-//                 faculty: totalFaculty,
-//                 departments: totalDepartments,
-//                 researchPapers: researchPapersCount,
-//                 booksChapters: booksChaptersCount,
-//                 patentsFiled: patentsFiledCount,
-//                 patentsGranted: patentsGrantedCount,
-//                 // barData: dynamicBarData // Pass real arrays here when ready
-//             },
-//             "Real-time dashboard aggregates compiled successfully"
-//         )
-//     );
-// });
-
-// import { asyncHandler } from '../utils/async-handler.js';
-// import { ApiResponse } from '../utils/api-response.js';
-// import { Student } from '../models/student.model.js';
-// import { Faculty } from '../models/faculty.model.js';
-// import { Department } from '../models/department.model.js';
-// import { Publication } from '../models/publication.model.js'; 
-// import { Patent } from '../models/patent.model.js';           
-
-// export const getDashboardStats = asyncHandler(async (req, res) => {
-//     // Read parameters sent from frontend dropdowns
-//     const { academic_year, department_id } = req.query;
-
-//     // 1. Build Base Filters for Profile Tables (Student / Faculty)
-//     const studentFilter = {};
-//     const facultyFilter = {};
-//     const generalFilter = {}; // For publications/patents
-
-//     // Map department / branch safely if selected
-//     if (department_id && department_id !== 'All') {
-//         studentFilter.department_id = department_id;
-//         facultyFilter.department_id = department_id;
-//         generalFilter.department_id = department_id;
-//     }
-
-//     // Map Academic Year string (e.g., "2023-24") to the model's actual structure
-//     if (academic_year && academic_year !== 'All') {
-//         generalFilter.academic_year = academic_year;
-
-//         // Extract the starting calendar year (e.g., "2023")
-//         const startYear = parseInt(academic_year.split('-')[0]); 
-        
-//         // Match against Student's numerical admission year
-//         studentFilter.year_of_admission = startYear;
-
-//         // Match against Faculty's joining date range
-//         const startOfSession = new Date(`${startYear}-07-01`);
-//         const endOfSession = new Date(`${startYear + 1}-06-30`);
-//         facultyFilter.joining_date = { $gte: startOfSession, $lte: endOfSession };
-//     }
-
-//     // 2. Run all database aggregate counts simultaneously
-//     const [
-//         totalStudents,
-//         totalFaculty,
-//         totalDepartments,
-//         researchPapersCount,
-//         booksChaptersCount,
-//         patentsFiledCount,
-//         patentsGrantedCount
-//     ] = await Promise.all([
-//         Student.countDocuments(studentFilter),
-//         Faculty.countDocuments(facultyFilter),
-//         Department.countDocuments(department_id && department_id !== 'All' ? { department_id } : {}),
-        
-//         // Count from shared publications schema safely using fallbacks
-//         Publication.countDocuments({ ...generalFilter, type: { $in: ['journal', 'conference'] } }).catch(() => 0),
-//         Publication.countDocuments({ ...generalFilter, type: 'book' }).catch(() => 0),
-        
-//         // Count patents safely
-//         Patent.countDocuments({ ...generalFilter, status: 'Filed' }).catch(() => 0),
-//         Patent.countDocuments({ ...generalFilter, status: 'Granted' }).catch(() => 0)
-//     ]);
-
-//     return res.status(200).json(
-//         new ApiResponse(
-//             200,
-//             {
-//                 students: totalStudents,
-//                 faculty: totalFaculty,
-//                 departments: totalDepartments,
-//                 researchPapers: researchPapersCount,
-//                 booksChapters: booksChaptersCount,
-//                 patentsFiled: patentsFiledCount,
-//                 patentsGranted: patentsGrantedCount
-//             },
-//             "Real-time local dashboard aggregates compiled successfully"
-//         )
-//     );
-// });
 import { asyncHandler } from '../utils/async-handler.js';
 import { ApiResponse } from '../utils/api-response.js';
+import { ROLES } from '../config/roles.js';
 import { AparForm } from '../models/aparForm.model.js';
 import { Department } from '../models/department.model.js';
+import { Student } from '../models/student.model.js';
+import { Faculty } from '../models/faculty.model.js';
+import { Programme } from '../models/programme.model.js';
+import { Publication } from '../models/publication.model.js';
+import { Patent } from '../models/patent.model.js';
+import { StudentActivity } from '../models/studentActivity.model.js';
+import { DepartmentResource } from '../models/departmentResource.model.js';
+import { ResearchProject } from '../models/researchProject.model.js';
+import { Notification } from '../models/notification.model.js';
 
-export const getDashboardStats = asyncHandler(async (req, res) => {
-    const { academic_year, department_id } = req.query;
+const FEEDBACK_COLORS = {
+    'Teaching Learning': '#2563eb',
+    Curriculum: '#10b981',
+    Infrastructure: '#f59e0b',
+    'Support Services': '#8b5cf6'
+};
 
-    // 🚀 Build query filter matching AparForm fields
-    const queryFilter = {};
-    if (academic_year && academic_year !== 'All') {
-        queryFilter.ay = academic_year;
+const getAcademicYearVariants = (academicYear) => {
+    if (!academicYear || academicYear === 'All') {
+        return [];
     }
-    if (department_id && department_id !== 'All') {
-        queryFilter['personal.department_id'] = department_id;
+
+    const start = parseInt(String(academicYear).split('-')[0], 10);
+    if (Number.isNaN(start)) {
+        return [academicYear];
     }
 
-    // 🚀 Core aggregation to pluck counts out of nested arrays safely
+    const endShort = String(start + 1).slice(-2);
+    const endFull = String(start + 1);
+
+    return [...new Set([
+        academicYear,
+        `${start}-${endShort}`,
+        `${start}-${endFull}`,
+        `${start}-${start + 1}`,
+        String(start)
+    ])];
+};
+
+const buildAcademicYearFilter = (academicYear) => {
+    const variants = getAcademicYearVariants(academicYear);
+    if (!variants.length) {
+        return {};
+    }
+    return { academic_year: { $in: variants } };
+};
+
+const buildStudentYearFilter = (academicYear) => {
+    if (!academicYear || academicYear === 'All') {
+        return {};
+    }
+
+    const start = parseInt(String(academicYear).split('-')[0], 10);
+    if (Number.isNaN(start)) {
+        return {};
+    }
+
+    return { year_of_admission: { $in: [start, start + 1] } };
+};
+
+const buildFacultyYearFilter = (academicYear) => {
+    if (!academicYear || academicYear === 'All') {
+        return {};
+    }
+
+    const start = parseInt(String(academicYear).split('-')[0], 10);
+    if (Number.isNaN(start)) {
+        return {};
+    }
+
+    return {
+        joining_date: {
+            $gte: new Date(`${start}-07-01`),
+            $lte: new Date(`${start + 1}-06-30`)
+        }
+    };
+};
+
+const resolveDashboardScope = (req) => {
+    const role = req.user?.role;
+    const requestedDept = req.query.department_id;
+    const academicYear = req.query.academic_year || 'All';
+
+    if (role === ROLES.DEPARTMENT_HOD) {
+        const hodDept = req.user?.departmentId;
+        if (!hodDept) {
+            return { academicYear, departmentId: 'All', departmentLocked: true };
+        }
+        return { academicYear, departmentId: hodDept, departmentLocked: true };
+    }
+
+    const departmentId = requestedDept && requestedDept !== 'All' ? requestedDept : 'All';
+    return { academicYear, departmentId, departmentLocked: false };
+};
+
+const withDepartment = (departmentId) => (
+    departmentId && departmentId !== 'All' ? { department_id: departmentId } : {}
+);
+
+const buildFallbackAcademicYears = () => {
+    const currentStart = new Date().getFullYear() - 1;
+    const years = ['All'];
+    for (let i = 6; i >= 0; i -= 1) {
+        const start = currentStart - i;
+        const end = String(start + 1).slice(-2);
+        years.push(`${start}-${end}`);
+    }
+    return years;
+};
+
+const fetchDistinctAcademicYears = async () => {
+    const collections = [
+        Programme.distinct('academic_year'),
+        Publication.distinct('academic_year'),
+        Patent.distinct('academic_year'),
+        StudentActivity.distinct('academic_year'),
+        ResearchProject.distinct('academic_year'),
+        AparForm.distinct('ay')
+    ];
+
+    const values = (await Promise.all(collections))
+        .flat()
+        .filter((value) => value && String(value).trim());
+
+    const unique = [...new Set(values.map((value) => String(value).trim()))]
+        .sort((a, b) => b.localeCompare(a));
+
+    return unique.length ? ['All', ...unique] : buildFallbackAcademicYears();
+};
+
+const fetchDepartmentOptions = async (scopeDepartmentId) => {
+    const query = scopeDepartmentId && scopeDepartmentId !== 'All'
+        ? { department_id: scopeDepartmentId }
+        : {};
+
+    const departments = await Department.find(query)
+        .select('department_id department_name')
+        .sort({ department_name: 1 })
+        .lean();
+
+    return departments.map((dept) => ({
+        id: dept.department_id,
+        name: dept.department_name || dept.department_id
+    }));
+};
+
+const aggregateAparMetrics = async (academicYear, departmentId) => {
+    const queryFilter = { ...buildAcademicYearFilter(academicYear) };
+    if (departmentId && departmentId !== 'All') {
+        queryFilter['personal.department_id'] = departmentId;
+    }
+
     const aggregateData = await AparForm.aggregate([
         { $match: queryFilter },
         {
             $project: {
                 faculty_id: 1,
                 status: 1,
-                journalsCount: { $cond: { if: { $isArray: "$research.journals" }, then: { $size: "$research.journals" }, else: 0 } },
-                conferencesCount: { $cond: { if: { $isArray: "$research.conferences" }, then: { $size: "$research.conferences" }, else: 0 } },
-                booksCount: { $cond: { if: { $isArray: "$research.books" }, then: { $size: "$research.books" }, else: 0 } },
-                patents: { $ifNull: ["$research.patents", []] },
-                studentsArray: { $ifNull: ["$research.students", []] }
+                journalsCount: { $cond: { if: { $isArray: '$research.journals' }, then: { $size: '$research.journals' }, else: 0 } },
+                conferencesCount: { $cond: { if: { $isArray: '$research.conferences' }, then: { $size: '$research.conferences' }, else: 0 } },
+                booksCount: { $cond: { if: { $isArray: '$research.books' }, then: { $size: '$research.books' }, else: 0 } },
+                patents: { $ifNull: ['$research.patents', []] }
             }
         },
         {
             $group: {
                 _id: null,
                 totalForms: { $sum: 1 },
-                submittedForms: { $sum: { $cond: { if: { $eq: ["$status", "Submitted"] }, then: 1, else: 0 } } },
-                uniqueFaculty: { $addToSet: "$faculty_id" },
-                researchPapers: { $sum: { $add: ["$journalsCount", "$conferencesCount"] } },
-                booksChapters: { $sum: "$booksCount" },
-                // Unwind equivalents for nested object conditions
-                allPatents: { $push: "$patents" }
+                submittedForms: { $sum: { $cond: [{ $eq: ['$status', 'Submitted'] }, 1, 0] } },
+                verifiedForms: { $sum: { $cond: [{ $eq: ['$status', 'Verified'] }, 1, 0] } },
+                reviewedForms: { $sum: { $cond: [{ $eq: ['$status', 'Reviewed'] }, 1, 0] } },
+                draftForms: { $sum: { $cond: [{ $eq: ['$status', 'Draft'] }, 1, 0] } },
+                uniqueFaculty: { $addToSet: '$faculty_id' },
+                researchPapers: { $sum: { $add: ['$journalsCount', '$conferencesCount'] } },
+                booksChapters: { $sum: '$booksCount' },
+                allPatents: { $push: '$patents' }
             }
         }
     ]);
 
-    // Parse aggregation results with safe fallback zeros
     const result = aggregateData[0] || {
         totalForms: 0,
         submittedForms: 0,
+        verifiedForms: 0,
+        reviewedForms: 0,
+        draftForms: 0,
         uniqueFaculty: [],
         researchPapers: 0,
         booksChapters: 0,
         allPatents: []
     };
 
-    // Calculate sub-array criteria for patents (Filed vs Granted) safely from memory
     let patentsFiled = 0;
     let patentsGranted = 0;
-    if (result.allPatents && Array.isArray(result.allPatents)) {
-        result.allPatents.flat().forEach(patent => {
-            if (patent?.status === 'Filed') patentsFiled++;
-            if (patent?.status === 'Granted') patentsGranted++;
+
+    if (Array.isArray(result.allPatents)) {
+        result.allPatents.flat().forEach((patent) => {
+            if (patent?.status === 'Filed') patentsFiled += 1;
+            if (patent?.status === 'Granted') patentsGranted += 1;
         });
     }
 
-    // Dynamic program counting matching department selection criteria
-    const deptFilter = {};
-    if (department_id && department_id !== 'All') {
-        deptFilter.department_id = department_id;
+    return {
+        totalForms: result.totalForms,
+        submittedForms: result.submittedForms,
+        verifiedForms: result.verifiedForms,
+        reviewedForms: result.reviewedForms,
+        draftForms: result.draftForms,
+        facultyFromApar: result.uniqueFaculty.length,
+        researchPapers: result.researchPapers,
+        booksChapters: result.booksChapters,
+        patentsFiled,
+        patentsGranted
+    };
+};
+
+const buildAcademicPerformance = async (academicYear, departmentId, departments) => {
+    const match = {
+        type: 'exam',
+        ...withDepartment(departmentId),
+        ...buildAcademicYearFilter(academicYear)
+    };
+
+    const grouped = await StudentActivity.aggregate([
+        { $match: match },
+        {
+            $group: {
+                _id: '$department_id',
+                total: { $sum: 1 },
+                passed: {
+                    $sum: {
+                        $cond: [
+                            { $in: ['$result_status', ['Qualified', 'Passed']] },
+                            1,
+                            0
+                        ]
+                    }
+                }
+            }
+        }
+    ]);
+
+    const passByDept = new Map(
+        grouped.map((row) => [
+            row._id,
+            row.total > 0 ? Math.round((row.passed / row.total) * 100) : 0
+        ])
+    );
+
+    const visibleDepartments = departmentId && departmentId !== 'All'
+        ? departments.filter((dept) => dept.id === departmentId)
+        : departments;
+
+    return visibleDepartments.map((dept) => ({
+        name: dept.id,
+        pass: passByDept.get(dept.id) ?? 0
+    }));
+};
+
+const buildInfrastructureScore = async (academicYear, departmentId) => {
+    const match = {
+        type: 'it_stock',
+        ...withDepartment(departmentId)
+    };
+
+    const rows = await DepartmentResource.find(match).select('condition_status').lean();
+    if (!rows.length) {
+        return 0;
     }
-    const totalDepartments = await Department.countDocuments(deptFilter);
+
+    const workingCount = rows.filter((row) => row.condition_status === 'Working').length;
+    const ratio = workingCount / rows.length;
+    return Number(Math.min(5, 2 + ratio * 3).toFixed(2));
+};
+
+const buildStudentProgression = async (academicYear, departmentId, totalStudents) => {
+    const baseFilter = {
+        ...withDepartment(departmentId),
+        ...buildAcademicYearFilter(academicYear)
+    };
+
+    const [higherEdCount, placedCount, examQualifiedCount, innovationCount] = await Promise.all([
+        StudentActivity.countDocuments({ ...baseFilter, type: 'higher_ed' }),
+        StudentActivity.countDocuments({ ...baseFilter, type: 'higher_ed', current_status: 'Placed' }),
+        StudentActivity.countDocuments({
+            ...baseFilter,
+            type: 'exam',
+            result_status: { $in: ['Qualified', 'Passed'] }
+        }),
+        StudentActivity.countDocuments({
+            ...baseFilter,
+            type: 'performance',
+            type_of_activity: { $in: ['Innovation', 'Entrepreneurship'] }
+        })
+    ]);
+
+    const denominator = totalStudents > 0 ? totalStudents : 1;
+    const pct = (count) => `${((count / denominator) * 100).toFixed(1)}%`;
+
+    return {
+        placements: pct(placedCount),
+        higherStudies: pct(higherEdCount),
+        entrepreneurship: pct(innovationCount),
+        competitiveExams: pct(examQualifiedCount)
+    };
+};
+
+const buildAparProgress = (aparMetrics) => {
+    const {
+        totalForms,
+        submittedForms,
+        verifiedForms,
+        reviewedForms,
+        draftForms
+    } = aparMetrics;
+
+    const validatedCount = totalForms - draftForms;
+
+    return [
+        {
+            label: 'Data Collection',
+            status: totalForms > 0 ? 'Completed' : 'Pending'
+        },
+        {
+            label: 'Data Validation',
+            status: validatedCount > 0 ? 'Completed' : 'Pending'
+        },
+        {
+            label: 'Report Drafting',
+            status: submittedForms > 0 ? 'Completed' : 'Pending'
+        },
+        {
+            label: 'Final Review',
+            status: verifiedForms > 0 || reviewedForms > 0 ? 'In Progress' : 'Pending'
+        },
+        {
+            label: 'Submitted',
+            status: submittedForms > 0 ? 'Completed' : 'Pending'
+        }
+    ];
+};
+
+const fetchRecentActivities = async (role, departmentId, userId) => {
+    const query = {};
+
+    if (role === ROLES.DEPARTMENT_HOD && departmentId && departmentId !== 'All') {
+        query.$or = [
+            { 'metadata.department_id': departmentId },
+            { recipient: userId },
+            { recipient: 'HOD' }
+        ];
+    }
+
+    const notifications = await Notification.find(query)
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+
+    return notifications.map((item) => ({
+        title: item.title,
+        date: item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '',
+        type: item.type
+    }));
+};
+
+export const getDashboardStats = asyncHandler(async (req, res) => {
+    const { academicYear, departmentId, departmentLocked } = resolveDashboardScope(req);
+    const deptFilter = withDepartment(departmentId);
+    const ayFilter = buildAcademicYearFilter(academicYear);
+    const studentYearFilter = buildStudentYearFilter(academicYear);
+    const facultyYearFilter = buildFacultyYearFilter(academicYear);
+
+    const [departments, academicYears, aparMetrics] = await Promise.all([
+        fetchDepartmentOptions(departmentLocked ? departmentId : null),
+        fetchDistinctAcademicYears(),
+        aggregateAparMetrics(academicYear, departmentId)
+    ]);
+
+    const publicationFilter = { ...deptFilter, ...ayFilter };
+    const studentFilter = { ...deptFilter, ...studentYearFilter };
+    const facultyFilter = { ...deptFilter, ...facultyYearFilter };
+    const programmeFilter = { ...deptFilter, ...ayFilter };
+
+    const [
+        totalStudents,
+        totalFaculty,
+        totalProgrammes,
+        researchPapersCount,
+        booksChaptersCount,
+        patentsFiledCount,
+        patentsGrantedCount,
+        researchGrantsTotal,
+        academicPerformance,
+        infrastructureScore,
+        recentActivities
+    ] = await Promise.all([
+        Student.countDocuments(studentFilter),
+        Faculty.countDocuments(facultyFilter),
+        Programme.countDocuments(programmeFilter),
+        Publication.countDocuments({ ...publicationFilter, type: { $in: ['journal', 'conference'] } }),
+        Publication.countDocuments({ ...publicationFilter, type: 'book' }),
+        Patent.countDocuments({ ...publicationFilter, status: 'Filed' }),
+        Patent.countDocuments({ ...publicationFilter, status: 'Granted' }),
+        ResearchProject.aggregate([
+            { $match: { ...deptFilter, ...ayFilter, type: 'funding' } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } } } }
+        ]).then((rows) => rows[0]?.total ?? 0),
+        buildAcademicPerformance(academicYear, departmentId, departments),
+        buildInfrastructureScore(academicYear, departmentId),
+        fetchRecentActivities(req.user?.role, departmentId, req.user?.userId)
+    ]);
+
+    const studentProgression = await buildStudentProgression(academicYear, departmentId, totalStudents);
+
+    const researchPapers = Math.max(researchPapersCount, aparMetrics.researchPapers);
+    const booksChapters = Math.max(booksChaptersCount, aparMetrics.booksChapters);
+    const patentsFiled = Math.max(patentsFiledCount, aparMetrics.patentsFiled);
+    const patentsGranted = Math.max(patentsGrantedCount, aparMetrics.patentsGranted);
+
+    const feedback = [
+        { name: 'Teaching Learning', value: 0, color: FEEDBACK_COLORS['Teaching Learning'] },
+        { name: 'Curriculum', value: 0, color: FEEDBACK_COLORS.Curriculum },
+        { name: 'Infrastructure', value: infrastructureScore, color: FEEDBACK_COLORS.Infrastructure },
+        { name: 'Support Services', value: 0, color: FEEDBACK_COLORS['Support Services'] }
+    ];
+
+    const aparProgress = buildAparProgress(aparMetrics);
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                students: result.totalForms * 18, // Scaling factor derived from data interaction logs
-                faculty: result.uniqueFaculty.length,
-                departments: totalDepartments,
-                researchPapers: result.researchPapers,
-                booksChapters: result.booksChapters,
-                patentsFiled: patentsFiled,
-                patentsGranted: patentsGranted,
-                aparSubmitted: result.submittedForms
+                students: totalStudents,
+                faculty: totalFaculty,
+                departments: totalProgrammes,
+                programmes: totalProgrammes,
+                researchPapers,
+                booksChapters,
+                patentsFiled,
+                patentsGranted,
+                aparSubmitted: aparMetrics.submittedForms,
+                researchGrants: researchGrantsTotal,
+                scope: {
+                    academicYear,
+                    departmentId,
+                    departmentLocked
+                },
+                filters: {
+                    academicYears,
+                    departments,
+                    departmentLocked
+                },
+                charts: {
+                    academicPerformance,
+                    feedback,
+                    infrastructureScore,
+                    studentProgression
+                },
+                aparProgress,
+                recentActivities
             },
-            "Real-time analytics fetched dynamically from APAR records successfully"
+            'Dashboard stats fetched successfully'
         )
     );
 });
