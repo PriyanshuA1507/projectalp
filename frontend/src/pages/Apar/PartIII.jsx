@@ -34,7 +34,7 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-10">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <h3 className="text-xl font-bold text-gray-800">Part III - RESEARCH & DEVELOPMENT</h3>
-                {false && !readOnly && onSaveMonthly && (
+                {!readOnly && onSaveMonthly && (
                     <button type="button" onClick={onSaveMonthly} className="px-4 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md">
                         Save as Monthly
                     </button>
