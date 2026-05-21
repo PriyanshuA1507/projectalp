@@ -28,7 +28,7 @@ const PublicationSchema = new mongoose.Schema({
     // Common fields
     // -------------------------------------------------------------------------
     title: String,
-    year_of_publication: Number,
+    year_of_publication: String,
     academic_year: String,
     doi: String,
     indexing: String,
@@ -74,7 +74,7 @@ const PublicationSchema = new mongoose.Schema({
     title_of_book: String,
     title_of_chapter: String,
     role: String, // Author/Editor
-    year: Number, // Book uses 'year' instead of 'year_of_publication'
+    year: String, // Book uses 'year' instead of 'year_of_publication'
     isbn_number: String,
     name_of_publisher: String,
     publisher_type: String, // National/International

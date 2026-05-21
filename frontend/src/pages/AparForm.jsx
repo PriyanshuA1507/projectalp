@@ -265,8 +265,16 @@ export default function AparForm() {
             }
 
             const payload = { ay, faculty_id: facultyId, formData };
-            await AparFormGradedService.saveToMonthly(payload);
+            const res = await AparFormGradedService.saveToMonthly(payload);
             toast.success('Saved Section III to monthly collections');
+
+            // Merge returned research data with IDs back into formData to prevent duplicates on subsequent saves
+            if (res?.research) {
+                setFormData(prev => ({
+                    ...prev,
+                    research: res.research
+                }));
+            }
         } catch (e) {
             console.error('Save monthly failed:', e);
             const msg = e.response?.data?.message || 'Failed to save to monthly collections';

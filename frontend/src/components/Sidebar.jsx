@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FiGrid, FiUsers, FiBriefcase, FiChevronLeft, FiChevronRight, FiGitBranch, FiDatabase, FiBook, FiTrendingUp, FiShare2, FiFileText, FiHome, FiStar, FiMonitor, FiGlobe, FiUserCheck, FiMapPin, FiDollarSign, FiMousePointer, FiServer, FiHeart, FiShield, FiUserPlus, FiTool, FiList, FiSearch, FiBarChart, FiZap, FiX, FiPlus, FiEye } from 'react-icons/fi';
@@ -6,6 +6,8 @@ import { resources } from '../config/tableConfig';
 import { canAccessTable } from '../config/rolePermissions.js';
 import { ROLES } from '../config/rolePermissions.js';
 import { selectRole } from '../store/slices/authSlice.js';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
+import { DepartmentService } from '../services/department.services.js';
 
 const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => {
   const location = useLocation();
@@ -122,8 +124,46 @@ const tables = resources
 
 export default function Sidebar() {
   const role = useSelector(selectRole);
+  const { departmentId } = useIqacFilter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [departments, setDepartments] = useState([]);
+
+  const departmentLabel = useMemo(() => {
+    if (departmentId === 'All') {
+      return 'IQAC';
+    }
+    return departments.find((department) => department.id === departmentId)?.name || departmentId;
+  }, [departmentId, departments]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchDepartments = async () => {
+      try {
+        const response = await DepartmentService.getDepartments();
+        const list = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
+
+        if (!cancelled) {
+          setDepartments(list);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDepartments([]);
+        }
+      }
+    };
+
+    fetchDepartments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const accessibleTables = useMemo(() => {
     if (!role) {
@@ -158,7 +198,7 @@ export default function Sidebar() {
             }`}
         >
           <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-16 w-auto mr-3" />
-          <span className="text-3xl font-extrabold text-indigo-900 tracking-wider">IQAC</span>
+          <span className="text-2xl font-extrabold text-indigo-900 tracking-wider truncate">{departmentLabel}</span>
         </Link>
 
         <Link

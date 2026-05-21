@@ -42,7 +42,7 @@ const StudentActivitySchema = new mongoose.Schema({
     name_of_exam: String,
     type_of_exam: String, // Government/PSU/GATE/GRE/Other
     level_of_exam: String, // Institutional/State/National/International
-    year_of_qualifying: Number,
+    year_of_qualifying: String,
     rank_or_score: String,
     attempt_number: Number,
     programme_applied_for: String,
@@ -59,7 +59,7 @@ const StudentActivitySchema = new mongoose.Schema({
     programme_type: String, // Full-time/Part-time/Online/Exchange/Other
     details_of_programme: String,
     mentor_name: String,
-    year_of_joining: Number,
+    year_of_joining: String,
     current_status: String, // Ongoing/Completed/Placed/Other
 
     // -------------------------------------------------------------------------
@@ -73,7 +73,7 @@ const StudentActivitySchema = new mongoose.Schema({
     category: String,
     position_or_rank: String,
     organizing_body: String,
-    year: Number,
+    year: String,
     outcome: String,
     students: [{ student_id: String, student_aadhar: String, role: String }],
     external_participants: [{

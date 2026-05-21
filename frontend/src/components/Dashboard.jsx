@@ -926,6 +926,7 @@ export default function Dashboard() {
   const deptLabel = selectedDept === 'All'
     ? 'All'
     : (departmentsList.find((dept) => dept.id === selectedDept)?.name || selectedDept);
+  const deptScopeLabel = selectedDept === 'All' ? 'IQAC' : deptLabel;
 
   const quickActions = useMemo(() => {
     if (!role) return [];
@@ -954,8 +955,12 @@ export default function Dashboard() {
       {/* SELECTION MULTI-FILTER CONTROL BAR */}
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded-xl border border-gray-100 shadow-sm gap-4 mt-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">IQAC Core Statistics</h1>
-          <p className="text-xs text-gray-500 mt-1">Real-time parameters filtering across department and timeline layers.</p>
+          <h1 className="text-xl font-bold text-gray-800">{deptScopeLabel} Core Statistics</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            {selectedDept === 'All'
+              ? 'Real-time parameters filtering across department and timeline layers.'
+              : `Real-time parameters for ${deptLabel} department across timeline layers.`}
+          </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">

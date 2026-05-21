@@ -55,7 +55,7 @@ const TrainingSchema = new mongoose.Schema({
     // tableConfig: training_id, title_of_event, type_of_training, etc.
     // -------------------------------------------------------------------------
     title_of_event: String,
-    year_of_training: Number,
+    year_of_training: String,
     number_of_participants: Number,
     sponsoring_agencies: String,
     faculty_participants: [{ faculty_id: String, role: String }],

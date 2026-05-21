@@ -46,7 +46,7 @@ const ResearchProjectSchema = new mongoose.Schema({
     funding_agency_name: String,
     funding_type: String, // Government/Non-Government
     sanction_number: String,
-    year_of_sanction: Number,
+    year_of_sanction: String,
     amount: Number,
     chair_holder: String,
 
@@ -62,7 +62,7 @@ const ResearchProjectSchema = new mongoose.Schema({
     grant_amount: Number,
     revenue_generated: Number,
     duration_start_date: Date,
-    year_of_consultancy: Number,
+    year_of_consultancy: String,
 
     // -------------------------------------------------------------------------
     // Corporate training-specific (type: 'corporate_training')
@@ -72,7 +72,7 @@ const ResearchProjectSchema = new mongoose.Schema({
     name_of_program: String,
     mode_of_training: String,
     no_of_participants: Number,
-    year_of_training: Number,
+    year_of_training: String,
     agency_contact_details: String,
     number_of_faculties: Number,
     number_of_students: Number,

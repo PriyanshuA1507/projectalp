@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { FiSearch, FiUser, FiLogOut, FiPlus, FiX } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
+import { DepartmentService } from '../services/department.services.js';
 import { formRoutes } from '../utils/addFormRoutes.js';
 import { canAccessForm, getRoleBadgeColor } from '../config/rolePermissions.js';
 import { ROLE_LABELS } from '../config/rolePermissions.js';
@@ -27,8 +28,15 @@ export default function Header() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [departments, setDepartments] = useState([]);
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const departmentLabel = useMemo(() => {
+    if (departmentId === 'All') {
+      return 'All';
+    }
+    return departments.find((department) => department.id === departmentId)?.name || departmentId;
+  }, [departmentId, departments]);
 
   const filteredRoutes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -87,6 +95,35 @@ export default function Header() {
   useEffect(() => {
     setActiveIndex(0);
   }, [filteredRoutes.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchDepartments = async () => {
+      try {
+        const response = await DepartmentService.getDepartments();
+        const list = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
+
+        if (!cancelled) {
+          setDepartments(list);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDepartments([]);
+        }
+      }
+    };
+
+    fetchDepartments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleGlobalShortcut = (event) => {
@@ -242,7 +279,7 @@ export default function Header() {
           >
             Session: {academicYear === 'All' ? 'All Years' : academicYear}
             {' · '}
-            Branch: {departmentId === 'All' ? 'All' : departmentId}
+            Branch: {departmentLabel}
           </Link>
         )}
         <NotificationBell />

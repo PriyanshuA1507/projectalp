@@ -39,7 +39,7 @@ const DepartmentResourceSchema = new mongoose.Schema({
     title_of_book: String,
     author: String,
     publisher: String,
-    year_of_publication: Number,
+    year_of_publication: String,
     isbn_number: String,
     edition: String,
     type_of_book: String, // Textbook/Reference/eBook/Journal/Other
@@ -62,8 +62,8 @@ const DepartmentResourceSchema = new mongoose.Schema({
     software_list: String,
     total_cost: Number,
     funding_source: String,
-    year_of_installation: Number,
-    year_of_purchase: Number,
+    year_of_installation: String,
+    year_of_purchase: String,
     condition_status: String, // Working/Under Maintenance/Obsolete
     usage_purpose: String, // Teaching/Research/Administration/Mixed
 
@@ -79,7 +79,7 @@ const DepartmentResourceSchema = new mongoose.Schema({
     sanction_number: String,
     principal_investigator: String,
     co_investigators: String,
-    year_of_sanction: Number,
+    year_of_sanction: String,
     academic_year: String,
     funds_amount: Number,
     duration_start_date: Date,

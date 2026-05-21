@@ -48,7 +48,7 @@ const CollaborationSchema = new mongoose.Schema({
     number_of_participants: Number,
     source_of_financial_support: String,
     funding_amount: Number,
-    year: Number,
+    year: String,
     duration: String,
     nature_of_activity: String,
 
@@ -67,7 +67,7 @@ const CollaborationSchema = new mongoose.Schema({
     mou_id: String, // Alternate key
     organisation_name: String,
     type_of_mou: String, // Academic/Research/Industry/Consultancy/Training/Other
-    year_of_signing: Number,
+    year_of_signing: String,
     purpose: String,
     activities_under_mou: [{
         activity_title: String,

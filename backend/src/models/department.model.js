@@ -30,7 +30,7 @@ const DepartmentSchema = new mongoose.Schema({
     recognitions: [{
         recognition_id: String,
         name_of_agency: String, // UGC-SAP, CAS, DST-FIST, DBT, ICSSR etc
-        year_of_award: Number,
+        year_of_award: String,
         type: { type: String },
         link: String
     }],

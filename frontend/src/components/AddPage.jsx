@@ -37,6 +37,70 @@ const InputField = ({ label, name, type = 'text', placeholder, value, onChange, 
     </div>
 );
 
+const isMonthYearField = (field) => {
+    if (!field) {
+        return false;
+    }
+
+    if (field.type === 'monthYear' || field.type === 'year') {
+        return true;
+    }
+
+    const label = String(field.header || field.label || '').toLowerCase();
+    const accessor = String(field.accessor || field.key || '').toLowerCase();
+
+    return (
+        field.type === 'number' &&
+        accessor !== 'duration_years' &&
+        (
+            label === 'year' ||
+            label.includes('year of') ||
+            label.includes('sanction year') ||
+            accessor.startsWith('year_') ||
+            accessor.includes('_year') ||
+            accessor.includes('year_of')
+        )
+    );
+};
+
+const toMonthInputValue = (value) => {
+    if (!value) {
+        return '';
+    }
+
+    const text = String(value);
+    const monthYearMatch = text.match(/^(\d{2})-(\d{4})$/);
+    if (monthYearMatch) {
+        return `${monthYearMatch[2]}-${monthYearMatch[1]}`;
+    }
+
+    const yearMonthMatch = text.match(/^(\d{4})-(\d{2})$/);
+    if (yearMonthMatch) {
+        return text;
+    }
+
+    const yearOnlyMatch = text.match(/^\d{4}$/);
+    if (yearOnlyMatch) {
+        return `${text}-01`;
+    }
+
+    return '';
+};
+
+const toStoredMonthYear = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const text = String(value);
+    const yearMonthMatch = text.match(/^(\d{4})-(\d{2})$/);
+    if (yearMonthMatch) {
+        return `${yearMonthMatch[2]}-${yearMonthMatch[1]}`;
+    }
+
+    return text;
+};
+
 const ListField = ({ label, name, values, onChange }) => {
     const handleAddItem = () => {
         onChange({ target: { name, value: [...(values || []), ''] } });
@@ -200,6 +264,21 @@ const ObjectListField = ({ label, name, values = [], subFields = [], onChange })
                                                 excludeValues={alreadySelected}
                                             />
                                         </div>
+                                    </div>
+                                );
+                            }
+
+                            if (isMonthYearField(field)) {
+                                return (
+                                    <div key={field.accessor} className="flex-1 min-w-[200px]">
+                                        <label className="block text-sm font-semibold mb-1 text-gray-700">{field.header}</label>
+                                        <input
+                                            className="w-full h-11 px-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            name={`${name}_${index}_${field.accessor}`}
+                                            type="month"
+                                            value={toMonthInputValue(item[field.accessor])}
+                                            onChange={(e) => handleItemChange(index, field.accessor, toStoredMonthYear(e.target.value))}
+                                        />
                                     </div>
                                 );
                             }
@@ -420,7 +499,9 @@ const AddPage = () => {
             const processedData = Object.entries(formData).reduce((acc, [key, value]) => {
                 const column = resource.columns.find(c => c.accessor === key);
                 if (column) {
-                    if (column.type === 'number') {
+                    if (isMonthYearField(column)) {
+                        acc[key] = toStoredMonthYear(value);
+                    } else if (column.type === 'number') {
                         acc[key] = value === '' ? undefined : Number(value);
                     } else if (column.type === 'boolean') {
                         acc[key] = Boolean(value);
@@ -702,7 +783,42 @@ const AddPage = () => {
                         disabled={isDisabled}
                     />
                 );
+            case 'monthYear':
+            case 'year':
+                return (
+                    <InputField
+                        label={col.header}
+                        type="month"
+                        value={toMonthInputValue(formData[col.accessor])}
+                        required={col.required}
+                        {...commonProps}
+                        onChange={(event) => handleChange({
+                            target: {
+                                name: col.accessor,
+                                value: toStoredMonthYear(event.target.value)
+                            }
+                        })}
+                    />
+                );
             default:
+                if (isMonthYearField(col)) {
+                    return (
+                        <InputField
+                            label={col.header}
+                            type="month"
+                            value={toMonthInputValue(formData[col.accessor])}
+                            required={col.required}
+                            {...commonProps}
+                            onChange={(event) => handleChange({
+                                target: {
+                                    name: col.accessor,
+                                    value: toStoredMonthYear(event.target.value)
+                                }
+                            })}
+                        />
+                    );
+                }
+
                 return (
                     <InputField
                         label={col.header}

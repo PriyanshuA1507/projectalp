@@ -110,7 +110,7 @@ const FacultyActivitySchema = new mongoose.Schema({
     awarding_agency: String,
     date_of_award: Date,
     monetary_value: Number,
-    year: Number,
+    year: String,
     faculty_recipients: [{ faculty_id: String, role: String }],
     student_recipients: [{ student_id: String, role: String }],
     external_recipients: [{

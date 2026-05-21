@@ -22,7 +22,7 @@ const CourseSchema = new mongoose.Schema({
     credits: { type: Number, required: true },
     semester_offered: { type: Number, required: true },
     type: { type: String, required: true },
-    year_of_introduction: { type: Number, required: true },
+    year_of_introduction: { type: String, required: true },
     focus_on_employability: Boolean,
     focus_on_entrepreneurship: Boolean,
     focus_on_skill_development: Boolean,
