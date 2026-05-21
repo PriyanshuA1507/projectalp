@@ -38,9 +38,9 @@ export default function OfficerDashboard() {
     // 2. Generate a dynamic list of Academic Years for the dropdown
     const availableYears = useMemo(() => {
         const yearsSet = new Set();
-        // Add the last 5 years based on the current date automatically
+        // Add the last 10 academic years based on the current date
         const currentYear = new Date().getFullYear();
-        for (let i = -1; i <= 5; i++) {
+        for (let i = 0; i < 10; i++) {
             const start = currentYear - i;
             const end = String(start + 1).slice(-2);
             yearsSet.add(`${start}-${end}`);
