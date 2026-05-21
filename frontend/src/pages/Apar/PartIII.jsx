@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { selectAparUser } from '../../store/slices/aparAuthSlice';
 import DynamicTableSection from '../../components/DynamicTableSection';
 
-export default function PartIII({ formData, addItem, updateArrayItem, updateField, readOnly }) {
+export default function PartIII({ formData, addItem, updateArrayItem, updateField, readOnly, onSaveMonthly }) {
     const user = useSelector(selectAparUser);
     const currentFacultyId = user?.teacherId || user?.faculty_id || user?.userId || user?.user_id || '';
 
@@ -27,7 +27,14 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
 
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-10">
-            <h3 className="text-xl font-bold text-gray-800 border-b border-gray-100 pb-4">Part III - RESEARCH & DEVELOPMENT</h3>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-xl font-bold text-gray-800">Part III - RESEARCH & DEVELOPMENT</h3>
+                {!readOnly && (
+                    <button type="button" onClick={onSaveMonthly} className="px-4 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md">
+                        Save as Monthly
+                    </button>
+                )}
+            </div>
 
             {/* 1 a) Research Projects */}
             <DynamicTableSection
@@ -590,7 +597,7 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
                         uniqueKey="name_of_project"
                         {...createHandlers('consultancy')}
                         readOnly={readOnly}
-                        initialItem={{ name_of_project: '', agency_name: '', grant_amount: '', start_date: '', end_date: '' }}
+                        initialItem={{ name_of_project: '', agency_name: '', grant_amount: '', start_date: '', end_date: '', type_of_agency: '', consultancy_type: '', year_of_consultancy: '', revenue_generated: '', link: '', faculty_involved: [], students_involved: [], external_collaborators: [], external_consultants: [] }}
                         fields={[
                             { label: 'Project Name', key: 'name_of_project', required: true, placeholder: 'Enter project name' },
                             { label: 'Agency', key: 'agency_name', required: true, placeholder: 'Enter agency' },
@@ -598,7 +605,29 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
                             { label: 'Grant', key: 'grant_amount', type: 'number', min: 0,required: true, placeholder: 'Amount' },
                             { label: 'Revenue', key: 'revenue_generated', type: 'number', min: 0, placeholder: 'Revenue' },
                             { label: 'Start Date', key: 'start_date', type: 'date', required: true },
-                            { label: 'PDF', key: 'link', type: 'file' }
+                            { label: 'PDF', key: 'link', type: 'file' },
+                            {
+                                label: 'Faculty Involved', key: 'faculty_involved', type: 'objectList', subFields: [
+                                    { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true },
+                                    { label: 'Role', key: 'role', required: true }
+                                ]
+                            },
+                            {
+                                label: 'Students Involved', key: 'students_involved', type: 'objectList', subFields: [
+                                    { label: 'Student ID', key: 'student_id', type: 'entitySelect', entityType: 'student', required: true },
+                                    { label: 'Role', key: 'role', required: true }
+                                ]
+                            },
+                            {
+                                label: 'External Collaborators', key: 'external_collaborators', type: 'objectList', subFields: [
+                                    { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }, { label: 'Email', key: 'email', type: 'email' }
+                                ]
+                            },
+                            {
+                                label: 'External Consultants', key: 'external_consultants', type: 'objectList', subFields: [
+                                    { label: 'Name', key: 'name', required: true }, { label: 'Role', key: 'role', required: true }, { label: 'Affiliation', key: 'affiliation' }, { label: 'Email', key: 'email', type: 'email' }
+                                ]
+                            }
                         ]}
                     />
                 </div>

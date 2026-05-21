@@ -421,6 +421,8 @@ const AparFormSchema = new mongoose.Schema({
         query_comment: String // Stores the latest query comment
     },
 
+    monthly_saved_at: Date,
+
     // Timeline for tracking status changes with timestamps
     timeline: {
         submitted_at: Date,

@@ -248,6 +248,31 @@ export default function AparForm() {
         return 5;
     };
 
+    const handleSaveMonthly = async () => {
+        if (isReadOnlyMode()) return;
+        try {
+            const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
+                const start = formData.personal.report_start_date
+                const end = formData.personal.report_end_date
+                return getAcademicYearFromDates(start, end)
+            })()
+
+            const facultyId = (aparUser && (aparUser.teacherId || aparUser.faculty_id || aparUser.id));
+            if (!ay || !facultyId || ay === 'undefined') {
+                toast.error("Invalid Academic Year or Faculty ID");
+                return;
+            }
+
+            const payload = { ay, faculty_id: facultyId, formData };
+            await AparFormGradedService.saveToMonthly(payload);
+            toast.success('Saved Section III to monthly collections');
+        } catch (e) {
+            console.error('Save monthly failed:', e);
+            const msg = e.response?.data?.message || 'Failed to save to monthly collections';
+            toast.error(msg);
+        }
+    };
+
     // Prefill faculty profile info on user change (ensures prefill even if AY is not yet set)
     React.useEffect(() => {
         if (!aparUser) return;
@@ -1556,7 +1581,7 @@ export default function AparForm() {
 
                             {/* Step 3: Research - HEAVY Schema Mapping */}
                             <div id="apar-step-3" className={currentStep === 3 ? 'block' : 'hidden print:block'}>
-                                <PartIII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} />
+                                <PartIII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} onSaveMonthly={handleSaveMonthly} />
                             </div>
 
                             {/* Step 4: Corporate Life */}

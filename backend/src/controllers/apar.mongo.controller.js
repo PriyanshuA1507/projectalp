@@ -66,6 +66,7 @@ const normalizeDepartmentId = async (deptIdInput) => {
 // Recursive function to remove empty strings from object
 const cleanEmptyStrings = (obj) => {
     if (obj !== Object(obj)) return obj; // Primitive
+    if (obj instanceof Date) return obj; // Preserve Date values
     if (Array.isArray(obj)) {
         return obj.map(item => cleanEmptyStrings(item));
     }
@@ -81,6 +82,18 @@ const cleanEmptyStrings = (obj) => {
         }
     }
     return newObj;
+};
+
+const stripUndefined = (obj) => {
+    if (obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(stripUndefined);
+    if (obj !== Object(obj)) return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+        const sv = stripUndefined(v);
+        if (sv !== undefined) out[k] = sv;
+    }
+    return out;
 };
 
 // Helper to compute changes between existing document and update data
@@ -661,6 +674,11 @@ const submitForm = asyncHandler(async (req, res) => {
     if (!faculty_id) throw new ApiError(400, "Faculty ID is required");
     if (!ay) throw new ApiError(400, "Academic Year (Ay) is required");
 
+    const existingForCheck = await AparForm.findOne({ faculty_id, ay }).lean();
+    if (!existingForCheck || !existingForCheck.monthly_saved_at) {
+        throw new ApiError(400, "Please use 'Save as Monthly' in Part III before submitting the APAR form.");
+    }
+
     const form = await AparForm.findOneAndUpdate(
         { faculty_id, ay },
         {
@@ -723,6 +741,486 @@ const submitForm = asyncHandler(async (req, res) => {
     );
 });
 
+const saveToMonthly = asyncHandler(async (req, res) => {
+    let ay = req.body.ay || req.user?.academicYear;
+    if (ay) ay = normalizeAY(ay);
+    let faculty_id = req.body.faculty_id || req.user?.userId || req.user?.faculty_id || req.user?.id;
+    faculty_id = await resolveToReadableId(faculty_id);
+    await assertFacultyAccess(req.user, faculty_id);
+
+    if (!faculty_id) throw new ApiError(400, "Faculty ID is required");
+    if (!ay) throw new ApiError(400, "Academic Year (Ay) is required");
+
+    const formData = req.body.formData || {};
+    const research = formData.research || {};
+
+    const deptIdFallback = formData?.personal?.department_id || req.user?.departmentId || undefined;
+    
+    const toBool = (v) => (typeof v === 'boolean') ? v : (String(v || '').toLowerCase() === 'yes' || String(v || '').toLowerCase() === 'true');
+    const upserts = [];
+
+    for (const item of (research.journals || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const publication_id = item.publication_id || generateId('PUB');
+        const payload = stripUndefined(cleanEmptyStrings({
+            publication_id,
+            department_id,
+            type: 'journal',
+            paper_id: item.paper_id || undefined,
+            title: item.title || item.title_of_paper,
+            name_of_journal: item.name_of_journal,
+            author_names: item.author_names,
+            issn: item.issn,
+            volume: item.volume,
+            issue: item.issue,
+            page_numbers: item.page_numbers,
+            year_of_publication: parseNumber(item.year_of_publication),
+            doi: item.doi,
+            indexing: item.indexing,
+            impact_factor: item.impact_factor,
+            citation_count: parseNumber(item.citation_count),
+            is_ugc_care_listed: toBool(item.is_ugc_care_listed),
+            link: item.link,
+            link_to_paper: item.link_to_paper,
+            academic_year: item.academic_year || ay,
+            faculty_members: Array.isArray(item.faculty_members) ? item.faculty_members.map(f => ({ faculty_id: f.faculty_id || f })) : [],
+            students: Array.isArray(item.students) ? item.students.map(s => ({ student_id: s.student_id || s })) : [],
+            external_authors: Array.isArray(item.external_authors) ? item.external_authors : [],
+            external_contributors: Array.isArray(item.external_contributors) ? item.external_contributors : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        }));
+        upserts.push(Publication.findOneAndUpdate(
+            (item.publication_id ? { publication_id: item.publication_id } : (item.paper_id ? { type: 'journal', paper_id: item.paper_id } : { publication_id })),
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.conferences || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const publication_id = item.publication_id || generateId('PUB');
+        const payload = cleanEmptyStrings({
+            publication_id,
+            department_id,
+            type: 'conference',
+            paper_id: item.paper_id || undefined,
+            title: item.title || item.title_of_paper,
+            name_of_conference: item.name_of_conference,
+            conference_level: item.conference_level,
+            organizer: item.organizer,
+            venue: item.venue,
+            publisher: item.publisher,
+            isbn: item.isbn,
+            award_received: item.award_received,
+            paper_status: item.paper_status,
+            year_of_publication: parseNumber(item.year_of_publication),
+            doi: item.doi,
+            indexing: item.indexing,
+            link: item.link,
+            link_to_paper: item.link_to_paper,
+            academic_year: item.academic_year || ay,
+            faculty_members: Array.isArray(item.faculty_members) ? item.faculty_members.map(f => ({ faculty_id: f.faculty_id || f })) : [],
+            students: Array.isArray(item.students) ? item.students.map(s => ({ student_id: s.student_id || s })) : [],
+            external_contributors: Array.isArray(item.external_contributors) ? item.external_contributors : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(Publication.findOneAndUpdate(
+            (item.publication_id ? { publication_id: item.publication_id } : (item.paper_id ? { type: 'conference', paper_id: item.paper_id } : { publication_id })),
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.books || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const publication_id = item.publication_id || generateId('PUB');
+        const payload = cleanEmptyStrings({
+            publication_id,
+            department_id,
+            type: 'book',
+            publication_type: item.publication_type,
+            title: item.title_of_book || item.title,
+            title_of_book: item.title_of_book,
+            title_of_chapter: item.title_of_chapter,
+            role: item.role,
+            year: parseNumber(item.year),
+            isbn_number: item.isbn_number,
+            name_of_publisher: item.name_of_publisher,
+            publisher_type: item.publisher_type,
+            same_institute_affiliation: toBool(item.same_institute_affiliation),
+            link: item.link,
+            link_to_publication: item.link_to_publication,
+            doi: item.doi,
+            indexing: item.indexing,
+            academic_year: item.academic_year || ay,
+            faculty_members: Array.isArray(item.faculty_members) ? item.faculty_members.map(f => ({ faculty_id: f.faculty_id || f })) : (Array.isArray(item.faculty_ids) ? item.faculty_ids.map(fid => ({ faculty_id: fid })) : []),
+            students: Array.isArray(item.students) ? item.students.map(s => ({ student_id: s.student_id || s })) : (Array.isArray(item.student_ids) ? item.student_ids.map(sid => ({ student_id: sid })) : []),
+            external_contributors: Array.isArray(item.external_contributors) ? item.external_contributors : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(Publication.findOneAndUpdate(
+            (item.publication_id ? { publication_id: item.publication_id } : { publication_id }),
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.projects || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const project_id = item.project_id || item.funding_id || generateId('RES');
+        const payload = cleanEmptyStrings({
+            project_id,
+            department_id,
+            type: 'funding',
+            title: item.title || item.title_research,
+            title_research: item.title_research,
+            type_of_project: item.type_of_project,
+            funding_agency_name: item.funding_agency_name,
+            funding_type: item.funding_type,
+            sanction_number: item.sanction_number,
+            year_of_sanction: parseNumber(item.year_of_sanction),
+            amount: parseNumber(item.amount),
+            start_date: parseDate(item.start_date),
+            end_date: parseDate(item.end_date),
+            status: item.status,
+            outcome: item.outcome,
+            remarks: item.remarks,
+            link: item.link,
+            academic_year: item.academic_year || ay,
+            faculty_involved: Array.isArray(item.faculty_involved) ? item.faculty_involved.map(f => ({ faculty_id: f.faculty_id || f.faculty || f, role: f.role })) : [],
+            students_involved: Array.isArray(item.students_involved) ? item.students_involved.map(s => ({ student_id: s.student_id || s, role: s.role })) : [],
+            external_collaborators: Array.isArray(item.external_collaborators) ? item.external_collaborators : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        const setPayloadFunding = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined));
+        upserts.push(ResearchProject.findOneAndUpdate(
+            (item.project_id ? { project_id: item.project_id } : (item.funding_id ? { funding_id: item.funding_id } : { project_id })),
+            { $set: setPayloadFunding },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.consultancy || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const project_id = item.project_id || item.consultancy_id || generateId('RES');
+        const payload = cleanEmptyStrings({
+            project_id,
+            department_id,
+            type: 'consultancy',
+            title: item.title || item.name_of_project,
+            name_of_project: item.name_of_project,
+            agency_name: item.agency_name,
+            type_of_agency: item.type_of_agency,
+            consultancy_type: item.consultancy_type,
+            grant_amount: parseNumber(item.grant_amount),
+            revenue_generated: parseNumber(item.revenue_generated),
+            start_date: parseDate(item.start_date) || parseDate(item.duration_start_date),
+            end_date: parseDate(item.end_date),
+            year_of_consultancy: parseNumber(item.year_of_consultancy),
+            remarks: item.remarks,
+            link: item.link,
+            academic_year: item.academic_year || ay,
+            faculty_involved: Array.isArray(item.faculty_involved) ? item.faculty_involved.map(f => ({ faculty_id: f.faculty_id || f.faculty_id || f, role: f.role })) : [],
+            students_involved: Array.isArray(item.students_involved) ? item.students_involved.map(s => ({ student_id: s.student_id || s.student_id || s, role: s.role })) : [],
+            external_collaborators: Array.isArray(item.external_collaborators) ? item.external_collaborators : [],
+            external_consultants: Array.isArray(item.external_consultants) ? item.external_consultants : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        const setPayloadConsultancy = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined));
+        upserts.push(ResearchProject.findOneAndUpdate(
+            (item.project_id ? { project_id: item.project_id } : (item.consultancy_id ? { consultancy_id: item.consultancy_id } : { project_id })),
+            { $set: setPayloadConsultancy },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.patents || [])) {
+        if (!item.patent_title || !item.application_number || !item.status || !item.date_of_filing) continue;
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const patent_id = item.patent_id || generateId('PAT');
+        const payload = cleanEmptyStrings({
+            patent_id,
+            department_id,
+            patent_title: item.patent_title,
+            author_names: item.author_names,
+            application_number: item.application_number,
+            patent_number: item.patent_number,
+            status: item.status,
+            country: item.country,
+            date_of_filing: parseDate(item.date_of_filing),
+            date_of_award: parseDate(item.date_of_award),
+            patent_awarding_agency: item.patent_awarding_agency,
+            link_to_patent: item.link_to_patent,
+            academic_year: item.academic_year || ay,
+            faculty_members: Array.isArray(item.faculty_members) ? item.faculty_members.map(f => ({ faculty_id: f.faculty_id || f })) : [],
+            students: Array.isArray(item.students) ? item.students.map(s => ({ student_id: s.student_id || s })) : [],
+            external_inventors: Array.isArray(item.external_inventors) ? item.external_inventors : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(Patent.findOneAndUpdate(
+            (item.patent_id ? { patent_id: item.patent_id } : { patent_id }),
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.awards || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const activity_id = item.award_id || generateId('AWD');
+        const payload = cleanEmptyStrings({
+            activity_id,
+            type: 'award',
+            faculty_id,
+            department_id,
+            name_of_award: item.name_of_award,
+            type_of_award: item.type_of_award,
+            category_of_award: item.category_of_award,
+            name_of_organisation: item.name_of_organisation,
+            awarding_agency: item.awarding_agency,
+            date_of_award: parseDate(item.date_of_award),
+            monetary_value: parseNumber(item.monetary_value),
+            year: parseNumber(item.year),
+            link: item.link,
+            evidence_link: item.evidence_link,
+            academic_year: item.academic_year || ay,
+            faculty_recipients: Array.isArray(item.faculty_recipients) ? item.faculty_recipients.map(f => ({ faculty_id: f.faculty_id || f })) : [],
+            student_recipients: Array.isArray(item.student_recipients) ? item.student_recipients.map(s => ({ student_id: s.student_id || s })) : [],
+            external_recipients: Array.isArray(item.external_recipients) ? item.external_recipients : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(FacultyActivity.findOneAndUpdate(
+            { activity_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.e_content || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const activity_id = item.econtent_id || generateId('ECO');
+        const payload = cleanEmptyStrings({
+            activity_id,
+            type: 'econtent',
+            faculty_id: item.faculty_id || faculty_id,
+            department_id,
+            academic_year: item.academic_year || ay,
+            course_id: item.course_id,
+            name_of_module: item.name_of_module,
+            type_of_content: item.type_of_content,
+            platform: item.platform,
+            platform_type: item.platform_type,
+            date_of_launching: parseDate(item.date_of_launching),
+            target_audience: item.target_audience,
+            duration_hours: parseNumber(item.duration_hours),
+            learning_outcome: item.learning_outcome,
+            link: item.link,
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(FacultyActivity.findOneAndUpdate(
+            { activity_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.faculty_visits || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const activity_id = item.visit_id || generateId('VIS');
+        const payload = cleanEmptyStrings({
+            activity_id,
+            type: 'visit',
+            faculty_id: item.faculty_id || faculty_id,
+            department_id,
+            academic_year: item.academic_year || ay,
+            organisation_name: item.organisation_name,
+            title: item.title,
+            visit_type: item.visit_type,
+            purpose: item.purpose,
+            location: item.location,
+            start_date: parseDate(item.start_date),
+            end_date: parseDate(item.end_date),
+            link: item.link,
+            faculty_participants: Array.isArray(item.faculty_participants) && item.faculty_participants.length
+                ? item.faculty_participants.map(f => ({ faculty_id: f.faculty_id || f }))
+                : (Array.isArray(item.faculty_ids) ? item.faculty_ids.map(fid => ({ faculty_id: fid.faculty_id || fid })) : []),
+            student_recipients: Array.isArray(item.student_recipients) && item.student_recipients.length
+                ? item.student_recipients
+                : (Array.isArray(item.student_ids) ? item.student_ids.map(sid => ({ student_id: sid.student_id || sid })) : []),
+            external_contributors: Array.isArray(item.external_contributors) ? item.external_contributors : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(FacultyActivity.findOneAndUpdate(
+            { activity_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.fdps || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const activity_id = item.program_id || generateId('FDP');
+        const payload = cleanEmptyStrings({
+            activity_id,
+            type: 'fdp',
+            faculty_id: item.faculty_id || faculty_id,
+            department_id,
+            academic_year: item.academic_year || ay,
+            program_title: item.program_title,
+            type_of_program: item.type_of_program,
+            level: item.level,
+            mode: item.mode,
+            organising_body: item.organising_body,
+            funding_agency: item.funding_agency,
+            venue: item.venue,
+            duration_days: parseNumber(item.duration_days),
+            start_date: parseDate(item.start_date),
+            end_date: parseDate(item.end_date),
+            outcome: item.outcome,
+            remarks: item.remarks,
+            certificate_link: item.certificate_link,
+            link: item.link,
+            faculty_participants: Array.isArray(item.faculty_participants) ? item.faculty_participants.map(f => ({ faculty_id: f.faculty_id || f })) : [],
+            external_participants: Array.isArray(item.external_participants) ? item.external_participants : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(FacultyActivity.findOneAndUpdate(
+            { activity_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.collaborations || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const collaboration_id = item.collaboration_id || item.activity_id || generateId('COL');
+        const payload = cleanEmptyStrings({
+            collaboration_id,
+            department_id,
+            type: 'activity',
+            activity_id: item.activity_id || collaboration_id,
+            title: item.title || item.title_of_activity,
+            title_of_activity: item.title_of_activity,
+            name_of_collaborative_agency: item.name_of_collaborative_agency,
+            type_of_activity: item.type_of_activity,
+            number_of_participants: parseNumber(item.number_of_participants),
+            source_of_financial_support: item.source_of_financial_support,
+            funding_amount: parseNumber(item.funding_amount),
+            year: parseNumber(item.year),
+            duration: item.duration,
+            level: item.level,
+            start_date: parseDate(item.start_date),
+            end_date: parseDate(item.end_date),
+            academic_year: item.academic_year || ay,
+            outcome: item.outcome,
+            remarks: item.remarks,
+            link: item.link,
+            faculty_associations: (Array.isArray(item.faculty_associations) && item.faculty_associations.length)
+                ? item.faculty_associations.map(f => ({ faculty_id: f.faculty_id || f.faculty || f, role: f.role }))
+                : (Array.isArray(item.faculty_involved) ? item.faculty_involved.map(f => ({ faculty_id: f.faculty_id || f.faculty || f, role: f.role })) : []),
+            student_associations: Array.isArray(item.students_involved)
+                ? item.students_involved.map(s => ({ student_id: s.student_id || s.student || s, role: s.role }))
+                : (Array.isArray(item.student_associations) ? item.student_associations : []),
+            external_contributors: Array.isArray(item.external_contributors)
+                ? item.external_contributors
+                : (Array.isArray(item.external_collaborators) ? item.external_collaborators : []),
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(Collaboration.findOneAndUpdate(
+            { collaboration_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.mous || [])) {
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const collaboration_id = item.collaboration_id || item.mou_id || generateId('COL');
+        const payload = cleanEmptyStrings({
+            collaboration_id,
+            department_id,
+            type: 'mou',
+            mou_id: item.mou_id || collaboration_id,
+            organisation_name: item.organisation_name,
+            title: item.title,
+            type_of_mou: item.type_of_mou,
+            year_of_signing: parseNumber(item.year_of_signing),
+            purpose: item.purpose,
+            activities_under_mou: Array.isArray(item.activities_under_mou) ? item.activities_under_mou : [],
+            start_date: parseDate(item.start_date),
+            end_date: parseDate(item.end_date),
+            level: item.level,
+            academic_year: item.academic_year || ay,
+            link: item.link,
+            faculty_associations: (Array.isArray(item.faculty_associations) && item.faculty_associations.length)
+                ? item.faculty_associations.map(f => ({ faculty_id: f.faculty_id || f.faculty || f, role: f.role }))
+                : (Array.isArray(item.faculty_involved) ? item.faculty_involved.map(f => ({ faculty_id: f.faculty_id || f.faculty || f, role: f.role })) : []),
+            student_associations: (Array.isArray(item.student_associations) && item.student_associations.length)
+                ? item.student_associations
+                : (Array.isArray(item.students_involved) ? item.students_involved.map(s => ({ student_id: s.student_id || s.student || s, role: s.role })) : []),
+            external_contributors: Array.isArray(item.external_contributors)
+                ? item.external_contributors
+                : (Array.isArray(item.external_collaborators) ? item.external_collaborators : []),
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(Collaboration.findOneAndUpdate(
+            { collaboration_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    for (const item of (research.phd_supervision || [])) {
+        // Ensure mandatory fields from model; skip if missing critical data
+        if (!item.student_id || !item.enrollment_no || !item.student_name || !item.thesis_title || !item.thesis_type || !item.supervisor_id || !item.supervisor_name || !item.date_of_defence || !(item.academic_year || ay)) continue;
+        const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
+        const defence_id = item.defence_id || generateId('PHD');
+        const payload = cleanEmptyStrings({
+            defence_id,
+            student_id: item.student_id,
+            department_id,
+            enrollment_no: item.enrollment_no,
+            student_name: item.student_name,
+            thesis_title: item.thesis_title,
+            thesis_type: item.thesis_type,
+            supervisor_id: item.supervisor_id || faculty_id,
+            supervisor_name: item.supervisor_name,
+            date_of_admission: parseDate(item.date_of_admission),
+            date_of_src: parseDate(item.date_of_src),
+            date_of_defence: parseDate(item.date_of_defence),
+            date_of_result_notification: parseDate(item.date_of_result_notification),
+            result_outcome: item.result_outcome || item.status,
+            academic_year: item.academic_year || ay,
+            remarks: item.remarks,
+            link: item.link,
+            co_supervisors: Array.isArray(item.co_supervisors) ? item.co_supervisors.map(cs => ({
+                affiliation_type: cs.affiliation_type || (cs.external_name ? 'External' : 'Internal'),
+                co_supervisor_id: cs.co_supervisor_id || cs.faculty_id,
+                external_name: cs.external_name,
+                external_affiliation: cs.external_affiliation || cs.affiliation
+            })) : [],
+            committee_members: Array.isArray(item.committee_members) ? item.committee_members : [],
+            external_examiners: Array.isArray(item.external_examiners) ? item.external_examiners : [],
+            metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
+        });
+        upserts.push(PhdDefence.findOneAndUpdate(
+            { defence_id },
+            { $set: payload },
+            { upsert: true, new: true }
+        ));
+    }
+
+    await Promise.all(upserts);
+    
+    const form = await AparForm.findOneAndUpdate(
+        { faculty_id, ay },
+        { $set: { monthly_saved_at: new Date() } },
+        { new: true, upsert: true }
+    );
+
+    try { await preventCrossFacultyDuplicates(faculty_id, ay, research); } catch (e) { console.warn('Cross-faculty duplicate prevention failed:', e?.message); }
+
+    return res.status(200).json(new ApiResponse(200, { monthly_saved_at: form.monthly_saved_at }, 'Section III saved to monthly collections'));
+});
 // === Reporting Officer Actions ===
 
 const getPendingReporting = asyncHandler(async (req, res) => {
@@ -1255,6 +1753,7 @@ export {
     getFacultyHistory,
     saveForm,
     submitForm,
+    saveToMonthly,
     getPendingReporting,
     submitReportingAssessment,
     getPendingReviewing,
