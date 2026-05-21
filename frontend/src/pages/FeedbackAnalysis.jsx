@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     FiArrowLeft,
     FiUploadCloud,
@@ -11,70 +11,31 @@ import {
     FiLogOut,
     FiHome,
     FiHeart,
+    FiCpu,
+    FiKey,
+    FiEye,
+    FiEyeOff,
 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
-import { feedbackService } from '../services/feedback.service.js';
 import { toast } from 'sonner';
+import { FEEDBACK_CONTEXTS, FEEDBACK_TYPE_MAP } from '../config/feedbackContexts.js';
+import { parseFeedbackFile, summarizeFeedbackRows } from '../utils/parseFeedbackFile.js';
+import {
+    analyzeFeedbackWithHuggingFace,
+    getStoredHfApiKey,
+    storeHfApiKey,
+} from '../services/huggingface.service.js';
 
 const ANALYSIS_TYPES = [
-    {
-        id: 'alumni',
-        apiType: 'alumni',
-        title: 'Alumni Feedback Form',
-        description: 'Analyze feedback from alumni on program outcomes, campus experience, and career support.',
-        icon: FiUsers,
-        color: 'indigo',
-    },
-    {
-        id: 'course',
-        apiType: 'course',
-        title: 'Course Feedback Form',
-        description: 'Evaluate student feedback on course content, difficulty, learning outcomes, and assessments.',
-        icon: FiBookOpen,
-        color: 'emerald',
-    },
-    {
-        id: 'employer',
-        apiType: 'employer',
-        title: 'Employer Feedback Form',
-        description: 'Assess employer views on graduate skills, employability, and curriculum alignment.',
-        icon: FiBriefcase,
-        color: 'blue',
-    },
-    {
-        id: 'exit_survey',
-        apiType: 'exit-survey',
-        title: 'Exit Survey Feedback Form',
-        description: 'Review graduating student feedback on overall satisfaction and institutional support.',
-        icon: FiLogOut,
-        color: 'purple',
-    },
-    {
-        id: 'infrastructure',
-        apiType: 'infrastructure',
-        title: 'Infrastructure & Facility Feedback Form',
-        description: 'Analyze feedback on classrooms, labs, library, hostel, and campus facilities.',
-        icon: FiHome,
-        color: 'amber',
-    },
-    {
-        id: 'parent',
-        apiType: 'parent',
-        title: 'Parent Feedback Form',
-        description: 'Understand parent perspectives on academics, safety, communication, and student welfare.',
-        icon: FiHeart,
-        color: 'rose',
-    },
-    {
-        id: 'teacher_course',
-        apiType: 'teacher-course',
-        title: "Teacher's Feedback on Course Form",
-        description: 'Analyze faculty feedback on course design, syllabus coverage, and teaching resources.',
-        icon: FiUserCheck,
-        color: 'cyan',
-    },
+    { id: 'alumni', apiType: 'alumni', title: 'Alumni Feedback', description: 'Program outcomes, campus experience, and career support.', icon: FiUsers, color: 'indigo' },
+    { id: 'course', apiType: 'course', title: 'Course Feedback', description: 'Course content, difficulty, learning outcomes, and assessments.', icon: FiBookOpen, color: 'emerald' },
+    { id: 'employer', apiType: 'employer', title: 'Employer Feedback', description: 'Graduate skills, employability, and curriculum alignment.', icon: FiBriefcase, color: 'blue' },
+    { id: 'exit_survey', apiType: 'exit-survey', title: 'Exit Survey', description: 'Graduating student satisfaction and institutional support.', icon: FiLogOut, color: 'purple' },
+    { id: 'infrastructure', apiType: 'infrastructure', title: 'Infrastructure & Facilities', description: 'Classrooms, labs, library, hostel, and campus facilities.', icon: FiHome, color: 'amber' },
+    { id: 'parent', apiType: 'parent', title: 'Parent Feedback', description: 'Academics, safety, communication, and student welfare.', icon: FiHeart, color: 'rose' },
+    { id: 'teacher_course', apiType: 'teacher-course', title: "Teacher's Course Feedback", description: 'Faculty views on course design, syllabus, and resources.', icon: FiUserCheck, color: 'cyan' },
 ];
 
 const COLOR_CLASSES = {
@@ -87,20 +48,64 @@ const COLOR_CLASSES = {
     cyan: 'bg-cyan-50 text-cyan-600 group-hover:bg-cyan-600 group-hover:text-white',
 };
 
-const getTypeById = (id) => ANALYSIS_TYPES.find((type) => type.id === id);
+const MarkdownReport = ({ content }) => (
+    <div className="prose max-w-none text-gray-800">
+        <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+                h1: ({ ...props }) => <h1 className="text-3xl font-extrabold text-gray-900 border-b-2 border-violet-100 pb-3 mb-6 mt-8 first:mt-0" {...props} />,
+                h2: ({ ...props }) => <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-violet-500 pl-4 mb-5 mt-8 bg-violet-50/50 py-2 rounded-r-lg" {...props} />,
+                h3: ({ ...props }) => <h3 className="text-xl font-bold text-violet-900 mb-4 mt-6" {...props} />,
+                p: ({ ...props }) => <p className="mb-4 text-gray-700 text-base leading-relaxed" {...props} />,
+                ul: ({ ...props }) => <ul className="list-disc pl-6 mb-6 space-y-2 text-gray-700" {...props} />,
+                ol: ({ ...props }) => <ol className="list-decimal pl-6 mb-6 space-y-2 text-gray-700" {...props} />,
+                table: ({ ...props }) => (
+                    <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm my-6">
+                        <table className="min-w-full divide-y divide-gray-200" {...props} />
+                    </div>
+                ),
+                thead: ({ ...props }) => <thead className="bg-violet-50 text-violet-900" {...props} />,
+                th: ({ ...props }) => <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider" {...props} />,
+                td: ({ ...props }) => <td className="px-4 py-3 text-sm text-gray-700 border-t border-gray-100" {...props} />,
+            }}
+        >
+            {content}
+        </ReactMarkdown>
+    </div>
+);
 
 export default function FeedbackAnalysis() {
     const navigate = useNavigate();
     const [selectedType, setSelectedType] = useState(null);
     const [file, setFile] = useState(null);
+    const [rowCount, setRowCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [progressMessage, setProgressMessage] = useState('');
     const [analysisResult, setAnalysisResult] = useState(null);
+    const [apiKey, setApiKey] = useState('');
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [rememberKey, setRememberKey] = useState(true);
 
-    const selectedConfig = getTypeById(selectedType);
+    const selectedConfig = ANALYSIS_TYPES.find((t) => t.id === selectedType);
+    const hasEnvKey = Boolean(import.meta.env.VITE_HUGGINGFACE_API_KEY?.trim());
 
-    const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+    useEffect(() => {
+        setApiKey(getStoredHfApiKey());
+    }, []);
+
+    const handleFileChange = async (e) => {
+        const nextFile = e.target.files?.[0];
+        setFile(nextFile || null);
+        setRowCount(0);
+        setAnalysisResult(null);
+
+        if (nextFile) {
+            try {
+                const rows = await parseFeedbackFile(nextFile);
+                setRowCount(rows.length);
+            } catch {
+                setRowCount(0);
+            }
         }
     };
 
@@ -110,51 +115,83 @@ export default function FeedbackAnalysis() {
             return;
         }
 
+        const key = apiKey.trim() || getStoredHfApiKey();
+        if (!key) {
+            toast.error('Enter your Hugging Face API key below');
+            return;
+        }
+
+        if (rememberKey) {
+            storeHfApiKey(key);
+        }
+
+        const contextKey = FEEDBACK_TYPE_MAP[selectedConfig.apiType];
+        const context = FEEDBACK_CONTEXTS[contextKey];
+        if (!context) {
+            toast.error('Unknown feedback type');
+            return;
+        }
+
         setLoading(true);
         setAnalysisResult(null);
+        setProgressMessage('Parsing spreadsheet…');
 
         try {
-            const response = await feedbackService.analyze(selectedConfig.apiType, file);
+            const rows = await parseFeedbackFile(file);
+            setRowCount(rows.length);
+            const dataString = summarizeFeedbackRows(rows);
 
-            if (response && response.analysis) {
-                setAnalysisResult(response.analysis);
-                toast.success('Analysis completed successfully');
-            }
+            const analysis = await analyzeFeedbackWithHuggingFace({
+                apiKey: key,
+                context,
+                dataString,
+                onProgress: setProgressMessage,
+            });
+
+            setAnalysisResult(analysis);
+            toast.success('Analysis completed successfully');
         } catch (error) {
             console.error('Analysis failed:', error);
-            toast.error('Failed to analyze feedback. Please try again.');
+            toast.error(error.message || 'Failed to analyze feedback. Please try again.');
         } finally {
             setLoading(false);
+            setProgressMessage('');
         }
     };
 
     const resetSelection = () => {
         setSelectedType(null);
         setFile(null);
+        setRowCount(0);
         setAnalysisResult(null);
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 md:p-12 relative">
+        <div className="feedback-page-bg min-h-screen p-6 md:p-12 relative">
             <div className="absolute top-4 left-4 z-20">
                 <button
+                    type="button"
                     onClick={() => (selectedType ? resetSelection() : navigate('/'))}
-                    className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200"
+                    className="inline-flex items-center rounded-lg border border-violet-200 bg-white/90 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-violet-50"
                 >
-                    <span className="mr-1">←</span> {selectedType ? 'Back to Selection' : 'Back to Home'}
+                    <FiArrowLeft className="mr-2 h-4 w-4" />
+                    {selectedType ? 'Change form type' : 'Back to Home'}
                 </button>
             </div>
 
-            <div className="max-w-7xl mx-auto pt-8">
+            <div className="relative z-10 mx-auto max-w-6xl pt-10">
                 <header className="mb-10 text-center">
-                    <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-20 w-auto object-contain mx-auto mb-6" />
-                    <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-lg">
+                        <FiCpu className="h-7 w-7" />
+                    </div>
+                    <img src="/dtu_logo.jpeg" alt="DTU Logo" className="mx-auto mb-4 h-16 w-auto object-contain" />
+                    <h1 className="text-4xl font-bold tracking-tight text-gray-900">
                         {selectedConfig ? selectedConfig.title : 'Feedback Analysis'}
                     </h1>
                     <p className="mt-2 text-lg text-gray-600">
                         {selectedConfig
-                            ? 'Upload your data file to generate AI-powered insights.'
-                            : 'Select a feedback form to begin your analysis using advanced AI algorithms.'}
+                            ? 'Upload CSV/Excel — analysis runs in your browser via Hugging Face.'
+                            : 'Select a feedback form. AI inference uses JavaScript only (no server upload).'}
                     </p>
                 </header>
 
@@ -162,127 +199,145 @@ export default function FeedbackAnalysis() {
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {ANALYSIS_TYPES.map((type) => {
                             const Icon = type.icon;
-
                             return (
                                 <button
                                     key={type.id}
+                                    type="button"
                                     onClick={() => setSelectedType(type.id)}
-                                    className="group flex flex-col p-8 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left"
+                                    className="portal-card group text-left ring-2 ring-violet-100 hover:ring-violet-300"
                                 >
                                     <div
-                                        className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-colors duration-300 ${COLOR_CLASSES[type.color]}`}
+                                        className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${COLOR_CLASSES[type.color]}`}
                                     >
-                                        <Icon className="w-8 h-8" />
+                                        <Icon className="h-7 w-7" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-3">{type.title}</h3>
-                                    <p className="text-gray-600 leading-relaxed text-sm">
-                                        {type.description}
-                                    </p>
+                                    <h3 className="text-lg font-bold text-gray-900">{type.title}</h3>
+                                    <p className="mt-2 text-sm leading-relaxed text-gray-600">{type.description}</p>
                                 </button>
                             );
                         })}
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-8 max-w-4xl mx-auto">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
-                                    <FiUploadCloud />
+                    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+                        {/* API Key */}
+                        <div className="rounded-2xl border border-violet-200 bg-white/95 p-6 shadow-sm">
+                            <h3 className="mb-4 flex items-center text-lg font-bold text-gray-900">
+                                <FiKey className="mr-2 text-violet-600" />
+                                Hugging Face API Key
+                            </h3>
+                            {hasEnvKey ? (
+                                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3">
+                                    Using key from <code className="font-mono text-xs">VITE_HUGGINGFACE_API_KEY</code> in your .env file.
+                                </p>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <input
+                                            type={showApiKey ? 'text' : 'password'}
+                                            value={apiKey}
+                                            onChange={(e) => setApiKey(e.target.value)}
+                                            placeholder="hf_xxxxxxxxxxxxxxxx"
+                                            className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 font-mono text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowApiKey((v) => !v)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        >
+                                            {showApiKey ? <FiEyeOff /> : <FiEye />}
+                                        </button>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={rememberKey}
+                                            onChange={(e) => setRememberKey(e.target.checked)}
+                                            className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                        />
+                                        Remember for this browser session
+                                    </label>
+                                    <p className="text-xs text-gray-500">
+                                        Or add <code className="rounded bg-gray-100 px-1">VITE_HUGGINGFACE_API_KEY=hf_...</code> to{' '}
+                                        <code className="rounded bg-gray-100 px-1">frontend/.env</code>
+                                    </p>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Upload */}
+                        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+                            <h3 className="mb-6 flex items-center text-xl font-bold text-gray-900">
+                                <FiUploadCloud className="mr-3 text-violet-600" />
                                 Upload Data
                             </h3>
 
-                            <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center hover:bg-gray-50 transition-colors relative">
+                            <div className="relative rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-10 text-center transition hover:border-violet-300 hover:bg-violet-50/50">
                                 <input
                                     type="file"
-                                    accept=".xlsx, .xls, .csv"
+                                    accept=".xlsx,.xls,.csv"
                                     onChange={handleFileChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                                 />
-                                <div className="flex flex-col items-center pointer-events-none">
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${file ? 'bg-green-100' : 'bg-gray-100'}`}>
-                                        <FiUploadCloud className={`w-8 h-8 ${file ? 'text-green-600' : 'text-gray-400'}`} />
+                                <div className="pointer-events-none flex flex-col items-center">
+                                    <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${file ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                                        <FiUploadCloud className={`h-8 w-8 ${file ? 'text-emerald-600' : 'text-gray-400'}`} />
                                     </div>
-                                    <p className="text-xl font-semibold text-gray-900 mb-2">
-                                        {file ? file.name : 'Drop your Excel/CSV file here'}
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        {file ? file.name : 'Drop Excel or CSV here'}
                                     </p>
-                                    <p className="text-sm text-gray-500">
-                                        {file ? 'Click to change file' : 'or click to browse supported formats (.xlsx, .xls, .csv)'}
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        {rowCount > 0 ? `${rowCount} rows detected` : 'Supported: .xlsx, .xls, .csv'}
                                     </p>
                                 </div>
                             </div>
 
+                            {progressMessage && (
+                                <p className="mt-4 text-center text-sm font-medium text-violet-700">{progressMessage}</p>
+                            )}
+
                             <button
+                                type="button"
                                 onClick={handleAnalyze}
                                 disabled={!file || loading}
-                                className={`mt-8 w-full flex items-center justify-center py-4 px-6 rounded-xl text-white font-bold text-lg tracking-wide transition-all shadow-md transform hover:scale-[1.01]
+                                className={`mt-6 flex w-full items-center justify-center rounded-xl py-4 text-lg font-bold text-white transition shadow-md
                                     ${!file || loading
-                                        ? 'bg-gray-300 cursor-not-allowed shadow-none hover:scale-100'
-                                        : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-indigo-200'}`}
+                                        ? 'cursor-not-allowed bg-gray-300 shadow-none'
+                                        : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700'}`}
                             >
                                 {loading ? (
                                     <>
-                                        <FiLoader className="animate-spin mr-3 w-6 h-6" />
-                                        Analyzing Data...
+                                        <FiLoader className="mr-3 h-6 w-6 animate-spin" />
+                                        Running Hugging Face analysis…
                                     </>
                                 ) : (
-                                    'Run AI Analysis'
+                                    <>
+                                        <FiCpu className="mr-3 h-5 w-5" />
+                                        Run AI Analysis
+                                    </>
                                 )}
                             </button>
 
-                            <div className="mt-6 flex items-start p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                <FiBookOpen className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                                <p className="text-sm text-blue-800">
-                                    <strong>Tip:</strong> Ensure your Excel file has clear column headers. Our AI looks for patterns, sentiment, and key insights to generate the report.
+                            <div className="mt-6 flex items-start rounded-xl border border-violet-100 bg-violet-50 p-4">
+                                <FiBookOpen className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                                <p className="text-sm text-violet-900">
+                                    <strong>Tip:</strong> Use clear column headers. Data stays in your browser — only the summary is sent to Hugging Face for inference.
                                 </p>
                             </div>
                         </div>
 
                         {analysisResult && (
-                            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in">
-                                <div className="bg-gradient-to-r from-gray-50 to-white px-8 py-6 border-b border-gray-200 flex items-center justify-between">
-                                    <h3 className="text-2xl font-bold text-gray-900 flex items-center">
-                                        <FiTarget className="mr-3 text-indigo-600" />
+                            <div className="animate-fade-in overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
+                                <div className="flex items-center justify-between border-b border-gray-100 bg-gradient-to-r from-violet-50 to-white px-8 py-5">
+                                    <h3 className="flex items-center text-2xl font-bold text-gray-900">
+                                        <FiTarget className="mr-3 text-violet-600" />
                                         Analysis Report
                                     </h3>
-                                    <span className="px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold uppercase tracking-wide border border-indigo-200">
-                                        AI Generated
+                                    <span className="rounded-full border border-violet-200 bg-violet-100 px-4 py-1 text-xs font-bold uppercase tracking-wide text-violet-800">
+                                        Hugging Face
                                     </span>
                                 </div>
                                 <div className="p-8 md:p-10">
-                                    <div className="prose max-w-none text-gray-800">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                h1: ({ node, ...props }) => <h1 className="text-3xl font-extrabold text-gray-900 border-b-2 border-indigo-100 pb-3 mb-6 mt-8 first:mt-0" {...props} />,
-                                                h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-4 mb-5 mt-8 bg-gray-50 py-2 rounded-r-lg" {...props} />,
-                                                h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-900 mb-4 mt-6" {...props} />,
-                                                h4: ({ node, ...props }) => <h4 className="text-lg font-bold text-gray-700 mb-3 mt-4" {...props} />,
-                                                p: ({ node, ...props }) => <p className="mb-4 text-gray-700 text-lg leading-relaxed" {...props} />,
-                                                ul: ({ node, ...props }) => <ul className="list-disc pl-6 mb-6 space-y-2 text-gray-700 text-lg" {...props} />,
-                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-6 mb-6 space-y-2 text-gray-700 text-lg" {...props} />,
-                                                li: ({ node, ...props }) => <li className="pl-2" {...props} />,
-                                                table: ({ node, ...props }) => (
-                                                    <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm my-8">
-                                                        <table className="min-w-full divide-y divide-gray-200" {...props} />
-                                                    </div>
-                                                ),
-                                                thead: ({ node, ...props }) => <thead className="bg-indigo-50 text-indigo-900" {...props} />,
-                                                tbody: ({ node, ...props }) => <tbody className="bg-white divide-y divide-gray-200" {...props} />,
-                                                tr: ({ node, ...props }) => <tr className="hover:bg-gray-50 transition-colors group" {...props} />,
-                                                th: ({ node, ...props }) => <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider text-indigo-800 border-r border-indigo-100 last:border-r-0" {...props} />,
-                                                td: ({ node, children, ...props }) => <td className="px-6 py-4 text-sm text-gray-700 border-r border-gray-100 last:border-r-0 leading-relaxed font-medium group-hover:text-gray-900" {...props}>{children}</td>,
-                                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-300 bg-indigo-50/50 py-4 px-6 rounded-r-xl italic text-gray-700 my-6" {...props} />,
-                                                code: ({ node, inline, ...props }) => inline
-                                                    ? <code className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono font-bold" {...props} />
-                                                    : <pre className="bg-gray-900 text-white p-4 rounded-xl overflow-x-auto my-6 shadow-inner"><code {...props} /></pre>,
-                                                strong: ({ node, ...props }) => <strong className="font-extrabold text-gray-900" {...props} />,
-                                                em: ({ node, ...props }) => <em className="text-gray-800 italic" {...props} />,
-                                            }}
-                                        >
-                                            {analysisResult}
-                                        </ReactMarkdown>
-                                    </div>
+                                    <MarkdownReport content={analysisResult} />
                                 </div>
                             </div>
                         )}

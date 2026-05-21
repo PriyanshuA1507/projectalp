@@ -16,9 +16,10 @@ import {
 } from '../data-access/users.data-access.js';
 import { getByDepartmentId } from '../data-access/departments.data-access.js';
 import { set as createFaculty, findByEmail as findFacultyByEmail, findById as findFacultyById } from '../data-access/faculty.data-access.js';
+import { validatePasswordPolicy } from '../utils/password-policy.js';
+import { isValidEmail } from '../utils/validation.js';
 
-const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '12345';
-const MIN_PASSWORD_LENGTH = Number(process.env.MIN_PASSWORD_LENGTH || 5);
+const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
 
 const assertIqacHead = (req) => {
   const role = normalizeRoleValue(req.user?.systemRole ?? req.user?.role);
@@ -94,6 +95,10 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Email is required');
   }
 
+  if (!isValidEmail(emailToUse)) {
+    throw new ApiError(400, 'Valid email is required');
+  }
+
   const normalizedDepartmentId = departmentId?.trim();
   if (!normalizedDepartmentId) {
     throw new ApiError(400, 'Department is required');
@@ -104,9 +109,11 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Valid department is required');
   }
 
-  if (password && password.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+  const passwordToHash = password || DEFAULT_INITIAL_PASSWORD;
+  if (!passwordToHash) {
+    throw new ApiError(400, 'Password is required');
   }
+  validatePasswordPolicy(passwordToHash);
 
   const shouldCreateFaculty = isFaculty !== undefined ? normalizeBoolean(isFaculty) : normalizedRole === 'Faculty Member';
   const shouldBeReportingOfficer = normalizeBoolean(isReportingOfficer);
@@ -150,7 +157,7 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     }
   }
 
-  const passwordHash = await hashPassword(password || DEFAULT_INITIAL_PASSWORD);
+  const passwordHash = await hashPassword(passwordToHash);
   const createdUser = await createUser({
     userId: normalizedUserId,
     email: emailToUse,
@@ -229,9 +236,10 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
   // If admin provided a new password, hash and update it
   let finalUser = updatedUser;
   if (password !== undefined) {
-    if (!password || password.length < MIN_PASSWORD_LENGTH) {
-      throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+    if (!password) {
+      throw new ApiError(400, 'Password cannot be empty');
     }
+    validatePasswordPolicy(password);
 
     const passwordHash = await hashPassword(password);
     finalUser = await updateUserPassword(id, passwordHash);

@@ -202,7 +202,7 @@ export default function Header() {
   const roleBadgeClass = getRoleBadgeColor(role);
 
   return (
-    <header className="flex items-center justify-between h-20 shrink-0 px-8 bg-white border-b sticky top-0 z-[100]">
+    <header className="iqac-header flex h-20 shrink-0 items-center justify-between px-6 sm:px-8 sticky top-0 z-[100]">
       <div className="relative" ref={searchContainerRef}>
         <FiSearch className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400" />
         <input

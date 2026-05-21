@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { aparLogout, aparChangePassword } from '../store/slices/aparAuthSlice.js';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getMinPasswordLength, validatePasswordPolicy } from '../utils/passwordPolicy.js';
 
 export default function ProfileDropdown() {
     const [isOpen, setIsOpen] = useState(false);
@@ -55,8 +56,9 @@ export default function ProfileDropdown() {
             return;
         }
 
-        if (passwordData.newPassword.length < 5) {
-            toast.error("Password must be at least 5 characters long");
+        const passwordError = validatePasswordPolicy(passwordData.newPassword);
+        if (passwordError) {
+            toast.error(passwordError);
             return;
         }
 
@@ -93,11 +95,13 @@ export default function ProfileDropdown() {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1 origin-top-right transform transition-all">
                     <button
                         type="button"
-                        disabled
-                        title="Reset password is currently disabled"
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-400 cursor-not-allowed opacity-60 transition-colors"
+                        onClick={() => {
+                            setIsOpen(false);
+                            setIsModalOpen(true);
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                        <FaKey className="mr-3 text-gray-400" />
+                        <FaKey className="mr-3 text-gray-500" />
                         Reset Password
                     </button>
                     <div className="border-t border-gray-100 my-1"></div>
@@ -140,7 +144,7 @@ export default function ProfileDropdown() {
                                 <input
                                     type="password"
                                     required
-                                    minLength={5}
+                                    minLength={getMinPasswordLength()}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
                                     value={passwordData.newPassword}
                                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
@@ -151,7 +155,7 @@ export default function ProfileDropdown() {
                                 <input
                                     type="password"
                                     required
-                                    minLength={5}
+                                    minLength={getMinPasswordLength()}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
                                     value={passwordData.confirmPassword}
                                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}

@@ -380,23 +380,24 @@ export default function DynamicTableSection({
 
             {/* List View (Table) */}
             {!isAdding && (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="data-table-wrapper">
+                    <div className="data-table-scroll">
+                    <table className="data-table text-left">
+                        <thead>
                             <tr>
                                 {fields.map(f => (
-                                    <th key={f.key} scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                                    <th key={f.key} scope="col" className="!text-left whitespace-nowrap">
                                         {f.label} {f.required && <span className="text-red-500">*</span>}
                                     </th>
                                 ))}
-                                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="!text-right">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody>
                             {data.map((item, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50">
+                                <tr key={idx}>
                                     {fields.map(f => (
                                         <td key={f.key} className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {f.type === 'file' ? (
@@ -448,12 +449,13 @@ export default function DynamicTableSection({
                             )}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
 
             {/* Add/Edit Form */}
             {isAdding && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <div className="form-card-body rounded-xl border border-indigo-100 bg-indigo-50/30 p-6">
                     <h4 className="text-md font-bold text-gray-800 mb-4">{editingIndex !== null ? 'Edit Entry' : 'Add New Entry'}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {fields.map(f => (

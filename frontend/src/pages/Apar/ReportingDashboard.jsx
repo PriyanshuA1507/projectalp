@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { aparFormReportingService } from '../../services/apar_form_reporting.service.js'
 import { aparLogout } from '../../store/slices/aparAuthSlice.js'
 import { FiArchive, FiList } from 'react-icons/fi'
-import NotificationBell from '../../components/NotificationBell.jsx'
+import AparShellHeader from '../../components/AparShellHeader.jsx'
 import { useSocket } from '../../context/SocketContext.jsx'
 
 export default function ReportingDashboard() {
@@ -136,27 +136,23 @@ export default function ReportingDashboard() {
 
   /* ... render ... */
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      {/* ... Header ... */}
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between mb-8 gap-4 relative">
-        <div className="absolute top-0 left-0 -ml-4 -mt-4">
-          {/* Logo logic matches existing */}
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-24 w-auto object-contain" />
-        </div>
-        <div className="ml-24">
-          <h1 className="text-3xl font-bold text-gray-900">{userRole} Dashboard</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage APAR assessments and reviews</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <NotificationBell />
-          <button
-            onClick={handleLogout}
-            disabled={logoutLoading}
-            className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm text-sm font-medium"
-          >
-            {logoutLoading ? 'Logging out…' : 'Logout'}
-          </button>
-        </div>
+    <div className="apar-page-bg min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <AparShellHeader
+          title={`${userRole} Dashboard`}
+          subtitle="Manage APAR assessments and reviews"
+          backTo="/"
+          actions={
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={logoutLoading}
+              className="rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
+            >
+              {logoutLoading ? 'Logging out…' : 'Logout'}
+            </button>
+          }
+        />
       </div>
 
       {/* Tabs */}
@@ -166,7 +162,7 @@ export default function ReportingDashboard() {
             <button
               onClick={() => setViewMode('pending')}
               className={`${viewMode === 'pending'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-emerald-500 text-emerald-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
@@ -176,7 +172,7 @@ export default function ReportingDashboard() {
             <button
               onClick={() => setViewMode('archive')}
               className={`${viewMode === 'archive'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-emerald-500 text-emerald-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
@@ -195,14 +191,14 @@ export default function ReportingDashboard() {
             placeholder="Search by name, designation..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            className="form-field-input-iqac"
           />
         </div>
         <div>
           <select
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            className="form-field-input-iqac"
           >
             <option value="">All Departments</option>
             {departments.map((dept) => (
@@ -212,7 +208,7 @@ export default function ReportingDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border border-gray-100">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
         {loading ? (
           <div className="p-12 text-center text-gray-500">Loading data...</div>
         ) : filteredRows.length === 0 ? (
@@ -223,22 +219,22 @@ export default function ReportingDashboard() {
             }
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="data-table-wrapper">
+            <div className="data-table-scroll">
+            <table className="data-table data-table-apar text-left">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faculty Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AY</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                  <th className="!text-left">Faculty Name</th>
+                  <th className="!text-left">AY</th>
+                  <th className="!text-left">Department</th>
+                  <th className="!text-left">Status</th>
+                  <th className="!text-left">Action</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {filteredRows.map(f => (
-                  console.log('Row Data:', f) ||
-                  <tr key={f.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={f.id}>
+                    <td className="!text-left whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{f.name}</div>
                       <div className="text-xs text-gray-500">{f.designation}</div>
                     </td>
@@ -299,9 +295,10 @@ export default function ReportingDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
-    </div >
+    </div>
   )
 }

@@ -803,16 +803,17 @@ export default function TablePage({ config }) {
   };
 
   return (
-    <div className="bg-gray-50 min-h-[80vh] relative">
+    <div className="table-page min-h-[80vh] relative">
 
 
 
 
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+        <div className="table-page-header mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">{title}</h1>
+            <span className="form-page-badge">Data table</span>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">{title}</h1>
             {scopeIsActive && (
               <p className="mt-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 inline-flex items-center gap-2">
                 <FiFilter size={12} />
@@ -833,7 +834,7 @@ export default function TablePage({ config }) {
               <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                 disabled={loading || filteredItems.length === 0}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="table-toolbar-btn disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiDownload />
                 <span>Export</span>
@@ -854,10 +855,7 @@ export default function TablePage({ config }) {
             <div className="relative">
               <button
                 onClick={toggleColumnManager}
-                className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${isColumnManagerVisible
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
+                className={`table-toolbar-btn ${isColumnManagerVisible ? 'table-toolbar-btn-active' : ''}`}
               >
                 <FiColumns />
                 <span>Columns</span>
@@ -875,10 +873,7 @@ export default function TablePage({ config }) {
             <div className="relative">
               <button
                 onClick={toggleFilterBar}
-                className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${Object.keys(filters).length > 0
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
+                className={`table-toolbar-btn ${Object.keys(filters).length > 0 ? 'table-toolbar-btn-active' : ''}`}
               >
                 <FiFilter />
                 <span>Filter {Object.keys(filters).length > 0 && `(${Object.keys(filters).length})`}</span>
@@ -912,22 +907,22 @@ export default function TablePage({ config }) {
         ) : error ? (
           <div className="text-center p-10 bg-red-50 text-red-700 rounded-lg shadow-sm border border-red-100">{error}</div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 audit-table-container">
-            <div className="overflow-x-auto relative">
-              <table className="min-w-full text-sm text-center text-gray-600">
-                <thead className="bg-gray-50 border-b border-gray-200">
+          <div className="data-table-wrapper audit-table-container">
+            <div className="data-table-scroll relative">
+              <table className="data-table">
+                <thead>
                   <tr>
                     {visibleColumns.map((col) => (
-                      <th key={col.header} className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">{col.header}</th>
+                      <th key={col.header}>{col.header}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody>
                   {filteredItems.map((item, index) => (
-                    <tr key={getNestedValue(item, keyAccessor) || index} className="hover:bg-gray-50 transition-colors">
+                    <tr key={getNestedValue(item, keyAccessor) || index}>
                       {visibleColumns.map((col) => {
                         return (
-                          <td key={col.accessor} className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                          <td key={col.accessor} className="whitespace-nowrap">
                             {col.isAction ? (
                               <div className="flex justify-center gap-2">
                                 {updateFunctionName && (
@@ -959,7 +954,7 @@ export default function TablePage({ config }) {
                   ))}
                   {filteredItems.length === 0 && (
                     <tr>
-                      <td colSpan={visibleColumns.length || 1} className="text-center py-12 text-gray-500">
+                      <td colSpan={visibleColumns.length || 1} className="data-table-empty">
                         <div className="flex flex-col items-center justify-center">
                           <FiFilter className="w-8 h-8 text-gray-300 mb-2" />
                           <p>No {title} found{Object.keys(filters).length > 0 ? ' matching your filters' : ''}.</p>

@@ -2,119 +2,151 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/slices/authSlice.js';
-import { FiExternalLink, FiArrowRight, FiGitBranch } from 'react-icons/fi';
+import {
+  FiArrowRight,
+  FiBarChart2,
+  FiClipboard,
+  FiCpu,
+  FiShield,
+} from 'react-icons/fi';
+
+const PORTALS = [
+  {
+    id: 'iqac',
+    badge: 'Quality Assurance',
+    badgeClass: 'bg-indigo-100 text-indigo-800 ring-indigo-200',
+    accent: 'from-indigo-600 via-indigo-500 to-violet-500',
+    ring: 'ring-indigo-100 hover:ring-indigo-300',
+    icon: FiBarChart2,
+    title: 'IQAC Portal',
+    description:
+      'Manage institutional quality metrics, NAAC data tables, reports, and department submissions in one workspace.',
+    cta: 'Sign in to IQAC',
+    ctaAuthenticated: 'Open Dashboard',
+    onClick: (navigate, isAuthenticated) => {
+      if (isAuthenticated) navigate('/app', { replace: true });
+      else navigate('/login');
+    },
+    features: ['38+ data tables', 'Role-based access', 'Reports & analytics'],
+  },
+  {
+    id: 'apar',
+    badge: 'Performance Review',
+    badgeClass: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+    accent: 'from-emerald-600 via-teal-500 to-cyan-500',
+    ring: 'ring-emerald-100 hover:ring-emerald-300',
+    icon: FiClipboard,
+    title: 'APAR Portal',
+    description:
+      'Annual Performance Appraisal for officers, reporting officers, and reviewing officers with guided multi-part forms.',
+    cta: 'Enter APAR',
+    onClick: (navigate) => navigate('/apar/login'),
+    features: ['Multi-step wizard', 'Officer workflow', 'PDF & Word export'],
+  },
+  {
+    id: 'feedback',
+    badge: 'AI Insights',
+    badgeClass: 'bg-violet-100 text-violet-800 ring-violet-200',
+    accent: 'from-violet-600 via-purple-500 to-fuchsia-500',
+    ring: 'ring-violet-100 hover:ring-violet-300',
+    icon: FiCpu,
+    title: 'Feedback Analysis',
+    description:
+      'Upload CSV or Excel feedback forms and generate institutional insight reports powered by Hugging Face models in your browser.',
+    cta: 'Analyze Feedback',
+    onClick: (navigate) => navigate('/feedback-analysis'),
+    features: ['7 form types', 'Client-side AI', 'Markdown reports'],
+  },
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
-  const handleIqacClick = () => {
-    if (isAuthenticated) {
-      navigate('/app', { replace: true });
-      return;
-    }
-
-    navigate('/login');
-  };
-
-  const handleAparClick = () => {
-    navigate('/apar/login');
-  };
-
   return (
-    <div className="min-h-screen relative">
-      {/* Background Image */}
+    <div className="portal-page-bg min-h-screen relative overflow-hidden">
       <div
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 opacity-30"
         style={{
           backgroundImage: "url('/1703710559423.jpeg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
         }}
       />
-      {/* Overlay to ensure text readability */}
-      <div className="absolute inset-0 bg-white/70 z-0" />
+      <div className="absolute inset-0 z-0 bg-white/75 backdrop-blur-[2px]" />
 
-      <div className="max-w-5xl mx-auto px-6 py-2 relative z-10">
-        <header className="text-center mb-12">
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-50 w-auto mx-auto object-contain mb-2" />
+      <div className="relative z-10 mx-auto max-w-6xl px-6 py-10 md:py-14">
+        <header className="mb-14 text-center">
+          <img
+            src="/dtu_logo.jpeg"
+            alt="DTU Logo"
+            className="mx-auto mb-6 h-24 w-auto object-contain drop-shadow-sm"
+          />
           <p className="text-sm font-semibold uppercase tracking-[0.35em] text-indigo-800">
-            Welcome to
+            Delhi Technological University
           </p>
-          <h1 className="mt-4 text-4xl md:text-5xl font-bold text-gray-900">
-            IQAC Data Management Suite
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">
+            Institutional Quality Suite
           </h1>
-          <p className="mt-4 text-lg text-gray-800 max-w-2xl mx-auto font-medium">
-            Choose the platform you want to explore. You can access the IQAC
-            portal or jump to the APAR system for performance reviews.
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+            One gateway for IQAC data management, APAR performance reviews, and AI-powered feedback analysis.
           </p>
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-4 py-2 text-sm text-gray-600 shadow-sm">
+            <FiShield className="h-4 w-4 text-indigo-500" />
+            Secure, role-based access for academic staff
+          </div>
         </header>
 
         <section className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          <button
-            type="button"
-            onClick={handleAparClick}
-            className="flex flex-col justify-between p-8 bg-white/90 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left border border-white/50"
-          >
-            <div>
-              <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-green-700">
-                Performance Portal
-              </span>
-              <h2 className="mt-6 text-3xl font-bold text-gray-800">APAR</h2>
-              <p className="mt-4 text-base text-gray-600">
-                Annual Performance Appraisal Reporting for academic and
-                administrative staff.
-              </p>
-            </div>
-            <span className="mt-10 inline-flex items-center text-sm font-semibold text-green-700">
-              Fill APAR Form
-              <FiArrowRight className="ml-2 h-4 w-4" />
-            </span>
-          </button>
+          {PORTALS.map((portal) => {
+            const Icon = portal.icon;
+            const ctaLabel =
+              portal.id === 'iqac' && isAuthenticated ? portal.ctaAuthenticated : portal.cta;
 
-          <button
-            type="button"
-            onClick={handleIqacClick}
-            className="flex flex-col justify-between p-8 bg-white/90 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left border border-white/50"
-          >
-            <div>
-              <span className="inline-flex items-center rounded-full bg-indigo-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                IQAC Portal
-              </span>
-              <h2 className="mt-6 text-3xl font-bold text-gray-800">IQAC</h2>
-              <p className="mt-4 text-base text-gray-600">
-                {isAuthenticated
-                  ? 'Continue to your dashboard and manage institutional quality metrics.'
-                  : 'Log in to manage institutional quality metrics, submissions, and analytics.'}
-              </p>
-            </div>
-            <span className="mt-10 inline-flex items-center text-sm font-semibold text-indigo-700">
-              {isAuthenticated ? 'Go to Dashboard' : 'Sign in to IQAC'}
-              <FiArrowRight className="ml-2 h-4 w-4" />
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/feedback-analysis')}
-            className="flex flex-col justify-between p-8 bg-white/90 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left border border-white/50"
-          >
-            <div>
-              <span className="inline-flex items-center rounded-full bg-purple-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-purple-700">
-                AI Feedback Analysis
-              </span>
-              <h2 className="mt-6 text-3xl font-bold text-gray-800">Feedback</h2>
-              <p className="mt-4 text-base text-gray-600">
-                AI-powered analysis of institutional feedback and sentiment tracking.
-              </p>
-            </div>
-            <span className="mt-10 inline-flex items-center text-sm font-semibold text-purple-700">
-              Analyze Feedback
-              <FiArrowRight className="ml-2 h-4 w-4" />
-            </span>
-          </button>
+            return (
+              <button
+                key={portal.id}
+                type="button"
+                onClick={() => portal.onClick(navigate, isAuthenticated)}
+                className={`portal-card group text-left ring-2 ${portal.ring}`}
+              >
+                <div className={`h-1.5 w-full bg-gradient-to-r ${portal.accent}`} />
+                <div className="p-8">
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ring-1 ${portal.badgeClass}`}
+                  >
+                    {portal.badge}
+                  </span>
+                  <div
+                    className={`mt-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${portal.accent}`}
+                  >
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-5 text-2xl font-bold text-gray-900">{portal.title}</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-600">{portal.description}</p>
+                  <ul className="mt-5 space-y-2">
+                    {portal.features.map((feature) => (
+                      <li key={feature} className="flex items-center text-xs font-medium text-gray-500">
+                        <span className={`mr-2 h-1.5 w-1.5 rounded-full bg-gradient-to-r ${portal.accent}`} />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <span
+                    className={`mt-8 inline-flex items-center text-sm font-bold bg-gradient-to-r bg-clip-text text-transparent ${portal.accent}`}
+                  >
+                    {ctaLabel}
+                    <FiArrowRight className="ml-2 h-4 w-4 text-gray-700 transition group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </section>
+
+        <p className="mt-12 text-center text-xs text-gray-500">
+          © DTU IQAC · NAAC compliance data & performance management
+        </p>
       </div>
     </div>
   );

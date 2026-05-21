@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { aparLogin } from '../store/slices/aparAuthSlice.js';
 import { aparAuthService } from '../services/aparAuth.service.js';
+import LoginLayout, { LoginField } from './LoginLayout.jsx';
 
 export default function AparLogin({ loginData, setLoginData }) {
   const dispatch = useDispatch();
@@ -14,13 +15,12 @@ export default function AparLogin({ loginData, setLoginData }) {
   const authError = useSelector((state) => state.aparAuth.error);
   const [localError, setLocalError] = useState('');
 
-  // support standalone usage: if parent doesn't provide loginData, manage locally
   const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
   const effectiveLoginData = loginData ?? localLoginData;
   const effectiveSetLoginData = setLoginData ?? setLocalLoginData;
   const normalizedIdLive = effectiveLoginData.id?.trim().toLowerCase();
   const isEmailValidLive = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdLive || '');
-  const [aparRoleOptions, setAparRoleOptions] = useState(["Officer (Graded)", "Reporting Officer", "Reviewing Officer"]);
+  const [aparRoleOptions, setAparRoleOptions] = useState(['Officer (Graded)', 'Reporting Officer', 'Reviewing Officer']);
 
   const fetchAparAllowedRoles = async (emailValue) => {
     const normalized = emailValue?.trim().toLowerCase();
@@ -28,10 +28,8 @@ export default function AparLogin({ loginData, setLoginData }) {
     try {
       const resp = await aparAuthService.getAllowedRoles(normalized);
       const allowed = resp?.allowedRoles ?? [];
-      if (allowed && allowed.length > 0) {
-        setAparRoleOptions(allowed);
-      }
-    } catch (e) {
+      if (allowed.length > 0) setAparRoleOptions(allowed);
+    } catch {
       // ignore
     }
   };
@@ -42,7 +40,6 @@ export default function AparLogin({ loginData, setLoginData }) {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const from = location.state?.from?.pathname;
       const roleToUse = aparRole || effectiveLoginData.role;
       if (roleToUse === 'Reporting Officer' || roleToUse === 'Reviewing Officer') {
         navigate('/apar/reporting', { replace: true });
@@ -73,75 +70,80 @@ export default function AparLogin({ loginData, setLoginData }) {
       return;
     }
 
-    dispatch(aparLogin({ email: normalizedEmail, password: effectiveLoginData.password, role: effectiveLoginData.role }));
+    dispatch(aparLogin({
+      email: normalizedEmail,
+      password: effectiveLoginData.password,
+      role: effectiveLoginData.role,
+    }));
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Back to Home Button at Top Left */}
-      <div className="absolute top-4 left-4 z-20">
-        <Link to="/" className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
-          <span className="mr-1">←</span> Back to Home
-        </Link>
-      </div>
+    <LoginLayout
+      variant="apar"
+      subtitle="Annual Performance Appraisal — sign in with your institutional email."
+    >
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <LoginField label="Email address" htmlFor="email" variant="apar">
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="name@college.edu"
+            value={effectiveLoginData.id}
+            onChange={(e) => {
+              effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value });
+              if (localError) setLocalError('');
+            }}
+            onBlur={() => fetchAparAllowedRoles(effectiveLoginData.id)}
+          />
+        </LoginField>
 
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: "url('/1703710559423.jpeg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      />
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-white/70 z-0" />
+        <LoginField label="Password" htmlFor="password" variant="apar">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            placeholder="Enter your password"
+            value={effectiveLoginData.password}
+            onChange={(e) => {
+              effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value });
+              if (localError) setLocalError('');
+            }}
+          />
+        </LoginField>
 
-      <div className="relative z-10 mt-4 sm:mx-auto sm:w-full sm:max-w-md font-sans">
-        <div className="text-center mb-4">
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-20 w-auto mx-auto object-contain mb-1" />
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">DTU APAR Login</h1>
-          <p className="mt-2 text-sm text-gray-600">Sign in to access the Annual Performance Appraisal Report system</p>
-        </div>
-        <div className="bg-white/90 py-5 px-8 shadow-2xl sm:rounded-2xl sm:px-12 border border-gray-100">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="id" className="block text-sm font-medium text-gray-700 mb-1"> Login ID </label>
-              <div className="mt-1">
-                <input id="id" name="id" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.id} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, id: e.target.value }); if (localError) setLocalError(''); }} onBlur={() => fetchAparAllowedRoles(effectiveLoginData.id)} />
-              </div>
-            </div>
+        <LoginField label="Sign in as" htmlFor="role" variant="apar">
+          <select
+            id="role"
+            name="role"
+            disabled={!isEmailValidLive}
+            title={!isEmailValidLive ? 'Enter a valid email to select role' : ''}
+            value={effectiveLoginData.role}
+            onChange={(e) => {
+              effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value });
+              if (localError) setLocalError('');
+            }}
+          >
+            {aparRoleOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </LoginField>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1"> Password </label>
-              <div className="mt-1">
-                <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-200" value={effectiveLoginData.password} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, password: e.target.value }); if (localError) setLocalError(''); }} />
-              </div>
-            </div>
+        {localError && <p className="login-error">{localError}</p>}
 
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1"> Role </label>
-              <div className="mt-1">
-                <select id="role" name="role" disabled={!isEmailValidLive} title={!isEmailValidLive ? 'Enter a valid email to select role' : ''} className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-all duration-200" value={effectiveLoginData.role} onChange={(e) => { effectiveSetLoginData({ ...effectiveLoginData, role: e.target.value }); if (localError) setLocalError(''); }}>
-                  {aparRoleOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {(localError) && (<div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-100">{localError}</div>)}
-
-            <div>
-              <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition-all duration-200 hover:-translate-y-0.5" disabled={status === 'loading'}>
-                {status === 'loading' ? 'Signing in...' : 'Sign in to APAR'}
-              </button>
-            </div>
-
-          </form>
-        </div>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={status === 'loading' || !isEmailValidLive}
+          className="login-submit bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 focus:ring-emerald-500"
+        >
+          {status === 'loading' ? 'Signing in…' : 'Sign in to APAR'}
+        </button>
+      </form>
+    </LoginLayout>
   );
 }

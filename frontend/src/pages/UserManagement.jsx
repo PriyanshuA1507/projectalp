@@ -7,6 +7,9 @@ import { selectInitializeStatus, selectRole } from '../store/slices/authSlice.js
 import { ROLES } from '../config/rolePermissions.js';
 import { userManagementService } from '../services/user_management.service.js';
 import { DepartmentService } from '../services/department.services.js';
+import { validatePasswordPolicy } from '../utils/passwordPolicy.js';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
 const APAR_ROLE_OPTIONS = [
@@ -174,9 +177,24 @@ export default function UserManagement() {
       return;
     }
 
-    if (!createForm.email?.trim()) {
+    const normalizedEmail = createForm.email?.trim().toLowerCase();
+    if (!normalizedEmail) {
       toast.error('Email is required');
       return;
+    }
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    const passwordToUse = createForm.password?.trim();
+    if (passwordToUse) {
+      const passwordError = validatePasswordPolicy(passwordToUse);
+      if (passwordError) {
+        toast.error(passwordError);
+        return;
+      }
     }
 
     if (!createForm.role) {
@@ -194,7 +212,7 @@ export default function UserManagement() {
       await userManagementService.createUser({
         userId: createForm.userId.trim(),
         name: createForm.name.trim(),
-        email: createForm.email.trim(),
+        email: normalizedEmail,
         designation: createForm.designation?.trim() || null,
         role: createForm.role,
         password: createForm.password?.trim() || null,
@@ -226,9 +244,12 @@ export default function UserManagement() {
     const draft = drafts[user.id] || {};
     const password = draft.password?.trim() || '';
 
-    if (password && password.length < 12) {
-      toast.error('Password must be at least 12 characters long');
-      return;
+    if (password) {
+      const passwordError = validatePasswordPolicy(password);
+      if (passwordError) {
+        toast.error(passwordError);
+        return;
+      }
     }
 
     setSaving(true);
@@ -333,7 +354,8 @@ export default function UserManagement() {
       </div>
 
       <div className="grid gap-8">
-        <form onSubmit={handleCreate} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <form onSubmit={handleCreate} className="form-card">
+          <div className="form-card-body">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600">
               <FiUserPlus className="h-5 w-5" />
@@ -352,7 +374,7 @@ export default function UserManagement() {
                   type="text"
                   value={createForm.userId || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, userId: event.target.value }))}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                   placeholder="e.g. FAC001 or U1001"
                 />
               </label>
@@ -363,7 +385,7 @@ export default function UserManagement() {
                   type="text"
                   value={createForm.name || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                   placeholder="Full name"
                 />
               </label>
@@ -376,7 +398,7 @@ export default function UserManagement() {
                   type="email"
                   value={createForm.email || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                   placeholder="user@example.com"
                 />
               </label>
@@ -387,7 +409,7 @@ export default function UserManagement() {
                   type="text"
                   value={createForm.designation || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, designation: event.target.value }))}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                   placeholder="Optional"
                 />
               </label>
@@ -400,19 +422,22 @@ export default function UserManagement() {
                   value={createForm.role || ''}
                   onChange={(event) => handleCreateRoleChange(event.target.value)}
                   required
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                 >
                   <option value="" disabled>Select role</option>
                   {ROLE_OPTIONS.map((option) => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
-                <span className="mb-2 mt-4 block text-sm font-medium text-gray-700">Department</span>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">Department</span>
                 <select
                   value={createForm.departmentId || ''}
                   onChange={(event) => setCreateForm((current) => ({ ...current, departmentId: event.target.value }))}
                   required
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                 >
                   <option value="" disabled>Select department</option>
                   {departments.map((department) => (
@@ -425,9 +450,12 @@ export default function UserManagement() {
                   ))}
                 </select>
               </label>
+            </div>
 
-              <label className="block">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block md:col-span-2">
                 <span className="mb-2 block text-sm font-medium text-gray-700">Temporary password</span>
+                <p className="mb-2 text-xs text-gray-500">At least 12 characters with letters and numbers.</p>
                 <div className="relative">
                   <input
                     type={createPasswordVisible ? 'text' : 'password'}
@@ -453,7 +481,7 @@ export default function UserManagement() {
                 <select
                   value={createForm.isReportingOfficer}
                   onChange={(event) => handleCreateFlagChange('isReportingOfficer', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                 >
                   {YES_NO_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -466,7 +494,7 @@ export default function UserManagement() {
                 <select
                   value={createForm.isReviewingOfficer}
                   onChange={(event) => handleCreateFlagChange('isReviewingOfficer', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="form-field-input-iqac"
                 >
                   {YES_NO_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -475,18 +503,18 @@ export default function UserManagement() {
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+          </div>
+          </div>
+          <div className="form-card-footer -mx-6 -mb-6 sm:-mx-8 sm:-mb-8">
+            <button type="submit" disabled={saving} className="form-btn-primary w-full justify-center sm:w-auto">
               <FiUserPlus />
               Create user
             </button>
           </div>
         </form>
 
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="form-card">
+          <div className="form-card-body">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Existing users</h2>
@@ -498,25 +526,26 @@ export default function UserManagement() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search users..."
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 md:max-w-xs"
+              className="form-field-input-iqac md:max-w-xs"
             />
           </div>
 
-          <div className="mt-6 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
+          <div className="data-table-wrapper mt-6">
+            <div className="data-table-scroll">
+            <table className="data-table text-left">
               <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  <th className="px-3 py-3">User</th>
-                  <th className="px-3 py-3">Email</th>
-                  <th className="px-3 py-3">Role</th>
-                  <th className="px-3 py-3">APAR Role</th>
-                  <th className="px-3 py-3">Department</th>
-                  <th className="px-3 py-3">Password</th>
-                  <th className="px-3 py-3">Created</th>
-                  <th className="px-3 py-3">Action</th>
+                <tr>
+                  <th className="!text-left">User</th>
+                  <th className="!text-left">Email</th>
+                  <th className="!text-left">Role</th>
+                  <th className="!text-left">APAR Role</th>
+                  <th className="!text-left">Department</th>
+                  <th className="!text-left">Password</th>
+                  <th className="!text-left">Created</th>
+                  <th className="!text-left">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {filteredUsers.map((user) => {
                   const draft = drafts[user.id] || {
                     role: user.role,
@@ -621,13 +650,15 @@ export default function UserManagement() {
 
                 {filteredUsers.length === 0 && (
                   <tr>
-                    <td className="px-3 py-8 text-sm text-gray-500" colSpan={7}>
+                    <td className="data-table-empty text-sm text-gray-500" colSpan={8}>
                       No users found.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+            </div>
+          </div>
           </div>
         </div>
       </div>

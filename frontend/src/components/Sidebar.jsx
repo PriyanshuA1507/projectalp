@@ -57,7 +57,7 @@ const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => 
     >
       <Link
         to={to}
-        className={`flex items-center text-gray-500 transition-all duration-200 ${isActive ? 'text-indigo-600 font-semibold bg-indigo-50' : 'hover:bg-gray-100'
+        className={`mx-2 flex items-center rounded-xl text-gray-600 transition-all duration-200 ${isActive ? 'bg-indigo-600 font-semibold text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50 hover:text-indigo-700'
           } ${isCollapsed ? 'justify-center h-12' : `justify-center md:justify-start md:px-4 md:pr-10 ${isHovered ? 'min-h-[3rem] py-2' : 'h-12'}`
           }`}
       >
@@ -185,20 +185,23 @@ export default function Sidebar() {
 
   return (
     <div
-      className={`flex flex-col bg-white shadow-lg transition-width duration-300 ease-in-out sticky top-0 h-screen z-20 ${isCollapsed ? 'w-20' : 'w-20 md:w-64'
+      className={`iqac-sidebar flex flex-col shadow-lg transition-width duration-300 ease-in-out sticky top-0 h-screen z-20 ${isCollapsed ? 'w-20' : 'w-20 md:w-64'
         }`}
     >
       <div
-        className={`flex items-center h-20 shrink-0 bg-white border-b ${isCollapsed ? 'justify-center px-1' : 'justify-center md:justify-between px-4'
+        className={`flex h-20 shrink-0 items-center border-b border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white ${isCollapsed ? 'justify-center px-1' : 'justify-center px-4 md:justify-between'
           }`}
       >
         <Link
           to="/app"
-          className={`items-center text-2xl font-bold text-indigo-600 ${isCollapsed ? 'hidden' : 'hidden md:flex'
+          className={`items-center ${isCollapsed ? 'hidden' : 'hidden md:flex min-w-0'
             }`}
         >
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-16 w-auto mr-3" />
-          <span className="text-2xl font-extrabold text-indigo-900 tracking-wider truncate">{departmentLabel}</span>
+          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="mr-3 h-12 w-auto shrink-0 rounded-lg shadow-sm" />
+          <div className="min-w-0">
+            <span className="iqac-sidebar-brand block truncate text-lg font-extrabold tracking-wide">IQAC Portal</span>
+            <span className="block truncate text-xs font-medium text-indigo-600/80">{departmentLabel}</span>
+          </div>
         </Link>
 
         <Link

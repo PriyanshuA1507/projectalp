@@ -10,6 +10,7 @@ import { Api } from '../../api/Api.js';
 import { toast } from 'sonner';
 
 import AparTimeline from '../../components/AparTimeline.jsx';
+import AparShellHeader from '../../components/AparShellHeader.jsx';
 
 export default function OfficerDashboard() {
     const navigate = useNavigate();
@@ -197,33 +198,34 @@ export default function OfficerDashboard() {
     };
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
+        return (
+            <div className="apar-page-bg flex min-h-screen items-center justify-center">
+                <div className="flex items-center gap-3 rounded-xl bg-white px-6 py-4 shadow-sm">
+                    <FiLoader className="h-5 w-5 animate-spin text-emerald-600" />
+                    <span className="text-sm font-medium text-gray-600">Loading dashboard…</span>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-5xl mx-auto">
-
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8 relative">
-                    <div className="absolute top-0 left-0 -ml-16 -mt-4">
-                        <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-24 w-auto object-contain" />
-                    </div>
-                    <div className="ml-12">
-                        <h1 className="text-3xl font-bold text-gray-900">Welcome</h1>
-                        <p className="text-gray-600 mt-1">APAR Dashboard</p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                        <NotificationBell />
+        <div className="apar-page-bg min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-5xl">
+                <AparShellHeader
+                    title="Officer Dashboard"
+                    subtitle="Manage your Annual Performance Appraisal forms"
+                    backTo="/"
+                    actions={
                         <button
+                            type="button"
                             onClick={handleLogout}
                             disabled={logoutLoading}
-                            className="text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors shadow-sm"
+                            className="rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
                         >
-                            {logoutLoading ? 'Signing out...' : 'Sign Out'}
+                            {logoutLoading ? 'Signing out…' : 'Sign Out'}
                         </button>
-                    </div>
-                </div>
+                    }
+                />
 
                 {/* Faculty Profile Image & Info */}
                 {user?.name && (
@@ -272,8 +274,8 @@ export default function OfficerDashboard() {
                 )}
 
                 {/* Selected Year Section */}
-                <div className="bg-white shadow-lg rounded-2xl overflow-hidden mb-8 border border-indigo-100">
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="mb-8 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-lg">
+                    <div className="flex flex-col items-center justify-between gap-4 bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 text-white sm:flex-row">
                         <h2 className="text-lg font-bold flex items-center">
                             <FiClock className="mr-2" /> Selected Academic Year
                         </h2>
@@ -351,29 +353,29 @@ export default function OfficerDashboard() {
                 </div>
 
                 {/* Archive Section */}
-                <div className="bg-white shadow-md rounded-2xl overflow-hidden border border-gray-200">
-                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center">
-                        <FiArchive className="text-gray-500 mr-2" />
-                        <h2 className="text-lg font-bold text-gray-700">APAR Archive (Last 5 Years)</h2>
+                <div className="data-table-wrapper">
+                    <div className="flex items-center border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50/50 px-6 py-4">
+                        <FiArchive className="mr-2 text-emerald-600" />
+                        <h2 className="text-lg font-bold text-gray-800">APAR Archive (Last 5 Years)</h2>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                    <div className="data-table-scroll">
+                        <table className="data-table data-table-apar text-left">
+                            <thead>
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    <th className="!text-left">Academic Year</th>
+                                    <th className="!text-left">Status</th>
+                                    <th className="!text-left">Last Updated</th>
+                                    <th className="!text-right">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 {archiveYears.map((year) => {
                                     const form = history.find(f => normalizeAY(f.ay) === normalizeAY(year));
                                     return (
-                                        <tr key={year} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{year}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                        <tr key={year}>
+                                            <td className="!text-left whitespace-nowrap font-medium text-gray-900">{year}</td>
+                                            <td className="!text-left whitespace-nowrap">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(form ? form.status : 'Not Filled')}`}>
                                                     {form ? (form.status || 'Draft') : 'Not Filled'}
                                                 </span>
@@ -385,7 +387,7 @@ export default function OfficerDashboard() {
                                                 {form ? (
                                                     <button
                                                         onClick={() => handleStartOrEdit(year)}
-                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                        className="font-semibold text-emerald-700 hover:text-emerald-900"
                                                     >
                                                         View
                                                     </button>

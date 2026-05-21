@@ -16,12 +16,12 @@ import {
     extractFacultyId
 } from '../config/duplicateDetectionConfig';
 import { toast } from 'sonner';
-console.log("dtu college")
+import FormPageHeader from './FormPageHeader.jsx';
 
-const InputField = ({ label, name, type = 'text', placeholder, value, onChange, required }) => (
+const InputField = ({ label, name, type = 'text', placeholder, value, onChange, required, className = '' }) => (
     <div>
         {label && (
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <label className="form-field-label-iqac">
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
             </label>
@@ -32,7 +32,8 @@ const InputField = ({ label, name, type = 'text', placeholder, value, onChange, 
             placeholder={placeholder}
             value={value}
             onChange={onChange}
-            className="w-full h-12 px-4 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required={required}
+            className={`form-field-input-iqac ${className}`}
         />
     </div>
 );
@@ -127,7 +128,7 @@ const ListField = ({ label, name, values, onChange }) => {
                         type="text"
                         value={item}
                         onChange={(e) => handleItemChange(index, e.target.value)}
-                        className="w-full h-12 px-4 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="form-field-input-iqac"
                     />
                     <button type="button" onClick={() => handleRemoveItem(index)} className="ml-2 text-red-500">Remove</button>
                 </div>
@@ -453,10 +454,34 @@ const AddPage = () => {
 
     const navigate = useNavigate(); // Hook for navigation
 
+    const validateRequiredFields = () => {
+        const missing = resource.columns
+            .filter((col) => col.required && !col.hideInForm && col.accessor)
+            .filter((col) => {
+                const value = formData[col.accessor];
+                if (value === null || value === undefined) return true;
+                if (typeof value === 'string') return value.trim() === '';
+                if (Array.isArray(value)) return value.length === 0;
+                return false;
+            })
+            .map((col) => col.header || col.accessor);
+
+        if (missing.length > 0) {
+            toast.error(`Please fill required fields: ${missing.join(', ')}`);
+            return false;
+        }
+        return true;
+    };
+
     const handleSubmit = async (e, forceCreate = false) => {
         if (e) e.preventDefault();
         setError(null);
         setSuccess(null);
+
+        if (!validateRequiredFields()) {
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -657,7 +682,7 @@ const AddPage = () => {
                             {col.header}
                             {col.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <div className={`flex items-center h-12 px-4 bg-gray-100 rounded-lg ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className={`flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50/80 px-4 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
                             <input
                                 type="checkbox"
                                 name={col.accessor}
@@ -680,7 +705,7 @@ const AddPage = () => {
                             {col.header}
                             {col.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <select {...commonProps} value={formData[col.accessor] || ''} className="w-full h-12 px-4 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:bg-gray-200">
+                        <select {...commonProps} value={formData[col.accessor] || ''} className="form-field-input-iqac disabled:opacity-50">
                             <option value="">{col.placeholder || 'Select...'}</option>
                             {col.options?.map(option => (
                                 <option key={option.value || option} value={option.value || option}>
@@ -701,7 +726,7 @@ const AddPage = () => {
                             {...commonProps}
                             value={formData[col.accessor] || ''}
                             rows={col.rows || 3}
-                            className="w-full px-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:bg-gray-200"
+                            className="form-field-input-iqac disabled:opacity-50"
                         />
                     </div>
                 );
@@ -750,7 +775,7 @@ const AddPage = () => {
                         value={formData[col.accessor] || ''}
                         required={col.required}
                         {...commonProps}
-                        className={`w-full h-12 px-4 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDisabled ? 'opacity-50 bg-gray-200 cursor-not-allowed' : ''}`}
+                        className={`form-field-input-iqac ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                 );
             case 'list':
@@ -833,45 +858,46 @@ const AddPage = () => {
 
     return (
         <div>
-            <h1 className="text-4xl font-bold mb-8">{editMode ? `Edit ${resource.title}` : resource.addLabel}</h1>
-            <div className="p-8 bg-white rounded-lg shadow-md">
-                {success && <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded">{success}</div>}
-                {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded">{error}</div>}
-                <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {resource.columns
-                            .filter(col => !col.hideInForm) // Exclude columns hidden from form
-                            .map(col => (
-                                col.accessor && <div key={col.accessor}>{renderField(col)}</div>
-                            ))}
-                    </div>
-                    <div className="flex justify-end space-x-4 mt-8">
-                        <Link
-                            to={resource.tablePath}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                        >
-                            <FiX />
-                            <span>Cancel</span>
-                        </Link>
-                        <button
-                            type="submit"
-                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <>
-                                    <FiLoader className="animate-spin" />
-                                    <span>{editMode ? 'Updating...' : 'Saving...'}</span>
-                                </>
-                            ) : (
-                                <>
-                                    <FiSave />
-                                    <span>{editMode ? 'Update' : 'Save'}</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
+            <FormPageHeader
+                badge={editMode ? 'Edit record' : 'New entry'}
+                title={editMode ? `Edit ${resource.title}` : resource.addLabel}
+                subtitle={`Fill in the required fields marked with * · ${resource.title}`}
+                backTo={resource.tablePath}
+                backLabel="Back to table"
+            />
+            <div className="form-card">
+                <div className="form-card-body">
+                    {success && <div className="form-alert-success">{success}</div>}
+                    {error && <div className="form-alert-error">{error}</div>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+                            {resource.columns
+                                .filter(col => !col.hideInForm)
+                                .map(col => (
+                                    col.accessor && <div key={col.accessor}>{renderField(col)}</div>
+                                ))}
+                        </div>
+                        <div className="form-card-footer -mx-6 -mb-6 mt-8 sm:-mx-8 sm:-mb-8">
+                            <Link to={resource.tablePath} className="form-btn-secondary">
+                                <FiX />
+                                <span>Cancel</span>
+                            </Link>
+                            <button type="submit" className="form-btn-primary" disabled={loading}>
+                                {loading ? (
+                                    <>
+                                        <FiLoader className="animate-spin" />
+                                        <span>{editMode ? 'Updating…' : 'Saving…'}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiSave />
+                                        <span>{editMode ? 'Update' : 'Save'}</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             {/* Duplicate Detection Modal */}

@@ -15,7 +15,7 @@ import {
 import checkDuplicate from "../controllers/duplicate-check.controller.js";
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { aparDraftSchema, aparFormSchema, aparAssessmentSchema } from '../validators/apar-form.validator.js';
+import { aparDraftSchema, aparFormSchema, aparAssessmentSchema, aparReviewingSchema } from '../validators/apar-form.validator.js';
 
 const router = Router();
 
@@ -34,6 +34,6 @@ router.route("/reporting/pending").get(authenticate, getPendingReporting);
 router.route("/reporting/submit").post(authenticate, validate(aparAssessmentSchema), submitReportingAssessment);
 
 router.route("/reviewing/pending").get(authenticate, getPendingReviewing);
-router.route("/reviewing/submit").post(authenticate, submitReviewingRemarks);
+router.route("/reviewing/submit").post(authenticate, validate(aparReviewingSchema), submitReviewingRemarks);
 
 export default router;

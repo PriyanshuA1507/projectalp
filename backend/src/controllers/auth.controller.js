@@ -286,7 +286,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     await updateUserAttributes({
       id: userRecord.id,
       email: emailToPersist,
-      role: needsRoleUpdate ? facultyRole : currentRole,
+      role: needsRoleUpdate ? (normalizeRoleValue(facultyMember?.role) ?? currentRole) : currentRole,
       departmentId: needsDepartmentUpdate ? facultyDepartmentId : (userRecord.departmentId ?? null)
     });
 

@@ -12,7 +12,7 @@ const resolveBaseUrl = (explicitUrl) => {
 
     if (typeof window !== 'undefined') {
         const { protocol, hostname } = window.location;
-        return `${protocol}//${hostname}:3000/api/v1`;
+        return `${protocol}//${hostname}:8000/api/v1`;
     }
 
     throw new Error('API base URL is not configured. Set VITE_BASEURL to your backend origin.');

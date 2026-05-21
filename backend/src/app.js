@@ -158,7 +158,7 @@ const registerProtectedRoute = (path, router) => {
 app.use('/api/v1/auth/login', authRateLimiter)
 app.use('/api/v1/apar/auth/login', authRateLimiter)
 app.use('/api/v1/auth', authRoutes)
-app.use('/api/v1/feedback', feedbackRoutes)
+app.use('/api/v1/feedback', authenticate, feedbackRoutes)
 app.use('/api/v1/apar/auth', aparAuthRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
 app.use('/api/v1/dashboard', dashboardRoutes)

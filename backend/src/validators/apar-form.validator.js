@@ -465,3 +465,15 @@ export const aparAssessmentSchema = z.object({
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough()
 });
+
+export const aparReviewingSchema = z.object({
+  body: z.object({
+    faculty_id: z.string().min(1, 'Faculty ID is required'),
+    ay: z.string().min(1, 'Academic Year is required'),
+    remarks: z.record(z.string(), z.unknown()).optional(),
+    status: z.string().min(1, 'Status is required'),
+    query_comment: z.string().optional()
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough()
+});
