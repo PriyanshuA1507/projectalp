@@ -197,21 +197,22 @@ export default function FeedbackAnalysis() {
 
                 {!selectedType ? (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {ANALYSIS_TYPES.map((type) => {
+                        {ANALYSIS_TYPES.map((type, index) => {
                             const Icon = type.icon;
                             return (
                                 <button
                                     key={type.id}
                                     type="button"
                                     onClick={() => setSelectedType(type.id)}
-                                    className="portal-card group text-left ring-2 ring-violet-100 hover:ring-violet-300"
+                                    className="feedback-card-enhanced portal-card group text-left p-6 animate-slide-up"
+                                    style={{ animationDelay: `${index * 100}ms` }}
                                 >
                                     <div
-                                        className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${COLOR_CLASSES[type.color]}`}
+                                        className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 ${COLOR_CLASSES[type.color]}`}
                                     >
-                                        <Icon className="h-7 w-7" />
+                                        <Icon className="h-7 w-7 feedback-icon-glow" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-gray-900">{type.title}</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-violet-700 transition-colors">{type.title}</h3>
                                     <p className="mt-2 text-sm leading-relaxed text-gray-600">{type.description}</p>
                                 </button>
                             );
@@ -220,14 +221,17 @@ export default function FeedbackAnalysis() {
                 ) : (
                     <div className="mx-auto flex max-w-4xl flex-col gap-8">
                         {/* API Key */}
-                        <div className="rounded-2xl border border-violet-200 bg-white/95 p-6 shadow-sm">
+                        <div className="feedback-section-card rounded-2xl border border-violet-200 bg-white/95 p-6 shadow-sm animate-slide-up">
                             <h3 className="mb-4 flex items-center text-lg font-bold text-gray-900">
-                                <FiKey className="mr-2 text-violet-600" />
+                                <FiKey className="mr-2 text-violet-600 feedback-icon-glow" />
                                 Hugging Face API Key
                             </h3>
                             {hasEnvKey ? (
-                                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3">
-                                    Using key from <code className="font-mono text-xs">VITE_HUGGINGFACE_API_KEY</code> in your .env file.
+                                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 shadow-sm">
+                                    <span className="flex items-center">
+                                        <span className="mr-2">✓</span>
+                                        Using key from <code className="font-mono text-xs bg-emerald-100 px-1 rounded">VITE_HUGGINGFACE_API_KEY</code> in your .env file.
+                                    </span>
                                 </p>
                             ) : (
                                 <div className="space-y-3">
@@ -257,21 +261,22 @@ export default function FeedbackAnalysis() {
                                         Remember for this browser session
                                     </label>
                                     <p className="text-xs text-gray-500">
-                                        Or add <code className="rounded bg-gray-100 px-1">VITE_HUGGINGFACE_API_KEY=hf_...</code> to{' '}
-                                        <code className="rounded bg-gray-100 px-1">frontend/.env</code>
+                                        Token needs <strong>Inference Providers</strong> permission. Add{' '}
+                                        <code className="rounded bg-gray-100 px-1">VITE_HUGGINGFACE_API_KEY=hf_...</code> to{' '}
+                                        <code className="rounded bg-gray-100 px-1">frontend/.env</code>, then restart the dev server.
                                     </p>
                                 </div>
                             )}
                         </div>
 
                         {/* Upload */}
-                        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+                        <div className="feedback-section-card rounded-2xl border border-gray-100 bg-white p-8 shadow-sm animate-slide-up" style={{ animationDelay: '100ms' }}>
                             <h3 className="mb-6 flex items-center text-xl font-bold text-gray-900">
-                                <FiUploadCloud className="mr-3 text-violet-600" />
+                                <FiUploadCloud className="mr-3 text-violet-600 feedback-icon-glow" />
                                 Upload Data
                             </h3>
 
-                            <div className="relative rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-10 text-center transition hover:border-violet-300 hover:bg-violet-50/50">
+                            <div className="feedback-upload-area relative rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-10 text-center transition">
                                 <input
                                     type="file"
                                     accept=".xlsx,.xls,.csv"
@@ -279,14 +284,16 @@ export default function FeedbackAnalysis() {
                                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                                 />
                                 <div className="pointer-events-none flex flex-col items-center">
-                                    <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${file ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-                                        <FiUploadCloud className={`h-8 w-8 ${file ? 'text-emerald-600' : 'text-gray-400'}`} />
+                                    <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full transition-all duration-300 ${file ? 'bg-emerald-100 scale-110' : 'bg-gray-100'}`}>
+                                        <FiUploadCloud className={`h-8 w-8 transition-colors ${file ? 'text-emerald-600' : 'text-gray-400'}`} />
                                     </div>
                                     <p className="text-lg font-semibold text-gray-900">
                                         {file ? file.name : 'Drop Excel or CSV here'}
                                     </p>
                                     <p className="mt-1 text-sm text-gray-500">
-                                        {rowCount > 0 ? `${rowCount} rows detected` : 'Supported: .xlsx, .xls, .csv'}
+                                        {rowCount > 0 ? (
+                                            <span className="text-emerald-600 font-medium">✓ {rowCount} rows detected</span>
+                                        ) : 'Supported: .xlsx, .xls, .csv'}
                                     </p>
                                 </div>
                             </div>
@@ -299,10 +306,10 @@ export default function FeedbackAnalysis() {
                                 type="button"
                                 onClick={handleAnalyze}
                                 disabled={!file || loading}
-                                className={`mt-6 flex w-full items-center justify-center rounded-xl py-4 text-lg font-bold text-white transition shadow-md
+                                className={`mt-6 feedback-button-primary flex w-full items-center justify-center rounded-xl py-4 text-lg font-bold text-white transition
                                     ${!file || loading
-                                        ? 'cursor-not-allowed bg-gray-300 shadow-none'
-                                        : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700'}`}
+                                        ? 'cursor-not-allowed opacity-50'
+                                        : ''}`}
                             >
                                 {loading ? (
                                     <>
@@ -317,8 +324,8 @@ export default function FeedbackAnalysis() {
                                 )}
                             </button>
 
-                            <div className="mt-6 flex items-start rounded-xl border border-violet-100 bg-violet-50 p-4">
-                                <FiBookOpen className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                            <div className="mt-6 flex items-start rounded-xl border border-violet-200 bg-violet-50/80 p-4 backdrop-blur-sm">
+                                <FiBookOpen className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-violet-600 feedback-icon-glow" />
                                 <p className="text-sm text-violet-900">
                                     <strong>Tip:</strong> Use clear column headers. Data stays in your browser — only the summary is sent to Hugging Face for inference.
                                 </p>
@@ -326,13 +333,13 @@ export default function FeedbackAnalysis() {
                         </div>
 
                         {analysisResult && (
-                            <div className="animate-fade-in overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
-                                <div className="flex items-center justify-between border-b border-gray-100 bg-gradient-to-r from-violet-50 to-white px-8 py-5">
+                            <div className="feedback-report-container animate-fade-in overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
+                                <div className="flex items-center justify-between border-b border-violet-200 bg-gradient-to-r from-violet-50 to-white px-8 py-5">
                                     <h3 className="flex items-center text-2xl font-bold text-gray-900">
-                                        <FiTarget className="mr-3 text-violet-600" />
+                                        <FiTarget className="mr-3 text-violet-600 feedback-icon-glow" />
                                         Analysis Report
                                     </h3>
-                                    <span className="rounded-full border border-violet-200 bg-violet-100 px-4 py-1 text-xs font-bold uppercase tracking-wide text-violet-800">
+                                    <span className="rounded-full border border-violet-300 bg-violet-100 px-4 py-1 text-xs font-bold uppercase tracking-wide text-violet-800 shadow-sm">
                                         Hugging Face
                                     </span>
                                 </div>
