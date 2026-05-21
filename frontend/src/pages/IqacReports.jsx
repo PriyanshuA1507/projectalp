@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { resources } from '../config/tableConfig';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import { filterRecordsByScope } from '../utils/iqacScopeFilter.js';
+import { getLastAcademicYears } from '../utils/academicYears.js';
 import { FiDownload, FiFileText, FiCalendar, FiClock } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
@@ -17,7 +18,7 @@ export default function IqacReports() {
   const [monthYear, setMonthYear] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const academicYears = ['2020-21', '2021-22', '2022-23', '2023-24', '2024-25', '2025-26', '2026-27'];
+  const academicYears = getLastAcademicYears(10);
 
   const filterData = (data) => {
     if (!data || !Array.isArray(data)) return [];

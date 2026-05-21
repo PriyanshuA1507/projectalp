@@ -15,6 +15,8 @@ import { Notification } from '../models/notification.model.js';
 import { FacultyActivity } from '../models/facultyActivity.model.js';
 import { Collaboration } from '../models/collaboration.model.js';
 import { Training } from '../models/training.model.js';
+import { Teaching } from '../models/teaching.model.js';
+import { Course } from '../models/course.model.js';
 
 const CHART_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
 
@@ -148,36 +150,27 @@ const withDepartment = (departmentId) => (
     departmentId && departmentId !== 'All' ? { department_id: departmentId } : {}
 );
 
-const buildFallbackAcademicYears = () => {
-    const currentStart = new Date().getFullYear() - 1;
+const getCurrentAcademicYearStart = () => {
+    const now = new Date();
+    const calendarYear = now.getFullYear();
+    return now.getMonth() >= 6 ? calendarYear : calendarYear - 1;
+};
+
+/** Session dropdown: All + last 10 academic years (newest first). */
+const buildLastTenAcademicYears = () => {
+    const startYear = getCurrentAcademicYearStart();
     const years = ['All'];
-    for (let i = 6; i >= 0; i -= 1) {
-        const start = currentStart - i;
+
+    for (let i = 0; i < 10; i += 1) {
+        const start = startYear - i;
         const end = String(start + 1).slice(-2);
         years.push(`${start}-${end}`);
     }
+
     return years;
 };
 
-const fetchDistinctAcademicYears = async () => {
-    const collections = [
-        Programme.distinct('academic_year'),
-        Publication.distinct('academic_year'),
-        Patent.distinct('academic_year'),
-        StudentActivity.distinct('academic_year'),
-        ResearchProject.distinct('academic_year'),
-        AparForm.distinct('ay')
-    ];
-
-    const values = (await Promise.all(collections))
-        .flat()
-        .filter((value) => value && String(value).trim());
-
-    const unique = [...new Set(values.map((value) => String(value).trim()))]
-        .sort((a, b) => b.localeCompare(a));
-
-    return unique.length ? ['All', ...unique] : buildFallbackAcademicYears();
-};
+const fetchDistinctAcademicYears = async () => buildLastTenAcademicYears();
 
 const fetchDepartmentOptions = async (scopeDepartmentId) => {
     const query = scopeDepartmentId && scopeDepartmentId !== 'All'
@@ -308,10 +301,49 @@ const buildAcademicPerformance = async (academicYear, departmentId, departments)
     }));
 };
 
+const buildCourseYearFilter = (academicYear) => {
+    if (!academicYear || academicYear === 'All') {
+        return {};
+    }
+
+    const start = parseInt(String(academicYear).split('-')[0], 10);
+    if (Number.isNaN(start)) {
+        return {};
+    }
+
+    return { year_of_introduction: { $in: [start, start + 1] } };
+};
+
+const buildInfrastructureYearFilter = (academicYear) => {
+    if (!academicYear || academicYear === 'All') {
+        return {};
+    }
+
+    const start = parseInt(String(academicYear).split('-')[0], 10);
+    if (Number.isNaN(start)) {
+        return {};
+    }
+
+    return {
+        $or: [
+            { year_of_installation: { $in: [start, start + 1] } },
+            { year_of_purchase: { $in: [start, start + 1] } }
+        ]
+    };
+};
+
+const countToFeedbackScore = (count, scale = 4) => {
+    if (count <= 0) {
+        return 0;
+    }
+    return Number(Math.min(5, (count / scale) * 5).toFixed(2));
+};
+
 const buildInfrastructureScore = async (academicYear, departmentId) => {
     const match = {
         type: 'it_stock',
-        ...withDepartment(departmentId)
+        ...withDepartment(departmentId),
+        ...buildInfrastructureYearFilter(academicYear)
     };
 
     const rows = await DepartmentResource.find(match).select('condition_status').lean();
@@ -322,6 +354,80 @@ const buildInfrastructureScore = async (academicYear, departmentId) => {
     const workingCount = rows.filter((row) => row.condition_status === 'Working').length;
     const ratio = workingCount / rows.length;
     return Number(Math.min(5, 2 + ratio * 3).toFixed(2));
+};
+
+const buildFeedbackAnalysis = async (academicYear, departmentId) => {
+    const scopedFilter = {
+        ...withDepartment(departmentId),
+        ...buildAcademicYearFilter(academicYear)
+    };
+    const courseFilter = {
+        ...withDepartment(departmentId),
+        ...buildCourseYearFilter(academicYear)
+    };
+
+    const [
+        teachingFaculty,
+        teachingMethods,
+        programmes,
+        courses,
+        mentoring,
+        capability,
+        financialSupport,
+        outreach,
+        infrastructureScore
+    ] = await Promise.all([
+        FacultyActivity.countDocuments({
+            ...scopedFilter,
+            type: { $in: ['fdp', 'ict', 'econtent'] }
+        }),
+        Teaching.countDocuments(scopedFilter),
+        Programme.countDocuments({
+            ...withDepartment(departmentId),
+            ...buildAcademicYearFilter(academicYear)
+        }),
+        Course.countDocuments(courseFilter),
+        Training.countDocuments({ ...scopedFilter, type: 'mentoring' }),
+        Training.countDocuments({ ...scopedFilter, type: 'capability' }),
+        StudentActivity.countDocuments({ ...scopedFilter, type: 'financial_support' }),
+        Collaboration.countDocuments({ ...scopedFilter, type: 'outreach' }),
+        buildInfrastructureScore(academicYear, departmentId)
+    ]);
+
+    const teachingCount = teachingFaculty + teachingMethods;
+    const curriculumCount = programmes + courses;
+    const supportCount = mentoring + capability + financialSupport + outreach;
+
+    const categories = [
+        {
+            name: 'Teaching Learning',
+            value: countToFeedbackScore(teachingCount),
+            color: FEEDBACK_COLORS['Teaching Learning']
+        },
+        {
+            name: 'Curriculum',
+            value: countToFeedbackScore(curriculumCount, 3),
+            color: FEEDBACK_COLORS.Curriculum
+        },
+        {
+            name: 'Infrastructure',
+            value: infrastructureScore,
+            color: FEEDBACK_COLORS.Infrastructure
+        },
+        {
+            name: 'Support Services',
+            value: countToFeedbackScore(supportCount),
+            color: FEEDBACK_COLORS['Support Services']
+        }
+    ];
+
+    const activeCategories = categories.filter((item) => item.value > 0);
+    const hasFeedbackData = activeCategories.length > 0;
+    const overallScore = hasFeedbackData
+        ? Number((activeCategories.reduce((sum, item) => sum + item.value, 0) / activeCategories.length).toFixed(2))
+        : 0;
+
+    return { categories, hasFeedbackData, overallScore };
 };
 
 const buildStudentProgression = async (academicYear, departmentId, totalStudents) => {
@@ -567,22 +673,16 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         fetchRecentActivities(req.user?.role, departmentId, req.user?.userId)
     ]);
 
-    const [studentProgression, extendedCharts] = await Promise.all([
+    const [studentProgression, extendedCharts, feedbackAnalysis] = await Promise.all([
         buildStudentProgression(academicYear, departmentId, totalStudents),
-        buildExtendedCharts(academicYear, departmentId, departments)
+        buildExtendedCharts(academicYear, departmentId, departments),
+        buildFeedbackAnalysis(academicYear, departmentId)
     ]);
 
     const researchPapers = Math.max(researchPapersCount, aparMetrics.researchPapers);
     const booksChapters = Math.max(booksChaptersCount, aparMetrics.booksChapters);
     const patentsFiled = Math.max(patentsFiledCount, aparMetrics.patentsFiled);
     const patentsGranted = Math.max(patentsGrantedCount, aparMetrics.patentsGranted);
-
-    const feedback = [
-        { name: 'Teaching Learning', value: 0, color: FEEDBACK_COLORS['Teaching Learning'] },
-        { name: 'Curriculum', value: 0, color: FEEDBACK_COLORS.Curriculum },
-        { name: 'Infrastructure', value: infrastructureScore, color: FEEDBACK_COLORS.Infrastructure },
-        { name: 'Support Services', value: 0, color: FEEDBACK_COLORS['Support Services'] }
-    ];
 
     const aparProgress = buildAparProgress(aparMetrics);
 
@@ -612,7 +712,9 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
                 },
                 charts: {
                     academicPerformance,
-                    feedback,
+                    feedback: feedbackAnalysis.categories,
+                    feedbackHasData: feedbackAnalysis.hasFeedbackData,
+                    feedbackOverallScore: feedbackAnalysis.overallScore,
                     infrastructureScore,
                     studentProgression,
                     ...extendedCharts
