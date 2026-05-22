@@ -230,7 +230,41 @@ export default function DynamicTableSection({
         });
 
         // Validate nested objectList items for required sub-fields
+        // Validate nested objectList items for required sub-fields; 
         fields.forEach(field => {
+            if (field.type === 'objectList' && Array.isArray(tempItem[field.key]) && Array.isArray(field.subFields)) {
+                tempItem[field.key].forEach((subItem, sIdx) => {
+                    field.subFields.forEach(subF => {
+                        const isSubRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(subItem));
+                        const subVal = subItem[subF.key];
+                        const isEmpty = subVal === undefined || subVal === null || (typeof subVal === 'string' && !subVal.toString().trim());
+                        if (isSubRequired && isEmpty) {
+                            validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label}`);
+                        }
+                        // Email format validation for nested email fields
+                        if (!isEmpty && subF.type === 'email') {
+                            const normalizedSub = String(subVal).trim();
+                            if (!emailRegex.test(normalizedSub)) {
+                                validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label} must be a valid email address`);
+                            }
+                        }
+                    });
+                });
+            }
+
+            if (field.type === 'objectList' && activeSubForms[field.key] && Array.isArray(field.subFields)) {
+                const pendingItem = tempSubItems[field.key] || {};
+                field.subFields.forEach(subF => {
+                    const isSubRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(pendingItem));
+                    const subVal = pendingItem[subF.key];
+                    const isEmpty = subVal === undefined || subVal === null || (typeof subVal === 'string' && !subVal.toString().trim());
+                    if (isSubRequired && isEmpty) {
+                        validationErrors.push(`${field.label}: ${subF.label}`);
+                    }
+                });
+            }
+        });
+       /* fields.forEach(field => {
             if (field.type === 'objectList' && Array.isArray(tempItem[field.key]) && Array.isArray(field.subFields)) {
                 tempItem[field.key].forEach((subItem, sIdx) => {
                     field.subFields.forEach(subF => {
@@ -253,7 +287,7 @@ export default function DynamicTableSection({
                     });
                 });
             }
-        });
+        });*/
 
         const startKey = getAssociatedStartKey('end_date');
         if (startKey && tempItem.start_date && tempItem.end_date) {
