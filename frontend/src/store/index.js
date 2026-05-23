@@ -14,14 +14,25 @@ export const store = configureStore({
     })
 });
 
+const isAparPath = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname.startsWith('/apar');
+};
+
 Api.setRoleProvider(() => {
   try {
     const state = store.getState();
-    return (state.aparAuth && state.aparAuth.baseRole) || (state.auth && state.auth.baseRole) || null;
+    if (isAparPath()) {
+      return (state.aparAuth && state.aparAuth.baseRole) || null;
+    }
+    return (state.auth && state.auth.baseRole) || null;
   } catch (e) {
     return null;
   }
 });
 
-store.dispatch(initializeSession());
-store.dispatch(aparInitializeSession());
+if (isAparPath()) {
+  store.dispatch(aparInitializeSession());
+} else {
+  store.dispatch(initializeSession());
+}

@@ -5,6 +5,7 @@ import './index.css';
 import App from './App.jsx';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import IqacRoleRoute from './components/IqacRoleRoute.jsx';
 import Login from './pages/Auth/Login.jsx';
 import Dashboard from './components/Dashboard';
 import NotFound from './components/NotFound';
@@ -70,13 +71,21 @@ const router = createBrowserRouter([
   },
   {
     path: '/feedback-analysis',
-    element: <FeedbackAnalysis />,
+    element: (
+      <ProtectedRoute>
+        <IqacRoleRoute>
+          <FeedbackAnalysis />
+        </IqacRoleRoute>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/app',
     element: (
       <ProtectedRoute>
-        <App />
+        <IqacRoleRoute>
+          <App />
+        </IqacRoleRoute>
       </ProtectedRoute>
     ),
     children: [

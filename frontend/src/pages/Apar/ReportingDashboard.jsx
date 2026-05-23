@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { aparFormReportingService } from '../../services/apar_form_reporting.service.js'
+import { DepartmentService } from '../../services/department.services.js'
 import { aparLogout } from '../../store/slices/aparAuthSlice.js'
 import { FiArchive, FiList } from 'react-icons/fi'
 import AparShellHeader from '../../components/AparShellHeader.jsx'
@@ -17,6 +18,7 @@ export default function ReportingDashboard() {
   // Filter States
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDept, setSelectedDept] = useState('')
+  const [departments, setDepartments] = useState([])
 
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -26,26 +28,26 @@ export default function ReportingDashboard() {
   const { socket } = useSocket()
   const lastRefreshRef = useRef(0)
 
-  const departments = [
-    'Applied Chemistry',
-    'Applied Mathematics',
-    'Applied Physics',
-    'Biotechnology',
-    'Civil Engineering',
-    'Computer Science & Engineering',
-    'Delhi School of Management',
-    'Electronics & Communication',
-    'Electrical Engineering',
-    'Environmental Science & Engineering',
-    'Geospatial Science & Technology',
-    'Humanities',
-    'Information Technology',
-    'Mechanical Engineering',
-    'Design',
-    'University School of Management & Entrepreneurship',
-    'Software Engineering',
-    'Physical Education'
-  ];
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDepartments = async () => {
+      try {
+        const response = await DepartmentService.getDepartments()
+        const list = response?.data || response || []
+        if (!cancelled) setDepartments(Array.isArray(list) ? list : [])
+      } catch (err) {
+        console.error('failed to load departments', err)
+        if (!cancelled) setDepartments([])
+      }
+    }
+
+    loadDepartments()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const loadRows = useCallback(async () => {
     try {
@@ -129,7 +131,10 @@ export default function ReportingDashboard() {
       (row.designation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (row.id || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesDept = selectedDept ? (row.department === selectedDept) : true;
+    const selectedDepartment = departments.find((dept) => (dept.department_id || dept.department_name) === selectedDept)
+    const matchesDept = selectedDept
+      ? (row.department === selectedDept || row.department === selectedDepartment?.department_name)
+      : true;
 
     return matchesSearch && matchesDept;
   });
@@ -202,7 +207,9 @@ export default function ReportingDashboard() {
           >
             <option value="">All Departments</option>
             {departments.map((dept) => (
-              <option key={dept} value={dept}>{dept}</option>
+              <option key={dept.department_id || dept.department_name} value={dept.department_id || dept.department_name}>
+                {dept.department_name || dept.department_id}
+              </option>
             ))}
           </select>
         </div>

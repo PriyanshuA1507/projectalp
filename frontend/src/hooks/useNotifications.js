@@ -92,12 +92,39 @@ export const useNotifications = () => {
         }
     };
 
+    const deleteNotification = async (id) => {
+        try {
+            await notificationService.deleteNotification(id);
+            setNotifications(prev => {
+                const target = prev.find(n => n._id === id);
+                if (target && !target.isRead) {
+                    setUnreadCount(count => Math.max(0, count - 1));
+                }
+                return prev.filter(n => n._id !== id);
+            });
+        } catch (error) {
+            console.error('Failed to delete notification:', error);
+        }
+    };
+
+    const clearNotifications = async () => {
+        try {
+            await notificationService.clearNotifications();
+            setNotifications([]);
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('Failed to clear notifications:', error);
+        }
+    };
+
     return {
         notifications,
         unreadCount,
         loading,
         markAsRead,
         markAllRead,
+        deleteNotification,
+        clearNotifications,
         refresh: fetchNotifications
     };
 };

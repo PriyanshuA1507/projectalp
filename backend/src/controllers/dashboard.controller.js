@@ -58,7 +58,11 @@ const APAR_STATUS_COLORS = {
     Submitted: '#3b82f6',
     Verified: '#10b981',
     Reviewed: '#8b5cf6',
-    'Query Raised': '#f59e0b'
+    'Forwarded by Reporting officer': '#10b981',
+    'Accepted by Reviewing officer': '#8b5cf6',
+    'Query Raised': '#f59e0b',
+    'Query Raised by Reporting officer': '#f59e0b',
+    'Query Raised by Reviewing officer': '#f59e0b'
 };
 
 const FEEDBACK_COLORS = {
@@ -200,6 +204,26 @@ const aggregateAparMetrics = async (academicYear, departmentId) => {
             $project: {
                 faculty_id: 1,
                 status: 1,
+                isSubmitted: {
+                    $in: [
+                        '$status',
+                        [
+                            'Submitted',
+                            'Forwarded by Reporting officer',
+                            'Accepted by Reviewing officer'
+                        ]
+                    ]
+                },
+                isVerified: {
+                    $in: [
+                        '$status',
+                        [
+                            'Forwarded by Reporting officer',
+                            'Accepted by Reviewing officer'
+                        ]
+                    ]
+                },
+                isReviewed: { $eq: ['$status', 'Accepted by Reviewing officer'] },
                 journalsCount: { $cond: { if: { $isArray: '$research.journals' }, then: { $size: '$research.journals' }, else: 0 } },
                 conferencesCount: { $cond: { if: { $isArray: '$research.conferences' }, then: { $size: '$research.conferences' }, else: 0 } },
                 booksCount: { $cond: { if: { $isArray: '$research.books' }, then: { $size: '$research.books' }, else: 0 } },
@@ -210,9 +234,9 @@ const aggregateAparMetrics = async (academicYear, departmentId) => {
             $group: {
                 _id: null,
                 totalForms: { $sum: 1 },
-                submittedForms: { $sum: { $cond: [{ $eq: ['$status', 'Submitted'] }, 1, 0] } },
-                verifiedForms: { $sum: { $cond: [{ $eq: ['$status', 'Verified'] }, 1, 0] } },
-                reviewedForms: { $sum: { $cond: [{ $eq: ['$status', 'Reviewed'] }, 1, 0] } },
+                submittedForms: { $sum: { $cond: ['$isSubmitted', 1, 0] } },
+                verifiedForms: { $sum: { $cond: ['$isVerified', 1, 0] } },
+                reviewedForms: { $sum: { $cond: ['$isReviewed', 1, 0] } },
                 draftForms: { $sum: { $cond: [{ $eq: ['$status', 'Draft'] }, 1, 0] } },
                 uniqueFaculty: { $addToSet: '$faculty_id' },
                 researchPapers: { $sum: { $add: ['$journalsCount', '$conferencesCount'] } },
@@ -488,7 +512,7 @@ const buildAparProgress = (aparMetrics) => {
         },
         {
             label: 'Final Review',
-            status: verifiedForms > 0 || reviewedForms > 0 ? 'In Progress' : 'Pending'
+            status: reviewedForms > 0 ? 'Completed' : (verifiedForms > 0 ? 'In Progress' : 'Pending')
         },
         {
             label: 'Submitted',

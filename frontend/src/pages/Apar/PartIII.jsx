@@ -4,7 +4,7 @@ import { selectAparUser } from '../../store/slices/aparAuthSlice';
 import DynamicTableSection from '../../components/DynamicTableSection';
 import { ACADEMIC_YEAR_SELECT_FIELD } from '../../utils/academicYear.util.js';
 
-export default function PartIII({ formData, addItem, updateArrayItem, updateField, readOnly, onSaveMonthly }) {
+export default function PartIII({ formData, addItem, removeItem, updateArrayItem, updateField, readOnly, onSaveMonthly }) {
     const user = useSelector(selectAparUser);
     const currentFacultyId = user?.teacherId || user?.faculty_id || user?.userId || user?.user_id || '';
 
@@ -26,8 +26,8 @@ export default function PartIII({ formData, addItem, updateArrayItem, updateFiel
     // Helper handlers generator
     const createHandlers = (field) => ({
         onAdd: (item) => addItem('research', field, item),
-        onUpdate: (index, newItem) => updateArrayItem('research', field, index, newItem)
-        // onRemove: (index) => removeItem('research', field, index)
+        onUpdate: (index, newItem) => updateArrayItem('research', field, index, newItem),
+        onRemove: removeItem ? (index) => removeItem('research', field, index) : undefined
     });
 
     return (

@@ -5,6 +5,7 @@ import helmet from 'helmet'
 //import multer from 'multer'
 import { errorHandler } from './middlewares/error.middleware.js'
 import { authenticate, createRouteGuard } from './middlewares/auth.middleware.js'
+import { requireIqacRole } from './middlewares/iqac-role.middleware.js'
 import { csrfProtection, getCsrfToken } from './middlewares/csrf.middleware.js'
 import { authRateLimiter, globalRateLimiter } from './middlewares/rate-limit.middleware.js'
 
@@ -159,11 +160,11 @@ const registerProtectedRoute = (path, router) => {
 app.use('/api/v1/auth/login', authRateLimiter)
 app.use('/api/v1/apar/auth/login', authRateLimiter)
 app.use('/api/v1/auth', authRoutes)
-app.use('/api/v1/feedback', authenticate, feedbackRoutes)
+app.use('/api/v1/feedback', authenticate, requireIqacRole, feedbackRoutes)
 app.use('/api/v1/apar/auth', aparAuthRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
 app.use('/api/v1/iqac-approvals', authenticate, iqacApprovalRoutes)
-app.use('/api/v1/dashboard', dashboardRoutes)
+app.use('/api/v1/dashboard', authenticate, requireIqacRole, dashboardRoutes)
 
 // legacy APAR endpoints (compatibility with older frontends)
 // app.use('/', authenticate, legacyAparRoutes)

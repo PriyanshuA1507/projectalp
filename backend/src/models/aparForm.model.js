@@ -160,6 +160,7 @@ const AparFormSchema = new mongoose.Schema({
         // 4. Research Funding -> ResearchProject (type: 'funding')
         projects: [{
             project_id: String, // Alternate key
+            funding_id: String,
             title_research: String,
             title: String, // Generic title
             type_of_project: String,
@@ -422,6 +423,8 @@ const AparFormSchema = new mongoose.Schema({
         disagreement_reason: String,
         general_remarks: String,
         specific_characteristics: String,
+        signature_place: String,
+        signature_date: Date,
         query_comment: String // Stores the latest query comment
     },
 

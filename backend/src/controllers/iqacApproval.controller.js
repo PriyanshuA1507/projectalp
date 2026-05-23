@@ -304,11 +304,21 @@ export const getCreatedIqacApprovals = asyncHandler(async (req, res) => {
 
 export const decideIqacApproval = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { action, comment } = req.body || {};
+  const { action, comment, corrected_payload, correctedPayload } = req.body || {};
+  const normalizedAction = action === 'accept_with_changes' ? 'approve' : action;
+  const corrected = corrected_payload || correctedPayload;
   const facultyId = req.user?.userId || req.user?.faculty_id || req.user?.id;
 
-  if (!['approve', 'reject'].includes(action)) {
+  if (!['approve', 'reject'].includes(normalizedAction)) {
     throw new ApiError(400, 'Action must be approve or reject');
+  }
+
+  if (
+    normalizedAction === 'approve'
+    && corrected !== undefined
+    && (!corrected || typeof corrected !== 'object' || Array.isArray(corrected))
+  ) {
+    throw new ApiError(400, 'Corrected approval payload must be an object');
   }
 
   const approval = await IqacApproval.findById(id);
@@ -329,11 +339,21 @@ export const decideIqacApproval = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'You have already responded to this approval request');
   }
 
-  entry.status = action === 'approve' ? 'approved' : 'rejected';
+  entry.status = normalizedAction === 'approve' ? 'approved' : 'rejected';
   entry.comment = comment || '';
   entry.acted_at = new Date();
 
-  if (action === 'reject') {
+  if (normalizedAction === 'approve' && corrected) {
+    approval.payload = corrected;
+    approval.title = getRecordTitle(corrected);
+    if (!entry.comment) {
+      entry.comment = 'Accepted with faculty corrections';
+    }
+    approval.markModified('payload');
+    approval.markModified('approvals');
+  }
+
+  if (normalizedAction === 'reject') {
     approval.status = 'rejected';
     approval.finalized_at = new Date();
     await approval.save();

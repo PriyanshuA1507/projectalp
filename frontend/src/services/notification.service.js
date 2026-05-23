@@ -23,6 +23,14 @@ class NotificationService {
         // backend: PATCH /api/v1/notifications/read-all
         return await this.api.patch('/notifications/read-all', {});
     }
+
+    async deleteNotification(notificationId) {
+        return await this.api.delete(`/notifications/${notificationId}`);
+    }
+
+    async clearNotifications() {
+        return await this.api.delete('/notifications/clear');
+    }
 }
 
 export const notificationService = new NotificationService();

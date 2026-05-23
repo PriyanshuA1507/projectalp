@@ -1,29 +1,67 @@
 import { z } from 'zod';
 import { hasRequiredGraduation } from '../utils/qualification.util.js';
 
-const nonEmptyString = (fieldName) => z.string().trim().min(1, `${fieldName} is required`);
-const optionalString = z.string().trim().optional();
-const optionalNumber = z.number().optional();
-const optionalDate = z.date().optional().or(z.string().optional());
+const nullToUndefined = (value) => value == null ? undefined : value;
+const nullToEmptyString = (value) => value == null ? '' : value;
+const normalizeNulls = (value) => {
+  if (value === null) return undefined;
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) return value.map(normalizeNulls);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [key, normalizeNulls(val)])
+    );
+  }
+  return value;
+};
+
+const requiredString = (fieldName) => z.preprocess(
+  nullToEmptyString,
+  z.string().trim().min(1, `${fieldName} is required`)
+);
+const nonEmptyString = requiredString;
+const optionalString = z.preprocess(nullToUndefined, z.string().trim().optional());
+const optionalNumber = z.preprocess(nullToUndefined, z.number().optional());
+const optionalDate = z.preprocess(nullToUndefined, z.union([z.date(), z.string()]).optional());
+const optionalEmail = z.preprocess(
+  nullToUndefined,
+  z.union([z.string().email('Invalid email format'), z.literal('')]).optional()
+);
+const optionalMouActivities = z.preprocess(
+  nullToUndefined,
+  z.union([z.string().trim(), z.array(z.unknown())]).optional()
+);
+const optionalScore = (message = 'Score must be between 1 and 10') => z.preprocess(
+  nullToUndefined,
+  z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message })
+);
+const requiredScore = (fieldName, message = `${fieldName} must be between 1 and 10`) => z.preprocess(
+  (value) => value == null ? '' : String(value),
+  z.string().trim().min(1, `${fieldName} is required`).refine((val) => parseInt(val) >= 1 && parseInt(val) <= 10, { message })
+);
+const requiredGradeText = requiredString('Grading').refine(
+  (value) => ['Outstanding', 'Very Good', 'Good', 'Average', 'Below Average'].includes(value),
+  { message: 'Grading is required' }
+);
 
 // Personal Data Validation
 const personalSchema = z.object({
   name: nonEmptyString('Name'),
   designation: nonEmptyString('Designation'),
-  date_of_birth: z.string().min(1, 'Date of birth is required'),
-  email: z.union([z.string().email('Invalid email format'), z.literal('')]).optional(),
+  date_of_birth: requiredString('Date of birth'),
+  email: optionalEmail,
   phone: optionalString,
   department_id: nonEmptyString('Department'),
   qualification_undergraduate: optionalString,
   qualification_postgraduate: optionalString,
   qualification_phd: optionalString,
   qualification: optionalString,
-  joining_date: z.string().min(1, 'Joining date is required'),
+  joining_date: requiredString('Joining date'),
   report_start_date: optionalString,
   report_end_date: optionalString,
   sc_st_status: nonEmptyString('Caste category'),
-  absence_period: z.string().min(1, 'Absence period is required'),
-  grade: z.string().min(1, 'Grade is required')
+  absence_period: requiredString('Absence period'),
+  grade: requiredString('Grade')
 }).superRefine((data, ctx) => {
   if (!hasRequiredGraduation(data)) {
     ctx.addIssue({
@@ -46,7 +84,7 @@ const teachingSchema = z.object({
     labs_scheduled: optionalString,
     labs_engaged: optionalString,
     reasons_not_engaged: optionalString,
-    degree_type: z.enum(['UG', 'PG']).optional()
+    degree_type: z.preprocess(nullToUndefined, z.union([z.enum(['UG', 'PG']), z.literal('')]).optional())
   })).optional(),
   time_table: z.object({
     provided: z.object({
@@ -154,6 +192,7 @@ const researchSchema = z.object({
   })).optional(),
   projects: z.array(z.object({
     project_id: optionalString,
+    funding_id: optionalString,
     title_research: optionalString,
     title: optionalString,
     type_of_project: optionalString,
@@ -290,7 +329,7 @@ const researchSchema = z.object({
     type_of_mou: optionalString,
     year_of_signing: optionalString,
     purpose: optionalString,
-    activities_under_mou: optionalString,
+    activities_under_mou: optionalMouActivities,
     start_date: optionalString,
     end_date: optionalString,
     level: optionalString,
@@ -335,42 +374,42 @@ const corporateSchema = z.object({
   sports_community: optionalString,
   admin_assignment: optionalString,
   any_other: optionalString,
-  certify: z.union([z.string().trim(), z.boolean()]).optional()
+  certify: z.preprocess(nullToUndefined, z.union([z.string().trim(), z.boolean()]).optional())
 });
 
 // Assessment Validation (scores must be between 1-10)
 const assessmentScoreSchema = z.object({
-  q1: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q2: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q3: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q4: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  overall_grading: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' })
+  q1: optionalScore(),
+  q2: optionalScore(),
+  q3: optionalScore(),
+  q4: optionalScore(),
+  overall_grading: optionalScore()
 });
 
 const assessmentSectionBSchema = z.object({
-  q1: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q2: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q3: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q4: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q5: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q6: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q7a: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q7b: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q8: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q9: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q10: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q11: z.union([z.enum(['Outstanding', 'Very Good', 'Good', 'Average', 'Below Average']), z.literal('')]).optional(),
-  overall_grading: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' })
+  q1: optionalScore(),
+  q2: optionalScore(),
+  q3: optionalScore(),
+  q4: optionalScore(),
+  q5: optionalScore(),
+  q6: optionalScore(),
+  q7a: optionalScore(),
+  q7b: optionalScore(),
+  q8: optionalScore(),
+  q9: optionalScore(),
+  q10: optionalScore(),
+  q11: z.preprocess(nullToUndefined, z.union([z.enum(['Outstanding', 'Very Good', 'Good', 'Average', 'Below Average']), z.literal('')]).optional()),
+  overall_grading: optionalScore()
 });
 
 const assessmentSectionCSchema = z.object({
-  q1: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q2: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q3: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q4: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q5: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  q6: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' }),
-  overall_grading: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Score must be between 1 and 10' })
+  q1: optionalScore(),
+  q2: optionalScore(),
+  q3: optionalScore(),
+  q4: optionalScore(),
+  q5: optionalScore(),
+  q6: optionalScore(),
+  overall_grading: optionalScore()
 });
 
 const assessmentGeneralSchema = z.object({
@@ -379,7 +418,7 @@ const assessmentGeneralSchema = z.object({
   q3: optionalString,
   q4: optionalString,
   q5: optionalString,
-  q6: z.string().optional().refine((val) => !val || (parseInt(val) >= 1 && parseInt(val) <= 10), { message: 'Overall score must be between 1 and 10' })
+  q6: optionalScore('Overall score must be between 1 and 10')
 });
 
 const assessmentSchema = z.object({
@@ -389,21 +428,92 @@ const assessmentSchema = z.object({
   general: assessmentGeneralSchema.optional()
 });
 
+const requiredAssessmentSchema = z.object({
+  section_a: z.object({
+    q1: requiredScore('Section A Q1'),
+    q2: requiredScore('Section A Q2'),
+    q3: requiredScore('Section A Q3'),
+    q4: requiredScore('Section A Q4'),
+    overall_grading: requiredScore('Section A overall grading')
+  }),
+  section_b: z.object({
+    q1: requiredScore('Section B Q1'),
+    q2: requiredScore('Section B Q2'),
+    q3: requiredScore('Section B Q3'),
+    q4: requiredScore('Section B Q4'),
+    q5: requiredScore('Section B Q5'),
+    q6: requiredScore('Section B Q6'),
+    q7a: requiredScore('Section B Q7a'),
+    q7b: requiredScore('Section B Q7b'),
+    q8: requiredScore('Section B Q8'),
+    q9: requiredScore('Section B Q9'),
+    q10: requiredScore('Section B Q10'),
+    q11: requiredGradeText,
+    overall_grading: requiredScore('Section B overall grading')
+  }),
+  section_c: z.object({
+    q1: requiredScore('Section C Q1'),
+    q2: requiredScore('Section C Q2'),
+    q3: requiredScore('Section C Q3'),
+    q4: requiredScore('Section C Q4'),
+    q5: requiredScore('Section C Q5'),
+    q6: requiredScore('Section C Q6'),
+    overall_grading: requiredScore('Section C overall grading')
+  }),
+  general: z.object({
+    q1: requiredString('Relations with the public'),
+    q2: requiredString('Training recommendations'),
+    q3: requiredString('State of health'),
+    q4: requiredString('Integrity'),
+    q5: requiredString('Pen picture'),
+    q6: requiredScore('Overall numerical grading', 'Overall score must be between 1 and 10')
+  })
+});
+
+const requestSchema = (bodySchema) => z.object({
+  body: z.preprocess(normalizeNulls, bodySchema),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough()
+});
+
 // Remarks Validation
 const remarksSchema = z.object({
   length_of_service: optionalString,
   satisfied_with_reporting: optionalString,
-  agree_with_assessment: z.enum(['Yes', 'No']).optional(),
+  agree_with_assessment: z.preprocess(nullToUndefined, z.union([z.enum(['Yes', 'No']), z.literal('')]).optional()),
   disagreement_reason: optionalString,
   general_remarks: optionalString,
   specific_characteristics: optionalString,
+  signature_place: optionalString,
+  signature_date: optionalString,
   query_comment: optionalString
 });
 
+const requiredRemarksSchema = z.object({
+  length_of_service: requiredString('Length of service'),
+  satisfied_with_reporting: requiredString('Satisfaction with reporting officer assessment'),
+  agree_with_assessment: requiredString('Agreement with assessment').refine((value) => ['Yes', 'No'].includes(value), {
+    message: 'Agreement with assessment is required'
+  }),
+  disagreement_reason: optionalString,
+  general_remarks: requiredString('General remarks'),
+  specific_characteristics: requiredString('Specific characteristics'),
+  signature_place: requiredString('Signature place'),
+  signature_date: requiredString('Signature date')
+}).superRefine((data, ctx) => {
+  if (data.agree_with_assessment === 'No' && !data.disagreement_reason?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Disagreement reason is required',
+      path: ['disagreement_reason']
+    });
+  }
+});
+
 // Full APAR Form Schema
-export const aparFormSchema = z.object({
-  ay: z.string().min(1, 'Academic Year is required'),
-  faculty_id: z.string().min(1, 'Faculty ID is required'),
+export const aparFormSchema = requestSchema(z.object({
+  ay: requiredString('Academic Year'),
+  faculty_id: requiredString('Faculty ID'),
   formData: z.object({
     personal: personalSchema,
     teaching: teachingSchema.optional(),
@@ -412,30 +522,30 @@ export const aparFormSchema = z.object({
     assessment: assessmentSchema.optional(),
     remarks: remarksSchema.optional()
   }).optional()
-});
+}));
 
 // Schema for saving draft (very lenient - only required fields)
-export const aparDraftSchema = z.object({
-  ay: z.string().min(1, 'Academic Year is required'),
-  faculty_id: z.string().min(1, 'Faculty ID is required'),
+export const aparDraftSchema = requestSchema(z.object({
+  ay: requiredString('Academic Year'),
+  faculty_id: requiredString('Faculty ID'),
   formData: z.object({
     personal: z.object({
-      name: z.string().optional(),
-      designation: z.string().optional(),
-      date_of_birth: z.string().optional(),
-      email: z.string().optional(),
-      phone: z.string().optional(),
-      department_id: z.string().optional(),
-      qualification: z.string().optional(),
-      qualification_undergraduate: z.string().optional(),
-      qualification_postgraduate: z.string().optional(),
-      qualification_phd: z.string().optional(),
-      joining_date: z.string().optional(),
-      report_start_date: z.string().optional(),
-      report_end_date: z.string().optional(),
-      sc_st_status: z.string().optional(),
-      absence_period: z.string().optional(),
-      grade: z.string().optional()
+      name: optionalString,
+      designation: optionalString,
+      date_of_birth: optionalString,
+      email: optionalString,
+      phone: optionalString,
+      department_id: optionalString,
+      qualification: optionalString,
+      qualification_undergraduate: optionalString,
+      qualification_postgraduate: optionalString,
+      qualification_phd: optionalString,
+      joining_date: optionalString,
+      report_start_date: optionalString,
+      report_end_date: optionalString,
+      sc_st_status: optionalString,
+      absence_period: optionalString,
+      grade: optionalString
     }).optional(),
     teaching: z.any().optional(),
     research: z.any().optional(),
@@ -443,25 +553,21 @@ export const aparDraftSchema = z.object({
     assessment: z.any().optional(),
     remarks: z.any().optional()
   }).optional()
-});
+}));
 
 // Schema for assessment submission (requires assessment section)
-export const aparAssessmentSchema = z.object({
-  body: z.object({
-    faculty_id: z.string().min(1, 'Faculty ID is required'),
-    ay: z.string().min(1, 'Academic Year is required'),
-    assessment: assessmentSchema,
-    status: z.string().optional(),
-    query_comment: z.string().optional()
-  }),
-  params: z.object({}).passthrough(),
-  query: z.object({}).passthrough()
-});
+export const aparAssessmentSchema = requestSchema(z.object({
+  faculty_id: requiredString('Faculty ID'),
+  ay: requiredString('Academic Year'),
+  assessment: requiredAssessmentSchema,
+  status: optionalString,
+  query_comment: optionalString
+}));
 
-export const aparReviewingSchema = z.object({
-  faculty_id: z.string().min(1, 'Faculty ID is required'),
-  ay: z.string().min(1, 'Academic Year is required'),
-  remarks: z.record(z.string(), z.unknown()).optional(),
-  status: z.string().min(1, 'Status is required'),
-  query_comment: z.string().optional()
-});
+export const aparReviewingSchema = requestSchema(z.object({
+  faculty_id: requiredString('Faculty ID'),
+  ay: requiredString('Academic Year'),
+  remarks: requiredRemarksSchema,
+  status: requiredString('Status'),
+  query_comment: optionalString
+}));

@@ -6,6 +6,8 @@ import { getIO } from '../config/socket.js';
 import { User } from '../models/user.model.js';
 import { Faculty } from '../models/faculty.model.js';
 
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Create and send a notification
  */
@@ -79,44 +81,8 @@ export const notifyHeads = async ({ sender, type, title, message, link, departme
 };
 
 export const getMyNotifications = asyncHandler(async (req, res) => {
-    const userId = req.user?.userId || req.user?.faculty_id || req.user?.id;
-    const role = req.user?.role;
+    const orConditions = buildNotificationRecipientConditions(req.user);
 
-    if (!userId) {
-        throw new ApiError(401, 'Unauthorized');
-    }
-
-    // Determine all recipients this user belongs to
-    // We include both userId/faculty_id AND the internal Mongo _id to cover all bases
-    const recipients = [];
-    if (req.user?.userId) recipients.push(req.user.userId);
-    if (req.user?.faculty_id) recipients.push(req.user.faculty_id);
-    if (req.user?.id) recipients.push(req.user.id);
-
-    // Normalize role for robust matching
-    const normalizedRole = role ? role.toLowerCase() : '';
-
-    if (normalizedRole.includes('iqac')) {
-        recipients.push('IQAC_HEAD');
-        recipients.push('IQAC'); // just in case
-    }
-    if (normalizedRole.includes('hod')) {
-        recipients.push('HOD');
-        if (req.user?.departmentId) recipients.push(`HOD_${req.user.departmentId}`); // Potential pattern
-    }
-
-    // Deduplicate recipients
-    const uniqueRecipients = [...new Set(recipients.filter(Boolean))];
-
-    // Construct flexible query for case-insensitive ID matching
-    // and simplified exact matching for roles
-    const orConditions = uniqueRecipients.map(r => {
-        // If it looks like a role (no digits, just letters/underscores), exact match might be safer
-        // but IDs like "FAC_PAWAN" need case insensitivity.
-        return { recipient: { $regex: new RegExp(`^${r}$`, 'i') } };
-    });
-
-    // Add exact matches for roles if they're not covered well by regex or just to be safe/fast
     if (orConditions.length === 0) {
         return res.status(200).json(new ApiResponse(200, [], 'No recipients found for user'));
     }
@@ -130,40 +96,92 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, notifications, 'Notifications fetched successfully'));
 });
 
-export const markAsRead = asyncHandler(async (req, res) => {
-    const { notificationId } = req.params;
+const buildNotificationRecipients = (user = {}) => {
+    const recipients = [];
+    if (user?.userId) recipients.push(user.userId);
+    if (user?.faculty_id) recipients.push(user.faculty_id);
+    if (user?.id) recipients.push(user.id);
 
-    const notification = await Notification.findByIdAndUpdate(
-        notificationId,
-        { isRead: true },
-        { new: true }
-    );
+    // Normalize role for robust matching
+    const normalizedRole = user.role ? user.role.toLowerCase() : '';
 
+    if (normalizedRole.includes('iqac')) {
+        recipients.push('IQAC_HEAD');
+        recipients.push('IQAC'); // just in case
+    }
+    if (normalizedRole.includes('hod')) {
+        recipients.push('HOD');
+        if (user?.departmentId) recipients.push(`HOD_${user.departmentId}`); // Potential pattern
+    }
+
+    // Deduplicate recipients
+    return [...new Set(recipients.filter(Boolean))];
+};
+
+const buildNotificationRecipientConditions = (user = {}) => {
+    const recipients = buildNotificationRecipients(user);
+
+    // Construct flexible query for case-insensitive ID matching
+    // and simplified exact matching for roles
+    return recipients.map(r => {
+        // If it looks like a role (no digits, just letters/underscores), exact match might be safer
+        // but IDs like "FAC_PAWAN" need case insensitivity.
+        return { recipient: { $regex: new RegExp(`^${escapeRegex(r)}$`, 'i') } };
+    });
+};
+
+const ensureNotificationAccess = async (user, notificationId) => {
+    const notification = await Notification.findById(notificationId);
     if (!notification) {
         throw new ApiError(404, 'Notification not found');
     }
+
+    const recipients = buildNotificationRecipients(user).map((recipient) => String(recipient).toLowerCase());
+    if (!recipients.includes(String(notification.recipient || '').toLowerCase())) {
+        throw new ApiError(403, 'You do not have permission to modify this notification');
+    }
+
+    return notification;
+};
+
+export const markAsRead = asyncHandler(async (req, res) => {
+    const { notificationId } = req.params;
+
+    const notification = await ensureNotificationAccess(req.user, notificationId);
+    notification.isRead = true;
+    await notification.save();
 
     return res.status(200).json(new ApiResponse(200, notification, 'Notification marked as read'));
 });
 
 export const markAllAsRead = asyncHandler(async (req, res) => {
-    const userId = req.user?.userId || req.user?.faculty_id || req.user?.id;
-    const role = req.user?.role;
-
-    const recipients = [userId];
-    const normalizedRole = role ? role.toLowerCase() : '';
-
-    if (normalizedRole.includes('iqac')) {
-        recipients.push('IQAC_HEAD');
-    }
-    if (normalizedRole.includes('hod')) {
-        recipients.push('HOD');
+    const orConditions = buildNotificationRecipientConditions(req.user);
+    if (orConditions.length === 0) {
+        return res.status(200).json(new ApiResponse(200, {}, 'All notifications marked as read'));
     }
 
     await Notification.updateMany(
-        { recipient: { $in: recipients }, isRead: false },
+        { $or: orConditions, isRead: false },
         { isRead: true }
     );
 
     return res.status(200).json(new ApiResponse(200, {}, 'All notifications marked as read'));
+});
+
+export const deleteNotification = asyncHandler(async (req, res) => {
+    const { notificationId } = req.params;
+    const notification = await ensureNotificationAccess(req.user, notificationId);
+    await Notification.deleteOne({ _id: notification._id });
+
+    return res.status(200).json(new ApiResponse(200, { notificationId }, 'Notification deleted'));
+});
+
+export const clearMyNotifications = asyncHandler(async (req, res) => {
+    const orConditions = buildNotificationRecipientConditions(req.user);
+    if (orConditions.length === 0) {
+        return res.status(200).json(new ApiResponse(200, { deletedCount: 0 }, 'Notifications cleared'));
+    }
+
+    const result = await Notification.deleteMany({ $or: orConditions });
+    return res.status(200).json(new ApiResponse(200, { deletedCount: result.deletedCount || 0 }, 'Notifications cleared'));
 });

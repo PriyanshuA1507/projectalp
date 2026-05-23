@@ -1,13 +1,6 @@
-export const getLastTenAcademicYears = () => {
-  const currentYear = new Date().getFullYear();
-  const years = [];
-  for (let i = 0; i < 10; i++) {
-    const start = currentYear - i;
-    const end = String(start + 1).slice(-2);
-    years.push(`${start}-${end}`);
-  }
-  return years;
-};
+import { getCurrentAcademicYear, getLastAcademicYears } from './academicYears.js';
+
+export const getLastTenAcademicYears = () => getLastAcademicYears(10);
 
 export const ACADEMIC_YEAR_OPTIONS = getLastTenAcademicYears();
 
@@ -17,4 +10,5 @@ export const ACADEMIC_YEAR_SELECT_FIELD = {
   type: 'select',
   options: ACADEMIC_YEAR_OPTIONS,
   required: true,
+  defaultValue: getCurrentAcademicYear(),
 };

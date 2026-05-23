@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useSelector } from 'react-redux';
 import { selectRole, selectUser } from '../store/slices/authSlice.js';
 import { ROLES } from '../config/rolePermissions.js';
+import { getCurrentAcademicYear, msUntilNextKolkataDay } from '../utils/academicYears.js';
 
 const STORAGE_KEY = 'iqac-dashboard-scope';
 
@@ -10,14 +11,14 @@ const IqacFilterContext = createContext(null);
 const readStoredScope = () => {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return { academicYear: 'All', departmentId: 'All' };
+    if (!raw) return { academicYear: getCurrentAcademicYear(), departmentId: 'All' };
     const parsed = JSON.parse(raw);
     return {
-      academicYear: parsed.academicYear || 'All',
+      academicYear: parsed.academicYear || getCurrentAcademicYear(),
       departmentId: parsed.departmentId || 'All'
     };
   } catch {
-    return { academicYear: 'All', departmentId: 'All' };
+    return { academicYear: getCurrentAcademicYear(), departmentId: 'All' };
   }
 };
 
@@ -49,6 +50,21 @@ export function IqacFilterProvider({ children }) {
       JSON.stringify({ academicYear, departmentId })
     );
   }, [academicYear, departmentId]);
+
+  useEffect(() => {
+    let timeoutId;
+
+    const scheduleRefresh = () => {
+      timeoutId = window.setTimeout(() => {
+        const current = getCurrentAcademicYear();
+        setAcademicYear((prev) => (prev && prev !== 'All' ? prev : current));
+        scheduleRefresh();
+      }, msUntilNextKolkataDay());
+    };
+
+    scheduleRefresh();
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const value = useMemo(
     () => ({

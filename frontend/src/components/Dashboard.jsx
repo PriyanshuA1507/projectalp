@@ -567,6 +567,7 @@ import { resources, resourceMap } from '../config/tableConfig';
 import { canAccessForm, canAccessTable, ROLES } from '../config/rolePermissions.js';
 import { selectRole } from '../store/slices/authSlice.js';
 import { dashboardService } from '../services/dashboard.service';
+import { iqacApprovalService } from '../services/iqacApproval.service.js';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import { getSessionFilterOptions } from '../utils/academicYears.js';
 import TablePage from './TablePage';
@@ -695,6 +696,20 @@ const QuickLink = ({ to, icon, label }) => (
   </Link>
 );
 
+const APPROVAL_STATUS_CLASSES = {
+  approved: 'bg-emerald-100 text-emerald-700',
+  rejected: 'bg-red-100 text-red-700',
+  failed: 'bg-orange-100 text-orange-700',
+  pending: 'bg-yellow-100 text-yellow-700'
+};
+
+const formatApprovalDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const APAR_STEP_STYLES = {
   Completed: {
     icon: <FiCheck />,
@@ -776,6 +791,7 @@ export default function Dashboard() {
 
   const [aparProgress, setAparProgress] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [approvalRequests, setApprovalRequests] = useState([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -847,7 +863,34 @@ export default function Dashboard() {
     };
 
     if (role) fetchStats();
-  }, [role, selectedYear, selectedDept]);
+  }, [role, selectedYear, selectedDept, setSelectedDept]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchApprovalRequests = async () => {
+      if (![ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD].includes(role)) {
+        setApprovalRequests([]);
+        return;
+      }
+
+      try {
+        const data = await iqacApprovalService.getSubmittedApprovals();
+        if (!cancelled) {
+          setApprovalRequests(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch IQAC approval requests', error);
+        if (!cancelled) setApprovalRequests([]);
+      }
+    };
+
+    fetchApprovalRequests();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   const dynamicBarData = useMemo(
     () => chartData.academicPerformance,
@@ -932,6 +975,11 @@ export default function Dashboard() {
     if (!role) return [];
     return resources.filter((resource) => Boolean(resource.addPath) && canAccessForm(role, resource.id));
   }, [role]);
+
+  const recentApprovalRequests = useMemo(
+    () => approvalRequests.filter((item) => ['approved', 'rejected', 'failed'].includes(item.status)).slice(0, 6),
+    [approvalRequests]
+  );
 
   const handleCardClick = (tableId) => {
     if (activeTable === tableId) {
@@ -1395,6 +1443,65 @@ export default function Dashboard() {
           </div>
         </WidgetBlock>
       </div>
+
+      {[ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD].includes(role) && (
+        <WidgetBlock title="Faculty Approval Decisions" className="mb-5">
+          {recentApprovalRequests.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {recentApprovalRequests.map((approval) => (
+                <div key={approval._id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${APPROVAL_STATUS_CLASSES[approval.status] || APPROVAL_STATUS_CLASSES.pending}`}>
+                          {approval.status}
+                        </span>
+                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                          {approval.resource_title}
+                        </span>
+                      </div>
+                      <h3 className="mt-2 text-sm font-bold text-gray-900">{approval.title}</h3>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Submitted by {approval.created_by?.name || approval.created_by?.user_id || 'IQAC'}
+                        {approval.finalized_at ? ` - Closed ${formatApprovalDate(approval.finalized_at)}` : ''}
+                      </p>
+                    </div>
+                    {approval.permanent_record_id && (
+                      <span className="text-xs font-semibold text-gray-500">Record: {approval.permanent_record_id}</span>
+                    )}
+                  </div>
+
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {(approval.approvals || []).map((entry) => (
+                      <div key={entry.faculty_id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-gray-700">{entry.faculty_id}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${APPROVAL_STATUS_CLASSES[entry.status] || APPROVAL_STATUS_CLASSES.pending}`}>
+                            {entry.status}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-600">
+                          Remarks: {entry.comment?.trim() || 'No remarks added'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {approval.finalization_error && (
+                    <p className="mt-3 rounded-lg bg-orange-50 p-3 text-xs font-semibold text-orange-800">
+                      {approval.finalization_error}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
+              No approved or rejected faculty approval requests yet.
+            </div>
+          )}
+        </WidgetBlock>
+      )}
 
       {/* Quick Shortcuts */}
       <div className="mt-8 mb-4 flex items-center justify-between">

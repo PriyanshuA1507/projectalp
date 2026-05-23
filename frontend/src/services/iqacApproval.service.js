@@ -29,10 +29,11 @@ class IqacApprovalService {
     return await this.api.get('/iqac-approvals');
   }
 
-  async decideApproval(id, action, comment = '') {
+  async decideApproval(id, action, comment = '', correctedPayload = null) {
     return await this.api.post(`/iqac-approvals/${id}/decision`, {
       action,
-      comment
+      comment,
+      ...(correctedPayload ? { corrected_payload: correctedPayload } : {})
     });
   }
 }

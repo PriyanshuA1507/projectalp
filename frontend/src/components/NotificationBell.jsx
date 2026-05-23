@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiBell, FiCheckCircle, FiInfo, FiAlertCircle, FiExternalLink, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiBell, FiCheckCircle, FiInfo, FiAlertCircle, FiExternalLink, FiChevronDown, FiChevronUp, FiTrash2 } from 'react-icons/fi';
 import { useNotifications } from '../hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 const NotificationBell = () => {
-    const { notifications, unreadCount, markAsRead, markAllRead, loading, refresh } = useNotifications();
+    const { notifications, unreadCount, markAsRead, markAllRead, deleteNotification, clearNotifications, loading, refresh } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
     const [expandedNotifications, setExpandedNotifications] = useState(new Set());
     const dropdownRef = useRef(null);
@@ -218,6 +218,17 @@ const NotificationBell = () => {
         }
     };
 
+    const handleDeleteNotification = (notification, event) => {
+        event.stopPropagation();
+        deleteNotification(notification._id);
+    };
+
+    const handleClearAll = (event) => {
+        event.stopPropagation();
+        clearNotifications();
+        setExpandedNotifications(new Set());
+    };
+
     const handleToggle = () => {
         if (!isOpen) {
             // Refresh notifications when opening to ensure "all previous notifications" are shown
@@ -245,14 +256,24 @@ const NotificationBell = () => {
                 <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in duration-200 origin-top-right">
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                         <h3 className="font-bold text-gray-800 text-lg">Notifications</h3>
-                        {unreadCount > 0 && (
-                            <button
-                                onClick={markAllRead}
-                                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                            >
-                                Mark all read
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                            {unreadCount > 0 && (
+                                <button
+                                    onClick={markAllRead}
+                                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                                >
+                                    Mark all read
+                                </button>
+                            )}
+                            {notifications.length > 0 && (
+                                <button
+                                    onClick={handleClearAll}
+                                    className="text-sm font-medium text-red-600 hover:text-red-800"
+                                >
+                                    Clear all
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="max-h-[500px] overflow-y-auto">
@@ -289,6 +310,14 @@ const NotificationBell = () => {
                                                         {!n.isRead && (
                                                             <div className="w-2 h-2 bg-indigo-600 rounded-full mt-1 flex-shrink-0" />
                                                         )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => handleDeleteNotification(n, event)}
+                                                            className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                                            title="Delete notification"
+                                                        >
+                                                            <FiTrash2 className="h-4 w-4" />
+                                                        </button>
                                                     </div>
 
                                                     {n.metadata && n.metadata.displayType && (

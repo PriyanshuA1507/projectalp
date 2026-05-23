@@ -13,8 +13,9 @@ export const SocketProvider = ({ children }) => {
     const aparUser = useSelector(selectAparUser);
     const aparRole = useSelector(selectAparRole);
 
-    const user = standardUser || aparUser;
-    const role = standardRole || aparRole;
+    const isAparPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/apar');
+    const user = isAparPath ? aparUser : standardUser;
+    const role = isAparPath ? aparRole : standardRole;
     const [connected, setConnected] = useState(false);
 
     useEffect(() => {
@@ -27,6 +28,9 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
+        const userId = user.userId || user.teacherId || user.faculty_id || user.id;
+        if (!userId) return;
+
         const backendUrl = import.meta.env.VITE_BASEURL || 'http://localhost:8000';
         // Remove /api/v1 or any API path for Socket.IO connection (Socket.IO runs on root)
         const socketUrl = backendUrl.replace(/\/api\/v\d+$/, '').replace(/\/api$/, '');
@@ -34,7 +38,12 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current) {
             socketRef.current = io(socketUrl, {
                 withCredentials: true,
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 500,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
             });
 
             socketRef.current.on('connect', () => {
@@ -42,7 +51,6 @@ export const SocketProvider = ({ children }) => {
                 setConnected(true);
 
                 // Join personal notification room
-                const userId = user.teacherId || user.faculty_id || user.id;
                 socketRef.current.emit('join_notifications', { userId, role });
             });
 
@@ -50,9 +58,18 @@ export const SocketProvider = ({ children }) => {
                 // console.log('🔌 Global Socket Disconnected');
                 setConnected(false);
             });
+            socketRef.current.on('reconnect', () => {
+                setConnected(true);
+                socketRef.current.emit('join_notifications', { userId, role });
+            });
+            socketRef.current.on('connect_error', () => {
+                setConnected(false);
+            });
+        } else if (socketRef.current.disconnected) {
+            socketRef.current.connect();
+            socketRef.current.emit('join_notifications', { userId, role });
         } else {
             // If already connected but user/role changed (unlikely without logout, but safe)
-            const userId = user.teacherId || user.faculty_id || user.id;
             socketRef.current.emit('join_notifications', { userId, role });
         }
 

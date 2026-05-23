@@ -19,7 +19,7 @@ import { createNotification, notifyHeads } from "./notification.controller.js";
 import { v4 as uuidv4 } from 'uuid'; // Assuming uuid is available or use generic ID generator
 import { normalizeQualifications } from '../utils/qualification.util.js';
 
-const generateId = (prefix) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+const generateId = (prefix) => `${prefix}-${Date.now()}-${uuidv4()}`;
 
 // Helper to safely parse dates (handle empty strings)
 const parseDate = (val) => {
@@ -78,6 +78,32 @@ const buildUpsertUpdate = (payload, idField, idValue) => {
         $set: setPayload,
         $setOnInsert: { [idField]: idValue }
     };
+};
+
+const isDuplicateKeyFor = (err, field) => (
+    err?.code === 11000
+    && (err?.keyPattern?.[field] || err?.keyValue?.[field] || String(err?.message || '').includes(`${field}`))
+);
+
+const upsertResearchProject = async (filter, payload, projectId) => {
+    const update = buildUpsertUpdate(payload, 'project_id', projectId);
+    try {
+        return await ResearchProject.findOneAndUpdate(
+            filter,
+            update,
+            { upsert: true, new: true }
+        );
+    } catch (err) {
+        if (!isDuplicateKeyFor(err, 'project_id')) throw err;
+        const duplicateProjectId = err?.keyValue?.project_id || projectId;
+        if (!duplicateProjectId) throw err;
+
+        return ResearchProject.findOneAndUpdate(
+            { project_id: duplicateProjectId },
+            update,
+            { new: true }
+        );
+    }
 };
 
 // Helper to normalize department_id (resolve name to ID if needed)
@@ -272,17 +298,19 @@ const syncIqacToAparForm = async (form, faculty_id, ay) => {
             faculty_visits: ['title']
         };
 
-        const keyFor = (item) => {
+        const idKeyFor = (item) => {
             const idVal = item && item[idField];
             const id = (idVal === 0 ? '0' : (idVal || '')).toString().trim().toLowerCase();
-            if (id) return `id:${id}`;
+            return id ? `id:${id}` : '';
+        };
+
+        const naturalKeyFor = (item) => {
             const keys = fallbackKeys[sectionKey] || ['title'];
-            for (const k of keys) {
-                const v = item && item[k];
-                const sv = (v === 0 ? '0' : (v || '')).toString().trim();
-                if (sv) return `t:${sv.toLowerCase()}`;
-            }
-            return '';
+            const values = keys
+                .map((k) => item && item[k])
+                .map((v) => (v === 0 ? '0' : (v || '')).toString().trim().toLowerCase())
+                .filter(Boolean);
+            return values.length ? `n:${values.join('|')}` : '';
         };
 
         if (wasEmpty) {
@@ -291,22 +319,45 @@ const syncIqacToAparForm = async (form, faculty_id, ay) => {
             return;
         }
 
-        const map = new Map();
+        const combined = [];
+        const byId = new Map();
+        const byNatural = new Map();
+
+        const indexItem = (item, index) => {
+            const idKey = idKeyFor(item);
+            const naturalKey = naturalKeyFor(item);
+            if (idKey) byId.set(idKey, index);
+            if (naturalKey) byNatural.set(naturalKey, index);
+        };
+
         for (const it of oldSection) {
-            const k = keyFor(it) || `idx:${map.size}`;
-            if (!map.has(k)) map.set(k, it);
-        }
-        for (const it of newSection) {
-            const k = keyFor(it) || `idx:${map.size}`;
-            if (!map.has(k)) {
-                map.set(k, it);
-            } else {
-                const existing = map.get(k) || {};
-                map.set(k, { ...it, ...existing, [idField]: it[idField] || existing[idField] });
-            }
+            combined.push(it);
+            indexItem(it, combined.length - 1);
         }
 
-        const combined = Array.from(map.values());
+        for (const it of newSection) {
+            const idKey = idKeyFor(it);
+            const naturalKey = naturalKeyFor(it);
+            const existingIndex = (idKey && byId.has(idKey))
+                ? byId.get(idKey)
+                : (naturalKey && byNatural.has(naturalKey))
+                    ? byNatural.get(naturalKey)
+                    : -1;
+
+            if (existingIndex === -1) {
+                combined.push(it);
+                indexItem(it, combined.length - 1);
+                modified = true;
+                continue;
+            }
+
+            const existing = combined[existingIndex] || {};
+            const merged = { ...it, ...existing, [idField]: existing[idField] || it[idField] };
+            if (!existing[idField] && it[idField]) modified = true;
+            combined[existingIndex] = merged;
+            indexItem(merged, existingIndex);
+        }
+
         if (combined.length !== oldSection.length) {
             modified = true;
         }
@@ -945,7 +996,12 @@ const saveToMonthly = asyncHandler(async (req, res) => {
     const upserts = [];
     const trackUpsert = (item, idField, promise, itemField = idField) => {
         upserts.push(promise.then(doc => {
-            if (doc?.[idField]) item[itemField] = doc[idField];
+            if (doc?.[idField]) {
+                const itemFields = Array.isArray(itemField) ? itemField : [itemField];
+                itemFields.forEach((field) => {
+                    item[field] = doc[field] || doc[idField];
+                });
+            }
             return doc;
         }));
     };
@@ -957,7 +1013,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             publication_id,
             department_id,
             type: 'journal',
-            paper_id: item.paper_id || undefined,
+            paper_id: item.paper_id || item.publication_id || publication_id,
             title: item.title || item.title_of_paper,
             name_of_journal: item.name_of_journal,
             author_names: item.author_names,
@@ -993,7 +1049,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             filter,
             buildUpsertUpdate(payload, 'publication_id', publication_id),
             { upsert: true, new: true }
-        ));
+        ), ['publication_id', 'paper_id']);
     }
 
     for (const item of (research.conferences || [])) {
@@ -1003,7 +1059,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             publication_id,
             department_id,
             type: 'conference',
-            paper_id: item.paper_id || undefined,
+            paper_id: item.paper_id || item.publication_id || publication_id,
             title: item.title || item.title_of_paper,
             name_of_conference: item.name_of_conference,
             conference_level: item.conference_level,
@@ -1037,7 +1093,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             filter,
             buildUpsertUpdate(payload, 'publication_id', publication_id),
             { upsert: true, new: true }
-        ));
+        ), ['publication_id', 'paper_id']);
     }
 
     for (const item of (research.books || [])) {
@@ -1085,15 +1141,20 @@ const saveToMonthly = asyncHandler(async (req, res) => {
 
     for (const item of (research.projects || [])) {
         const department_id = await normalizeDepartmentId(item.department_id || deptIdFallback);
-        const project_id = item.project_id || item.funding_id || generateId('RES');
+        const existingProjectId = item.project_id || item.funding_id;
+        const project_id = existingProjectId || generateId('RES');
+        const funding_id = item.funding_id || item.project_id || project_id;
         const payload = cleanEmptyStrings({
             project_id,
+            funding_id,
             department_id,
             type: 'funding',
             title: item.title || item.title_research,
             title_research: item.title_research,
             type_of_project: item.type_of_project,
             funding_agency_name: item.funding_agency_name,
+            agency_name: item.funding_agency_name,
+            chair_holder: item.chair_holder,
             funding_type: item.funding_type,
             sanction_number: item.sanction_number,
             year_of_sanction: normalizeMonthYear(item.year_of_sanction),
@@ -1110,8 +1171,8 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             external_collaborators: Array.isArray(item.external_collaborators) ? item.external_collaborators : [],
             metadata: { created_by: faculty_id, change_log: [{ action: 'updated', user_id: faculty_id, changes: 'Synced from APAR monthly save' }] }
         });
-        const filter = buildUpsertFilter('project_id', item.project_id, project_id, item.funding_id
-            ? { funding_id: item.funding_id }
+        const filter = existingProjectId
+            ? { type: 'funding', $or: [{ project_id: existingProjectId }, { funding_id: existingProjectId }] }
             : item.sanction_number
                 ? { type: 'funding', sanction_number: item.sanction_number }
                 : {
@@ -1120,12 +1181,8 @@ const saveToMonthly = asyncHandler(async (req, res) => {
                     funding_agency_name: exactText(item.funding_agency_name),
                     year_of_sanction: normalizeMonthYear(item.year_of_sanction),
                     academic_year: item.academic_year || ay
-                });
-        trackUpsert(item, 'project_id', ResearchProject.findOneAndUpdate(
-            filter,
-            buildUpsertUpdate(payload, 'project_id', project_id),
-            { upsert: true, new: true }
-        ));
+                };
+        trackUpsert(item, 'project_id', upsertResearchProject(filter, payload, project_id), ['project_id', 'funding_id']);
     }
 
     for (const item of (research.consultancy || [])) {
@@ -1164,11 +1221,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
                 year_of_consultancy: normalizeMonthYear(item.year_of_consultancy),
                 academic_year: item.academic_year || ay
             });
-        trackUpsert(item, 'project_id', ResearchProject.findOneAndUpdate(
-            filter,
-            buildUpsertUpdate(payload, 'project_id', project_id),
-            { upsert: true, new: true }
-        ));
+        trackUpsert(item, 'project_id', upsertResearchProject(filter, payload, project_id), ['project_id', 'consultancy_id']);
     }
 
     for (const item of (research.patents || [])) {
@@ -1235,7 +1288,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             year: normalizeMonthYear(item.year),
             academic_year: item.academic_year || ay
         });
-        trackUpsert(item, 'award_id', FacultyActivity.findOneAndUpdate(
+        trackUpsert(item, 'activity_id', FacultyActivity.findOneAndUpdate(
             filter,
             buildUpsertUpdate(payload, 'activity_id', activity_id),
             { upsert: true, new: true }
@@ -1269,7 +1322,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             course_id: exactText(item.course_id),
             academic_year: item.academic_year || ay
         });
-        trackUpsert(item, 'econtent_id', FacultyActivity.findOneAndUpdate(
+        trackUpsert(item, 'activity_id', FacultyActivity.findOneAndUpdate(
             filter,
             buildUpsertUpdate(payload, 'activity_id', activity_id),
             { upsert: true, new: true }
@@ -1309,7 +1362,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             start_date: parseDate(item.start_date),
             academic_year: item.academic_year || ay
         });
-        trackUpsert(item, 'visit_id', FacultyActivity.findOneAndUpdate(
+        trackUpsert(item, 'activity_id', FacultyActivity.findOneAndUpdate(
             filter,
             buildUpsertUpdate(payload, 'activity_id', activity_id),
             { upsert: true, new: true }
@@ -1350,11 +1403,11 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             start_date: parseDate(item.start_date),
             academic_year: item.academic_year || ay
         });
-        trackUpsert(item, 'program_id', FacultyActivity.findOneAndUpdate(
+        trackUpsert(item, 'activity_id', FacultyActivity.findOneAndUpdate(
             filter,
             buildUpsertUpdate(payload, 'activity_id', activity_id),
             { upsert: true, new: true }
-        ), 'program_id');
+        ), ['program_id', 'activity_id']);
     }
 
     for (const item of (research.collaborations || [])) {
@@ -1403,7 +1456,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             filter,
             buildUpsertUpdate(payload, 'collaboration_id', collaboration_id),
             { upsert: true, new: true }
-        ));
+        ), ['collaboration_id', 'activity_id']);
     }
 
     for (const item of (research.mous || [])) {
@@ -1447,7 +1500,7 @@ const saveToMonthly = asyncHandler(async (req, res) => {
             filter,
             buildUpsertUpdate(payload, 'collaboration_id', collaboration_id),
             { upsert: true, new: true }
-        ));
+        ), ['collaboration_id', 'mou_id']);
     }
 
     for (const item of (research.phd_supervision || [])) {
@@ -1496,10 +1549,22 @@ const saveToMonthly = asyncHandler(async (req, res) => {
 
     await Promise.all(upserts);
     
+    const formUpdate = {
+        research,
+        monthly_saved_at: new Date()
+    };
+
+    if (formData.personal) formUpdate.personal = formData.personal;
+    if (formData.teaching) formUpdate.teaching = formData.teaching;
+    if (formData.corporate) formUpdate.corporate = formData.corporate;
+
     const form = await AparForm.findOneAndUpdate(
         { faculty_id, ay },
-        { $set: { monthly_saved_at: new Date() } },
-        { new: true, upsert: true }
+        {
+            $set: formUpdate,
+            $setOnInsert: { status: 'Draft' }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
     try { await preventCrossFacultyDuplicates(faculty_id, ay, research); } catch (e) { console.warn('Cross-faculty duplicate prevention failed:', e?.message); }
@@ -1545,7 +1610,7 @@ const getPendingReporting = asyncHandler(async (req, res) => {
         query.status = { $ne: 'Draft' };
     } else {
         // Pending Action: Only forms needing attention
-        query.status = { $in: ['Submitted', 'Verified', 'Reviewed', 'Query Raised', 'Forwarded by Reporting officer', 'Query Raised by Reviewing officer'] };
+        query.status = { $in: ['Submitted', 'Query Raised', 'Query Raised by Reviewing officer'] };
     }
 
     if (ay) query.ay = ay;
@@ -1572,10 +1637,15 @@ const getPendingReporting = asyncHandler(async (req, res) => {
 const submitReportingAssessment = asyncHandler(async (req, res) => {
     // reporting_officer_id comes from the authenticated user (req.user)
     // assuming auth middleware populates req.user
-    const reportingKey = req.user?.id;
+    const reportingKey = req.user?.userId || req.user?.faculty_id || req.user?.id;
 
     const { faculty_id, ay, assessment, status } = req.body;
-    // status can be 'Verified', 'Reporting Officer Forwarded', 'Query Raised'
+    await assertFacultyAccess(req.user, faculty_id);
+    const isQuery = Boolean(status && status.includes('Query'));
+    const allowedStatuses = new Set(['Forwarded by Reporting officer', 'Query Raised by Reporting officer']);
+    if (!allowedStatuses.has(status)) {
+        throw new ApiError(400, "Reporting Officer can only raise a query or forward the APAR");
+    }
 
     const updateFields = {
         assessment: assessment,
@@ -1590,7 +1660,7 @@ const submitReportingAssessment = asyncHandler(async (req, res) => {
     }
 
     // Logic to reset timeline if Query Raised
-    if (status && status.includes('Query')) {
+    if (isQuery) {
         // If Reporting Officer raises query, it goes back to faculty (step 1 redo?)
         // The user said "db timeline shoulds to initiated value". 
         // We will clear reporting_reviewed_at and reviewing_reviewed_at 
@@ -1650,25 +1720,25 @@ const submitReportingAssessment = asyncHandler(async (req, res) => {
         await createNotification({
             recipient: faculty_id,
             sender: reportingKey,
-            type: status === 'Query Raised' ? 'APAR_SUBMISSION' : 'APAR_REVIEW_REQUEST',
-            title: status === 'Query Raised' ? 'Query Raised on APAR' : 'APAR Verified by Reporting Officer',
-            message: status === 'Query Raised'
+            type: isQuery ? 'APAR_SUBMISSION' : 'APAR_REVIEW_REQUEST',
+            title: isQuery ? 'Query Raised on APAR' : 'APAR Verified by Reporting Officer',
+            message: isQuery
                 ? `Reporting Officer has raised a query on your APAR for AY ${ay}.`
                 : `Your APAR for AY ${ay} has been verified by the Reporting Officer.`,
             link: '/apar-form'
         });
 
         // 2. Notify Reviewing Officer only if assessment is successfully forwarded
-        // if (status !== 'Query Raised' && facultyUser?.reviewing_officer_id) {
-        //     await createNotification({
-        //         recipient: facultyUser.reviewing_officer_id,
-        //         sender: reportingKey,
-        //         type: 'APAR_REVIEW_REQUEST',
-        //         title: 'APAR Review Pending',
-        //         message: `APAR for ${facultyUser.name || faculty_id} (AY ${ay}) is verified and pending your review.`,
-        //         link: '/apar/reviewing'
-        //     });
-        // }
+        if (!isQuery && facultyUser?.reviewing_officer_id) {
+            await createNotification({
+                recipient: facultyUser.reviewing_officer_id,
+                sender: reportingKey,
+                type: 'APAR_REVIEW_REQUEST',
+                title: 'APAR Review Pending',
+                message: `APAR for ${facultyUser.name || faculty_id} (AY ${ay}) is verified and pending your review.`,
+                link: '/apar/reporting'
+            });
+        }
     } catch (notifErr) {
         console.error("Reporting assessment notification failed:", notifErr);
     }
@@ -1711,8 +1781,7 @@ const getPendingReviewing = asyncHandler(async (req, res) => {
     } else {
         query.status = {
             $in: [
-                'Forwarded by Reporting officer',
-                'Accepted by Reviewing officer'
+                'Forwarded by Reporting officer'
             ]
         };
     }
@@ -1739,13 +1808,18 @@ const submitReviewingRemarks = asyncHandler(async (req, res) => {
     // Extract query_comment from request body
     const { faculty_id, ay, remarks, status, query_comment } = req.body;
     await assertFacultyAccess(req.user, faculty_id);
+    const finalStatus = status || "Accepted by Reviewing officer";
+    const allowedStatuses = new Set(['Accepted by Reviewing officer', 'Query Raised by Reviewing officer']);
+    if (!allowedStatuses.has(finalStatus)) {
+        throw new ApiError(400, "Reviewing Officer can only raise a query or accept the APAR");
+    }
 
     const updateData = {
         remarks: remarks,
-        status: status || "Accepted by Reviewing officer", // Final status or Query
+        status: finalStatus, // Final status or Query
     };
 
-    if (status && status.includes('Query')) {
+    if (finalStatus.includes('Query')) {
         updateData["timeline.reviewing_reviewed_at"] = null;
         // Optionally reset reporting officer time if it goes ALL the way back? 
         // Typically if Reviewing Officer queries, it might go to Reporting Officer.
@@ -1760,10 +1834,10 @@ const submitReviewingRemarks = asyncHandler(async (req, res) => {
     }
 
     const historyEvent = {
-        action: status || "Accepted by Reviewing officer",
+        action: finalStatus,
         by: "Reviewing Officer",
         date: new Date(),
-        comment: query_comment || (status === 'Accepted by Reviewing officer' ? 'Accepted by Reviewing Officer' : status)
+        comment: query_comment || (finalStatus === 'Accepted by Reviewing officer' ? 'Accepted by Reviewing Officer' : finalStatus)
     };
 
     const form = await AparForm.findOneAndUpdate(
@@ -1797,9 +1871,9 @@ const submitReviewingRemarks = asyncHandler(async (req, res) => {
         await createNotification({
             recipient: faculty_id,
             sender: req.user?.id,
-            type: status?.includes('Query') ? 'APAR_SUBMISSION' : 'APAR_COMPLETED',
-            title: status?.includes('Query') ? 'Query Raised by Reviewing Officer' : 'APAR Review Completed',
-            message: status?.includes('Query')
+            type: finalStatus.includes('Query') ? 'APAR_SUBMISSION' : 'APAR_COMPLETED',
+            title: finalStatus.includes('Query') ? 'Query Raised by Reviewing Officer' : 'APAR Review Completed',
+            message: finalStatus.includes('Query')
                 ? `Reviewing Officer has raised a query on your APAR for AY ${ay}.`
                 : `Your APAR for AY ${ay} has been successfully reviewed and accepted.`,
             link: '/apar-form'

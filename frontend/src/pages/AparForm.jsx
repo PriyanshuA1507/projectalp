@@ -380,11 +380,11 @@ export default function AparForm() {
         (async () => {
             try {
                 let rows = []
-                if ((loginData.role === 'Reporting Officer' || aparRole === 'Reporting Officer')) {
+                if (role === 'Reporting Officer') {
                     // assignments are fixed; fetch assigned officers via reporting service
                     const resp = await aparFormReportingService.getAssigned()
                     rows = resp?.rows || resp?.data || resp || []
-                } else if ((loginData.role === 'Reviewing Officer' || aparRole === 'Reviewing Officer')) {
+                } else if (role === 'Reviewing Officer') {
                     const resp = await aparFormReportingService.getPendingReviews()
                     rows = resp?.rows || resp?.data || resp || []
                 } else {
@@ -612,7 +612,9 @@ export default function AparForm() {
             agree_with_assessment: 'Yes',
             disagreement_reason: '',
             general_remarks: '',
-            specific_characteristics: ''
+            specific_characteristics: '',
+            signature_place: '',
+            signature_date: ''
         },
         timeline: {}
     });
@@ -738,13 +740,13 @@ export default function AparForm() {
             fetchFormData(facultyId, ay);
         }
 
-        const handleDataUpdate = (data) => {
+        const handleDataUpdate = () => {
             // console.log('[FRONTEND] Received Update:', data);
             // toast.info("New IQAC data received. Refreshing form...", { autoClose: 3000 }); // Removed to avoid double popup with NotificationBell
             fetchFormData(facultyId, ay);
         };
 
-        const handleNewEntrySocket = (data) => {
+        const handleNewEntrySocket = () => {
             const now = Date.now();
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
@@ -775,7 +777,7 @@ export default function AparForm() {
             }, 500);
         };
 
-        const handleDeleteEntrySocket = (data) => {
+        const handleDeleteEntrySocket = () => {
             const now = Date.now();
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
@@ -798,7 +800,7 @@ export default function AparForm() {
             }
         };
 
-        const handleRoomJoined = (data) => {
+        const handleRoomJoined = () => {
             // console.log('[FRONTEND] ✅ Successfully joined room:', data);
             // toast.success(`Connected to Sync Stream: ${data.roomName}`);
         };
@@ -971,68 +973,78 @@ export default function AparForm() {
 
 
 
-    const nextStep = async () => {
-        // Validate current step before moving forward
-        const validateCurrentStep = () => {
-            try {
-                const container = typeof document !== 'undefined' ? document.getElementById(`apar-step-${currentStep}`) : null;
-                if (!container) return true;
+    const validateStepFields = (step = currentStep) => {
+        try {
+            const container = typeof document !== 'undefined' ? document.getElementById(`apar-step-${step}`) : null;
+            if (!container) return true;
 
-                const nodes = Array.from(container.querySelectorAll('[required], [aria-required="true"]')).filter(el => !el.disabled);
-                const missing = [];
+            const nodes = Array.from(container.querySelectorAll('[required], [aria-required="true"]')).filter(el => !el.disabled);
+            const missing = [];
 
-                for (const el of nodes) {
-                    let valid = true;
+            for (const el of nodes) {
+                let valid = true;
+                const tag = (el.tagName || '').toLowerCase();
+                const type = el.type || '';
+
+                if (type === 'checkbox') {
+                    valid = el.checked;
+                } else if (tag === 'select') {
+                    valid = el.value !== '' && el.value !== null && el.value !== undefined;
+                } else {
+                    valid = el.value !== null && el.value !== undefined && String(el.value).trim() !== '';
+                }
+
+                if (!valid) {
+                    let labelText = '';
+                    const parent = el.closest('div') || el.parentElement;
+                    if (parent) {
+                        const label = parent.querySelector('label');
+                        if (label) labelText = label.textContent.replace('*', '').trim();
+                    }
+                    if (!labelText) labelText = el.name || el.placeholder || 'Required field';
+                    missing.push(labelText);
+                }
+            }
+
+            if (missing.length > 0) {
+                const firstInvalid = nodes.find(el => {
                     const tag = (el.tagName || '').toLowerCase();
                     const type = el.type || '';
+                    if (type === 'checkbox') return !el.checked;
+                    if (tag === 'select') return !(el.value !== '' && el.value !== null && el.value !== undefined);
+                    return !(el.value !== null && el.value !== undefined && String(el.value).trim() !== '');
+                });
+                if (firstInvalid && typeof firstInvalid.reportValidity === 'function') firstInvalid.reportValidity();
+                else if (firstInvalid && firstInvalid.focus) firstInvalid.focus();
 
-                    if (type === 'checkbox') {
-                        valid = el.checked;
-                    } else if (tag === 'select') {
-                        valid = el.value !== '' && el.value !== null && el.value !== undefined;
-                    } else {
-                        valid = el.value !== null && el.value !== undefined && String(el.value).trim() !== '';
-                    }
-
-                    if (!valid) {
-                        let labelText = '';
-                        const parent = el.closest('div') || el.parentElement;
-                        if (parent) {
-                            const label = parent.querySelector('label');
-                            if (label) labelText = label.textContent.replace('*', '').trim();
-                        }
-                        if (!labelText) labelText = el.name || el.placeholder || 'Required field';
-                        missing.push(labelText);
-                    }
-                }
-
-                if (missing.length > 0) {
-                    const firstInvalid = nodes.find(el => {
-                        const tag = (el.tagName || '').toLowerCase();
-                        const type = el.type || '';
-                        if (type === 'checkbox') return !el.checked;
-                        if (tag === 'select') return !(el.value !== '' && el.value !== null && el.value !== undefined);
-                        return !(el.value !== null && el.value !== undefined && String(el.value).trim() !== '');
-                    });
-                    if (firstInvalid && typeof firstInvalid.reportValidity === 'function') firstInvalid.reportValidity();
-                    else if (firstInvalid && firstInvalid.focus) firstInvalid.focus();
-
-                    toast.error(`Please fill required fields: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
-                    return false;
-                }
-
-                return true;
-            } catch (e) {
-                console.error('Validation error:', e);
-                return true;
+                toast.error(`Please fill required fields: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
+                return false;
             }
-        };
 
+            return true;
+        } catch (e) {
+            console.error('Validation error:', e);
+            return true;
+        }
+    };
+
+    const validateOfficerAction = (type) => {
+        if (type === 'reporting' && !validateStepFields(5)) return false;
+        if (type === 'reviewing' && !validateStepFields(6)) return false;
+        if (!certified) {
+            toast.error('Please confirm the certification checkbox before submitting.');
+            return false;
+        }
+        return true;
+    };
+
+    const nextStep = async () => {
         if (currentStep < totalSteps) {
-            if (!validateCurrentStep()) return;
-            // Auto-save on next
-            const saved = await handleSaveDraft(true);
-            if (saved) toast.success('Draft saved');
+            if (!validateStepFields(currentStep)) return;
+            if (activeRole === 'Officer (Graded)') {
+                const saved = await handleSaveDraft(true);
+                if (saved) toast.success('Draft saved');
+            }
             setCurrentStep(currentStep + 1);
             window.scrollTo(0, 0);
         }
@@ -1150,10 +1162,22 @@ export default function AparForm() {
                 faculty_id: facultyId,
                 formData: formData
             };
+            let submitPayload = payload;
 
             // 1) Save Section III to monthly collections before final submission
             try {
-                await AparFormGradedService.saveToMonthly(payload);
+                const monthlyRes = await AparFormGradedService.saveToMonthly(payload);
+                if (monthlyRes?.research) {
+                    const formDataWithMonthlyIds = {
+                        ...formData,
+                        research: monthlyRes.research
+                    };
+                    submitPayload = {
+                        ...payload,
+                        formData: formDataWithMonthlyIds
+                    };
+                    setFormData(formDataWithMonthlyIds);
+                }
             } catch (e) {
                 console.error('Monthly save before submit failed:', e);
                 const msg = e.response?.data?.message || 'Failed to save monthly data before submission';
@@ -1162,7 +1186,7 @@ export default function AparForm() {
             }
 
             // 2) Proceed with final submission
-            await AparFormGradedService.submit(payload);
+            await AparFormGradedService.submit(submitPayload);
             toast.success('APAR Form Submitted Successfully!');
             navigate('/apar/dashboard');
         } catch (e) {
@@ -1350,6 +1374,7 @@ export default function AparForm() {
     };
 
     const handleReportingSubmit = async (status) => {
+        if (!validateOfficerAction('reporting')) return;
         if (status === 'Query Raised' || status === 'Query Raised by Reporting officer') {
             setPendingAction({ type: 'reporting', status: 'Query Raised by Reporting officer' });
             setQueryModalOpen(true);
@@ -1382,6 +1407,7 @@ export default function AparForm() {
     };
 
     const handleReviewingSubmit = async (statusOverride = 'Accepted by Reviewing officer') => {
+        if (!validateOfficerAction('reviewing')) return;
         if (statusOverride.includes('Query')) {
             setPendingAction({ type: 'reviewing', status: statusOverride });
             setQueryModalOpen(true);
@@ -1433,6 +1459,7 @@ export default function AparForm() {
 
             setViewMode('form');
             setCurrentStep(1);
+            setCertified(false);
             setSelectedFacultyRaw(faculty.raw || faculty);
         } catch (err) {
             console.error(err);
@@ -1488,6 +1515,11 @@ export default function AparForm() {
 
     // console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
     const submitConfirmationCopy = getSubmitConfirmationText();
+    const certificationLocked = (
+        (activeRole === 'Reporting Officer' && formStatus === 'Forwarded by Reporting officer') ||
+        (activeRole === 'Reviewing Officer' && formStatus === 'Accepted by Reviewing officer') ||
+        (activeRole === 'Officer (Graded)' && isReadOnlyMode())
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">
@@ -1507,7 +1539,7 @@ export default function AparForm() {
                     >
                         <FiArrowLeft className="mr-2" /> Back to Dashboard
                     </button>
-                    {(loginData.role === 'Reporting Officer' || loginData.role === 'Reviewing Officer') && viewMode === 'form' && (
+                    {(activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') && viewMode === 'form' && (
                         <button
                             onClick={() => setViewMode('list')}
                             className="flex items-center text-indigo-600 hover:text-indigo-900 ml-4 font-semibold"
@@ -1546,11 +1578,11 @@ export default function AparForm() {
 
             <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden p-8 print:shadow-none print:p-0">
 
-                {viewMode === 'list' && (loginData.role === 'Reporting Officer' || loginData.role === 'Reviewing Officer') ? (
+                {viewMode === 'list' && (activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') ? (
                     <>
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                {loginData.role === 'Reporting Officer' ? "Pending Assessments" : "Pending Reviews"}
+                                {activeRole === 'Reporting Officer' ? "Pending Assessments" : "Pending Reviews"}
                             </h2>
                             <div className="overflow-hidden border border-gray-200 rounded-lg shadow">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -1677,7 +1709,7 @@ export default function AparForm() {
                                 <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
                                     <h3 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">One Final Check</h3>
                                     <p className="text-sm text-gray-600 mb-6">
-                                        {loginData.role === 'Reporting Officer' || loginData.role === 'Reviewing Officer'
+                                        {activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer'
                                             ? "Please review your entries. By submitting, you confirm the details are final."
                                             : "Please review all the information provided. All data entered corresponds to the institutional IQAC standards."}
                                     </p>
@@ -1688,9 +1720,9 @@ export default function AparForm() {
                                                 type="checkbox"
                                                 id="certification"
                                                 name="certification"
-                                                disabled={isReadOnlyMode()}
-                                                required={!isReadOnlyMode()}
-                                                aria-required={!isReadOnlyMode()}
+                                                disabled={certificationLocked}
+                                                required={!certificationLocked}
+                                                aria-required={!certificationLocked}
                                                 className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                 checked={certified}
                                                 onChange={(e) => setCertified(e.target.checked)}
@@ -1704,7 +1736,7 @@ export default function AparForm() {
                             </div>
 
                             {/* Navigation Buttons - Hidden in Print */}
-                            {!((loginData.role === 'Reporting Officer') && currentStep === 5) && (
+                            {(
                                 <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 print:hidden">
                                     <button
                                         type="button"
@@ -1717,7 +1749,7 @@ export default function AparForm() {
 
                                     <div className="flex gap-4">
                                         {/* Save Draft/Monthly Buttons */}
-                                        {(activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'not_filled'].includes(formStatus || 'Draft')) && (
+                                        {(activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'Query Raised by Reporting officer', 'Query Raised by Reviewing officer', 'not_filled'].includes(formStatus || 'Draft')) && (
                                             <>
                                                 <button
                                                     type="button"
@@ -1746,27 +1778,6 @@ export default function AparForm() {
                                                 {/* Only show actions if NOT already forwarded (or can re-verify if needed, but user requested NO changes) */}
                                                 {activeRole === 'Reporting Officer' && formStatus !== 'Forwarded by Reporting officer' && (
                                                     <div className="flex gap-4">
-                                                        <button
-                                                            type="button"
-                                                            onClick={async () => {
-                                                                try {
-                                                                    const payload = {
-                                                                        faculty_id: selectedFacultyRaw?.faculty_id || selectedFacultyRaw?.id?.split('-')[0],
-                                                                        ay: selectedFacultyRaw?.ay || selectedFacultyRaw?.id?.split('-').slice(1).join('-'),
-                                                                        assessment: formData.assessment,
-                                                                        status: 'Submitted' // Keep status as Submitted (Draft mode for RO)
-                                                                    };
-                                                                    await aparFormReportingService.submit(payload);
-                                                                    toast.success('Assessment saved as draft');
-                                                                } catch (err) {
-                                                                    console.error(err);
-                                                                    toast.error('Failed to save draft');
-                                                                }
-                                                            }}
-                                                            className="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center"
-                                                        >
-                                                            Save Draft
-                                                        </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => handleReportingSubmit('Query Raised')}
@@ -1805,7 +1816,7 @@ export default function AparForm() {
                                                 )}
 
                                                 {/* Case 3: Officer (Graded) - Standard Submit */}
-                                                {activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'Query Raised by Reporting officer', 'not_filled'].includes(formStatus || 'Draft') && (
+                                                {activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'Query Raised by Reporting officer', 'Query Raised by Reviewing officer', 'not_filled'].includes(formStatus || 'Draft') && (
                                                     <button
                                                         type="button"
                                                         className="px-8 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"

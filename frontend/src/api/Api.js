@@ -27,6 +27,13 @@ const unwrap = (response) => {
 };
 
 let isAuthErrorProcessing = false;
+const backgroundEndpointPrefixes = [
+    '/notifications',
+    '/dashboard',
+    '/iqac-approvals',
+    '/apar/mongo/reporting/pending',
+    '/apar/mongo/reviewing/pending'
+];
 
 export class Api {
     static roleProvider = null;
@@ -103,8 +110,9 @@ export class Api {
                     // Prevent redirect loop if already on login page or when requesting profile endpoints
                     const reqUrl = originalRequest.url || '';
                     const isProfileReq = reqUrl.endsWith('/auth/profile') || reqUrl.endsWith('/apar/auth/profile');
+                    const isBackgroundReq = backgroundEndpointPrefixes.some((prefix) => reqUrl.startsWith(prefix));
 
-                    if (status === 401 && (isLoginPage || isProfileReq)) {
+                    if (status === 401 && (isLoginPage || isProfileReq || isBackgroundReq)) {
                         return Promise.reject(error);
                     }
 
@@ -113,6 +121,9 @@ export class Api {
                         if (status === 401) {
                             const redirectPath = reqUrl.startsWith('/apar') || reqUrl.includes('/apar/') ? '/apar/login' : '/login';
                             window.location.href = redirectPath;
+                            setTimeout(() => {
+                                isAuthErrorProcessing = false;
+                            }, 3000);
                         } else {
                             setTimeout(() => {
                                 isAuthErrorProcessing = false;
