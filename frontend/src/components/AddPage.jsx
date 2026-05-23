@@ -15,6 +15,8 @@ import {
     calculateAcademicYear,
     extractFacultyId
 } from '../config/duplicateDetectionConfig';
+import { shouldUseFacultyApproval } from '../utils/iqacApproval.util.js';
+import { iqacApprovalService } from '../services/iqacApproval.service.js';
 import { toast } from 'sonner';
 import FormPageHeader from './FormPageHeader.jsx';
 
@@ -540,6 +542,20 @@ const AddPage = () => {
                 }
                 return acc;
             }, {});
+
+            if (shouldUseFacultyApproval({ resource, role, editMode, payload: processedData })) {
+                await iqacApprovalService.createApprovalRequest(resourceId, processedData, files);
+                setSuccess(`${resource.title} sent to associated faculty for approval. It will be saved permanently after approval.`);
+                toast.success('Approval request sent to faculty');
+
+                const nextInitialData = getInitialFormData(resource);
+                if (role === ROLES.DEPARTMENT_HOD && (user?.departmentId || user?.department_id)) {
+                    nextInitialData.department_id = user.departmentId || user.department_id;
+                }
+                setFiles({});
+                setFormData(nextInitialData);
+                return;
+            }
 
             let response;
             const hasFiles = Object.values(files).some(file => file);

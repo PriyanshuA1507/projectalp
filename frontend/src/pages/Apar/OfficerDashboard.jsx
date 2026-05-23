@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { AparFormGradedService } from '../../services/apar_form_graded.services.js';
 import { aparLogout, aparInitializeSession } from '../../store/slices/aparAuthSlice.js';
-import { FiAlertCircle, FiClock, FiFileText, FiArchive, FiPlus, FiCamera, FiLoader } from 'react-icons/fi';
+import { FiAlertCircle, FiClock, FiFileText, FiArchive, FiPlus, FiCamera, FiLoader, FiTrash2 } from 'react-icons/fi';
 import NotificationBell from '../../components/NotificationBell.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
 import { Api } from '../../api/Api.js';
@@ -20,6 +20,8 @@ export default function OfficerDashboard() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [logoutLoading, setLogoutLoading] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     const { socket } = useSocket();
     const lastRefreshRef = useRef(0);
@@ -139,6 +141,42 @@ export default function OfficerDashboard() {
         navigate('/apar-form', { state: { ay } });
     };
 
+    const canDeleteForm = (form) => {
+        const status = form?.status || 'Draft';
+        return [
+            'Draft',
+            'Query Raised',
+            'Query Raised by Reporting officer',
+            'Query Raised by Reviewing officer',
+            'not_filled'
+        ].includes(status);
+    };
+
+    const requestDeleteForm = (form, ay) => {
+        if (!form) return;
+        setDeleteTarget({
+            faculty_id: form.faculty_id || user?.userId || user?.id,
+            ay,
+            status: form.status || 'Draft'
+        });
+    };
+
+    const confirmDeleteForm = async () => {
+        if (!deleteTarget) return;
+        try {
+            setDeleteLoading(true);
+            await AparFormGradedService.deleteForm(deleteTarget.faculty_id, deleteTarget.ay);
+            toast.success('APAR form deleted permanently');
+            setDeleteTarget(null);
+            await fetchHistory();
+        } catch (err) {
+            console.error('Failed to delete APAR form', err);
+            toast.error(err?.response?.data?.message || 'Failed to delete APAR form');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     console.log('APAR Dashboard Debug:', { history, currentAY });
 
     const computedExternalImage = (name) => `https://dtu.ac.in/modules/facilities/people/faculty/userimages/${String(name || '').replace(/^(Dr\.|Dr|Professor|Prof\.|Prof|Mr\.|Mr|Ms\.|Ms|Mrs\.|Mrs)\s+/i, '').toLowerCase().replace(/\s+/g, '')}.jpg`;
@@ -216,6 +254,14 @@ export default function OfficerDashboard() {
                     subtitle="Manage your Annual Performance Appraisal forms"
                     backTo="/"
                     actions={
+                        <>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/apar/iqac-approvals')}
+                            className="rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50"
+                        >
+                            IQAC Approvals
+                        </button>
                         <button
                             type="button"
                             onClick={handleLogout}
@@ -224,6 +270,7 @@ export default function OfficerDashboard() {
                         >
                             {logoutLoading ? 'Signing out…' : 'Sign Out'}
                         </button>
+                        </>
                     }
                 />
 
@@ -329,6 +376,16 @@ export default function OfficerDashboard() {
                                     >
                                         Track Status
                                     </button>
+                                    {canDeleteForm(currentYearForm) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => requestDeleteForm(currentYearForm, currentAY)}
+                                            className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-6 py-2 font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50"
+                                        >
+                                            <FiTrash2 className="h-4 w-4" />
+                                            Delete
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -385,12 +442,24 @@ export default function OfficerDashboard() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 {form ? (
-                                                    <button
-                                                        onClick={() => handleStartOrEdit(year)}
-                                                        className="font-semibold text-emerald-700 hover:text-emerald-900"
-                                                    >
-                                                        View
-                                                    </button>
+                                                    <div className="flex justify-end gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleStartOrEdit(year)}
+                                                            className="font-semibold text-emerald-700 hover:text-emerald-900"
+                                                        >
+                                                            View
+                                                        </button>
+                                                        {canDeleteForm(form) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => requestDeleteForm(form, year)}
+                                                                className="font-semibold text-red-600 hover:text-red-800"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <span className="text-gray-400 cursor-not-allowed">No Record</span>
                                                 )}
@@ -459,6 +528,42 @@ export default function OfficerDashboard() {
                                         </ul>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {deleteTarget && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+                        <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-6 shadow-2xl">
+                            <div className="mb-4 flex items-start gap-3">
+                                <div className="rounded-full bg-red-100 p-2 text-red-600">
+                                    <FiTrash2 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Delete APAR Form</h3>
+                                    <p className="mt-1 text-sm text-gray-600">
+                                        This will permanently delete the {deleteTarget.ay} APAR draft and all saved entries in it.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setDeleteTarget(null)}
+                                    disabled={deleteLoading}
+                                    className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={confirmDeleteForm}
+                                    disabled={deleteLoading}
+                                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60"
+                                >
+                                    {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
+                                </button>
                             </div>
                         </div>
                     </div>

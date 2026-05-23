@@ -3,6 +3,7 @@ import {
     getForm,
     saveForm,
     submitForm,
+    deleteForm,
     saveToMonthly,
     getPendingReporting,
     submitReportingAssessment,
@@ -20,6 +21,7 @@ import { aparDraftSchema, aparFormSchema, aparAssessmentSchema, aparReviewingSch
 const router = Router();
 
 router.route("/form").get(authenticate, getForm);
+router.route("/form").delete(authenticate, deleteForm);
 router.route("/save").post(authenticate, validate(aparDraftSchema), saveForm);
 router.route("/save-to-monthly").post(authenticate, saveToMonthly);
 router.route("/submit").post(authenticate, validate(aparFormSchema), submitForm);

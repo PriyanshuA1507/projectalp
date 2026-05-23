@@ -431,6 +431,7 @@ export default function AparForm() {
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [pendingAction, setPendingAction] = useState(null); // { type: 'reporting' | 'reviewing', status: string }
     const [deleteModal, setDeleteModal] = useState({ open: false, section: null, field: null, index: null });
+    const [submitConfirmModal, setSubmitConfirmModal] = useState({ open: false, type: null, status: null });
 
     // Deduplication ref for socket events
     const lastEventRef = React.useRef(0);
@@ -445,6 +446,48 @@ export default function AparForm() {
             toast.success("Item deleted");
         }
         setDeleteModal({ open: false, section: null, field: null, index: null });
+    };
+
+    const requestSubmitConfirmation = (type, status = null) => {
+        setSubmitConfirmModal({ open: true, type, status });
+    };
+
+    const closeSubmitConfirmation = () => {
+        setSubmitConfirmModal({ open: false, type: null, status: null });
+    };
+
+    const confirmSubmitAction = async () => {
+        const action = submitConfirmModal;
+        closeSubmitConfirmation();
+
+        if (action.type === 'officer') {
+            await handleSubmit();
+        } else if (action.type === 'reporting') {
+            await finalizeReportingSubmit(action.status);
+        } else if (action.type === 'reviewing') {
+            await finalizeReviewingSubmit(action.status);
+        }
+    };
+
+    const getSubmitConfirmationText = () => {
+        if (submitConfirmModal.type === 'reporting') {
+            return {
+                title: 'Verify & Forward APAR',
+                message: 'Are you sure you want to verify this APAR and forward it to the Reviewing Officer?'
+            };
+        }
+
+        if (submitConfirmModal.type === 'reviewing') {
+            return {
+                title: 'Submit APAR Review',
+                message: 'Are you sure you want to submit this review? This will finalize your reviewing action.'
+            };
+        }
+
+        return {
+            title: 'Submit APAR Form',
+            message: 'Are you sure you want to submit this APAR form? After submission, it will move to the officer review workflow.'
+        };
     };
 
     const confirmQuerySubmission = async () => {
@@ -1311,7 +1354,7 @@ export default function AparForm() {
             setPendingAction({ type: 'reporting', status: 'Query Raised by Reporting officer' });
             setQueryModalOpen(true);
         } else {
-            await finalizeReportingSubmit(status);
+            requestSubmitConfirmation('reporting', status);
         }
     };
 
@@ -1343,7 +1386,7 @@ export default function AparForm() {
             setPendingAction({ type: 'reviewing', status: statusOverride });
             setQueryModalOpen(true);
         } else {
-            finalizeReviewingSubmit(statusOverride);
+            requestSubmitConfirmation('reviewing', statusOverride);
         }
     };
 
@@ -1444,6 +1487,7 @@ export default function AparForm() {
     }
 
     // console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
+    const submitConfirmationCopy = getSubmitConfirmationText();
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">
@@ -1765,7 +1809,7 @@ export default function AparForm() {
                                                     <button
                                                         type="button"
                                                         className="px-8 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
-                                                        onClick={handleSubmit}
+                                                        onClick={() => requestSubmitConfirmation('officer')}
                                                     >
                                                         <FiCheck className="mr-2" /> Submit APAR
                                                     </button>
@@ -1787,6 +1831,39 @@ export default function AparForm() {
                     </>
                 )} {/* End of viewMode check */}
             </div>
+
+            {/* Submit Confirmation Modal */}
+            {submitConfirmModal.open && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm print:hidden">
+                    <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl">
+                        <div className="mb-4 flex items-start gap-3">
+                            <div className="rounded-full bg-emerald-100 p-2 text-emerald-700">
+                                <FiCheck className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">{submitConfirmationCopy.title}</h3>
+                                <p className="mt-1 text-sm text-gray-600">{submitConfirmationCopy.message}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={closeSubmitConfirmation}
+                                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmSubmitAction}
+                                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                                Confirm Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Query Comment Modal */}
             {queryModalOpen && (

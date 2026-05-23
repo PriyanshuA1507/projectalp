@@ -140,6 +140,7 @@ import conferenceResearchPapersRoutes from "./routes/conference_research_papers.
 import feedbackRoutes from "./routes/feedback.routes.js"
 import uploadRoutes from "./routes/upload.routes.js"
 import notificationRoutes from "./routes/notification.routes.js"
+import iqacApprovalRoutes from "./routes/iqac_approval.routes.js"
 import dashboardRoutes from "./routes/dashboard.routes.js"
 import userManagementRoutes from "./routes/user_management.routes.js"
 
@@ -161,6 +162,7 @@ app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/feedback', authenticate, feedbackRoutes)
 app.use('/api/v1/apar/auth', aparAuthRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
+app.use('/api/v1/iqac-approvals', authenticate, iqacApprovalRoutes)
 app.use('/api/v1/dashboard', dashboardRoutes)
 
 // legacy APAR endpoints (compatibility with older frontends)

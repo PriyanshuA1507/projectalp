@@ -25,6 +25,14 @@ class AparFormGradedServices {
         return await this.api.get(`/apar/mongo/form?faculty_id=${faculty_id}&ay=${ay}`)
     }
 
+    async deleteForm(faculty_id, ay) {
+        const params = new URLSearchParams({
+            faculty_id: faculty_id || '',
+            ay: ay || ''
+        });
+        return await this.api.delete(`/apar/mongo/form?${params.toString()}`)
+    }
+
     async getFacultyInfo() {
         return await this.api.get('/apar/mongo/info')
     }

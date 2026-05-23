@@ -17,6 +17,8 @@ const notificationSchema = new mongoose.Schema({
             'APAR_REVIEW_REQUEST',
             'APAR_COMPLETED',
             'IQAC_UPDATE',
+            'IQAC_APPROVAL_REQUEST',
+            'IQAC_APPROVAL_DECISION',
             'SYSTEM_ALERT',
             'CROSS_FACULTY_REMOVAL'
         ],

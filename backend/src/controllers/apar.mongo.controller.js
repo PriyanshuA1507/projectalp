@@ -607,6 +607,40 @@ const getFacultyHistory = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, list, "Faculty APAR history fetched"));
 });
 
+const DELETE_ALLOWED_STATUSES = new Set([
+    'Draft',
+    'Query Raised',
+    'Query Raised by Reporting officer',
+    'Query Raised by Reviewing officer',
+    'not_filled'
+]);
+
+const deleteForm = asyncHandler(async (req, res) => {
+    let faculty_id = req.query.faculty_id || req.body?.faculty_id || req.user?.userId || req.user?.faculty_id || req.user?.id;
+    faculty_id = await resolveToReadableId(faculty_id);
+    await assertFacultyAccess(req.user, faculty_id);
+
+    let ay = req.query.ay || req.body?.ay || req.user?.academicYear;
+    if (ay) ay = normalizeAY(ay);
+
+    if (!faculty_id) throw new ApiError(400, "Faculty ID is required");
+    if (!ay) throw new ApiError(400, "Academic year (ay) is required");
+
+    const form = await AparForm.findOne({ faculty_id, ay });
+    if (!form) {
+        throw new ApiError(404, "APAR form not found");
+    }
+
+    const status = form.status || 'Draft';
+    if (!DELETE_ALLOWED_STATUSES.has(status)) {
+        throw new ApiError(400, "Only draft or query-returned APAR forms can be deleted");
+    }
+
+    await AparForm.deleteOne({ _id: form._id });
+
+    return res.status(200).json(new ApiResponse(200, { faculty_id, ay }, "APAR form deleted permanently"));
+});
+
 const normalizeResearchMonthYears = (research = {}) => {
     const normalizedResearch = { ...research };
     const normalizeList = (sectionKey, fields) => {
@@ -2008,6 +2042,7 @@ const isDuplicateEntry = (entry1, entry2, type) => {
 export {
     getForm,
     getFacultyHistory,
+    deleteForm,
     saveForm,
     submitForm,
     saveToMonthly,

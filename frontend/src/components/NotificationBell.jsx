@@ -27,6 +27,8 @@ const NotificationBell = () => {
             case 'APAR_REVIEW_REQUEST': return <FiCheckCircle className="text-green-500" />;
             case 'APAR_COMPLETED': return <FiCheckCircle className="text-purple-500" />;
             case 'IQAC_UPDATE': return <FiExternalLink className="text-orange-500" />;
+            case 'IQAC_APPROVAL_REQUEST': return <FiCheckCircle className="text-emerald-500" />;
+            case 'IQAC_APPROVAL_DECISION': return <FiInfo className="text-indigo-500" />;
             case 'SYSTEM_ALERT': return <FiAlertCircle className="text-red-500" />;
             default: return <FiBell className="text-gray-500" />;
         }
@@ -205,6 +207,17 @@ const NotificationBell = () => {
         // }
     };
 
+    const handleOpenLink = (notification, event) => {
+        event.stopPropagation();
+        if (!notification.isRead) {
+            markAsRead(notification._id);
+        }
+        if (notification.link) {
+            setIsOpen(false);
+            navigate(notification.link);
+        }
+    };
+
     const handleToggle = () => {
         if (!isOpen) {
             // Refresh notifications when opening to ensure "all previous notifications" are shown
@@ -290,6 +303,16 @@ const NotificationBell = () => {
                                                     <p className="text-[10px] text-gray-400 mt-1 uppercase font-medium tracking-wider">
                                                         {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                                                     </p>
+                                                    {n.link && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => handleOpenLink(n, event)}
+                                                            className="mt-2 inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                                                        >
+                                                            Open
+                                                            <FiExternalLink className="h-3 w-3" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
 

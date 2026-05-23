@@ -21,6 +21,7 @@ import ProtectedAparRoute from './components/ProtectedAparRoute.jsx';
 import ReportingDashboard from './pages/Apar/ReportingDashboard.jsx';
 import OfficerDashboard from './pages/Apar/OfficerDashboard.jsx';
 import UserManagement from './pages/UserManagement.jsx';
+import IqacApprovals from './pages/Apar/IqacApprovals.jsx';
 
 const router = createBrowserRouter([
   {
@@ -52,6 +53,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedAparRoute>
         <OfficerDashboard />
+      </ProtectedAparRoute>
+    ),
+  },
+  {
+    path: '/apar/iqac-approvals',
+    element: (
+      <ProtectedAparRoute>
+        <IqacApprovals />
       </ProtectedAparRoute>
     ),
   },

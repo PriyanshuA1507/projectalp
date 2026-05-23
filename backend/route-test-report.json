@@ -1,32 +1,82 @@
 {
   "summary": {
     "base_url": "http://localhost:8000",
-    "total": 17,
-    "ok": 1,
-    "client_error": 13,
-    "server_error": 3,
-    "generated_at": "2026-01-18T19:05:39.971Z",
-    "duration_ms": 191
+    "total": 21,
+    "ok": 0,
+    "client_error": 7,
+    "server_error": 14,
+    "generated_at": "2026-05-23T15:24:22.059Z",
+    "duration_ms": 56
   },
   "results": [
     {
       "method": "POST",
-      "path": "/api/v1/auth/login",
-      "url": "http://localhost:8000/api/v1/auth/login",
-      "status": 400,
+      "path": "/api/v1/upload",
+      "url": "http://localhost:8000/api/v1/upload",
+      "status": 401,
       "ok": true,
       "classification": "client-error",
-      "duration_ms": 16,
+      "duration_ms": 8,
       "request_payload": {},
       "response_json": {
-        "message": "Email, password and role are required",
-        "statusCode": 400,
+        "message": "Authentication required",
+        "statusCode": 401,
         "errors": [],
-        "stack": "Error: Email, password and role are required\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/controllers/auth.controller.js:145:11\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/async-handler.js:3:21\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)",
         "success": false
       },
       "analysis": {
-        "response_message": "Email, password and role are required",
+        "response_message": "Authentication required",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\upload.routes.js",
+      "used_multipart": true,
+      "file_attached": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "url": "http://localhost:8000/api/v1/auth/login",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 4,
+      "request_payload": {},
+      "response_json": {
+        "message": "invalid csrf token",
+        "statusCode": 500,
+        "errors": [],
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "invalid csrf token",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\auth.routes.js",
+      "used_multipart": false,
+      "file_attached": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/allowed-roles",
+      "url": "http://localhost:8000/api/v1/auth/allowed-roles",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 3,
+      "request_payload": {},
+      "response_json": {
+        "message": "invalid csrf token",
+        "statusCode": 500,
+        "errors": [],
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
@@ -38,45 +88,20 @@
       "method": "POST",
       "path": "/api/v1/auth/register",
       "url": "http://localhost:8000/api/v1/auth/register",
-      "status": 403,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 10,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "User provisioning is not allowed",
-        "statusCode": 403,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: User provisioning is not allowed\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/controllers/auth.controller.js:89:11\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/async-handler.js:3:21\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "User provisioning is not allowed",
-        "requires_files": false,
-        "validation_error": false
-      },
-      "routeFile": "src\\routes\\auth.routes.js",
-      "used_multipart": false,
-      "file_attached": false
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/auth/forgot-password",
-      "url": "http://localhost:8000/api/v1/auth/forgot-password",
-      "status": 400,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 6,
-      "request_payload": {},
-      "response_json": {
-        "message": "Teacher ID is required",
-        "statusCode": 400,
-        "errors": [],
-        "stack": "Error: Teacher ID is required\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/controllers/auth.controller.js:319:11\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/async-handler.js:3:21\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
-        "success": false
-      },
-      "analysis": {
-        "response_message": "Teacher ID is required",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
@@ -88,20 +113,20 @@
       "method": "POST",
       "path": "/api/v1/auth/logout",
       "url": "http://localhost:8000/api/v1/auth/logout",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 9,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
@@ -116,16 +141,16 @@
       "status": 401,
       "ok": true,
       "classification": "client-error",
-      "duration_ms": 6,
+      "duration_ms": 2,
       "response_json": {
-        "message": "Invalid or expired session",
+        "message": "Authentication required",
         "statusCode": 401,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "Authentication required",
         "requires_files": false,
         "validation_error": false
       },
@@ -137,20 +162,45 @@
       "method": "POST",
       "path": "/api/v1/auth/verify-role",
       "url": "http://localhost:8000/api/v1/auth/verify-role",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 6,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\auth.routes.js",
+      "used_multipart": false,
+      "file_attached": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/change-password",
+      "url": "http://localhost:8000/api/v1/auth/change-password",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 3,
+      "request_payload": {},
+      "response_json": {
+        "message": "invalid csrf token",
+        "statusCode": 500,
+        "errors": [],
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
@@ -160,33 +210,21 @@
     },
     {
       "method": "GET",
-      "path": "/api/v1/auth/teacher-ids",
-      "url": "http://localhost:8000/api/v1/auth/teacher-ids",
-      "status": 200,
+      "path": "/api/v1/auth/user-ids",
+      "url": "http://localhost:8000/api/v1/auth/user-ids",
+      "status": 401,
       "ok": true,
-      "classification": "success",
-      "duration_ms": 46,
+      "classification": "client-error",
+      "duration_ms": 4,
       "response_json": {
-        "statusCode": 200,
-        "data": {
-          "teacherIds": [
-            "DTU-CSE-PMEHRA",
-            "FC_CSE_001",
-            "HOD_CSE_001",
-            "IQAC_001",
-            "Test_Hctufu",
-            "Test_Lbxzae",
-            "Test_Ohyydc",
-            "Test_Umwhyq",
-            "Test_Vjcjxz",
-            "Test_Wfybcg"
-          ]
-        },
-        "message": "Teacher IDs fetched",
-        "success": true
+        "message": "Authentication required",
+        "statusCode": 401,
+        "errors": [],
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)",
+        "success": false
       },
       "analysis": {
-        "response_message": "Teacher IDs fetched",
+        "response_message": "Authentication required",
         "requires_files": false,
         "validation_error": false
       },
@@ -196,153 +234,78 @@
     },
     {
       "method": "POST",
-      "path": "/api/v1/feedback/analyze/faculty",
-      "url": "http://localhost:8000/api/v1/feedback/analyze/faculty",
-      "status": 500,
-      "ok": false,
-      "classification": "server-error",
-      "duration_ms": 16,
-      "request_payload": {},
-      "response_json": {
-        "message": "Unexpected field",
-        "statusCode": 500,
-        "errors": [],
-        "stack": "MulterError: Unexpected field\n    at wrappedFileFilter (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\index.js:40:19)\n    at Multipart.<anonymous> (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\lib\\make-middleware.js:132:7)\n    at Multipart.emit (node:events:519:28)\n    at HeaderParser.cb (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:358:14)\n    at HeaderParser.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:162:20)\n    at SBMH.ssCb [as _cb] (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:394:37)\n    at feed (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:200:10)\n    at SBMH.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:104:16)\n    at Multipart._write (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:567:19)\n    at writeOrBuffer (node:internal/streams/writable:564:12)",
-        "success": false
-      },
-      "analysis": {
-        "response_message": "Unexpected field",
-        "requires_files": false,
-        "validation_error": false
-      },
-      "routeFile": "src\\routes\\feedback.routes.js",
-      "used_multipart": true,
-      "file_attached": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/feedback/analyze/course",
-      "url": "http://localhost:8000/api/v1/feedback/analyze/course",
-      "status": 500,
-      "ok": false,
-      "classification": "server-error",
-      "duration_ms": 8,
-      "request_payload": {},
-      "response_json": {
-        "message": "Unexpected field",
-        "statusCode": 500,
-        "errors": [],
-        "stack": "MulterError: Unexpected field\n    at wrappedFileFilter (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\index.js:40:19)\n    at Multipart.<anonymous> (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\lib\\make-middleware.js:132:7)\n    at Multipart.emit (node:events:519:28)\n    at HeaderParser.cb (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:358:14)\n    at HeaderParser.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:162:20)\n    at SBMH.ssCb [as _cb] (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:394:37)\n    at feed (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:200:10)\n    at SBMH.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:104:16)\n    at Multipart._write (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:567:19)\n    at writeOrBuffer (node:internal/streams/writable:564:12)",
-        "success": false
-      },
-      "analysis": {
-        "response_message": "Unexpected field",
-        "requires_files": false,
-        "validation_error": false
-      },
-      "routeFile": "src\\routes\\feedback.routes.js",
-      "used_multipart": true,
-      "file_attached": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/feedback/analyze/program",
-      "url": "http://localhost:8000/api/v1/feedback/analyze/program",
-      "status": 500,
-      "ok": false,
-      "classification": "server-error",
-      "duration_ms": 6,
-      "request_payload": {},
-      "response_json": {
-        "message": "Unexpected field",
-        "statusCode": 500,
-        "errors": [],
-        "stack": "MulterError: Unexpected field\n    at wrappedFileFilter (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\index.js:40:19)\n    at Multipart.<anonymous> (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\multer\\lib\\make-middleware.js:132:7)\n    at Multipart.emit (node:events:519:28)\n    at HeaderParser.cb (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:358:14)\n    at HeaderParser.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:162:20)\n    at SBMH.ssCb [as _cb] (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:394:37)\n    at feed (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:200:10)\n    at SBMH.push (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:104:16)\n    at Multipart._write (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:567:19)\n    at writeOrBuffer (node:internal/streams/writable:564:12)",
-        "success": false
-      },
-      "analysis": {
-        "response_message": "Unexpected field",
-        "requires_files": false,
-        "validation_error": false
-      },
-      "routeFile": "src\\routes\\feedback.routes.js",
-      "used_multipart": true,
-      "file_attached": true
-    },
-    {
-      "method": "POST",
       "path": "/api/v1/apar/auth/login",
       "url": "http://localhost:8000/api/v1/apar/auth/login",
-      "status": 400,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 8,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Email, password and role are required",
-        "statusCode": 400,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Email, password and role are required\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/controllers/aparAuth.controller.js:94:11\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/async-handler.js:3:21\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Email, password and role are required",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
-      "used_multipart": false,
-      "file_attached": false
+      "used_multipart": true,
+      "file_attached": true
     },
     {
       "method": "POST",
-      "path": "/api/v1/apar/auth/forgot-password",
-      "url": "http://localhost:8000/api/v1/apar/auth/forgot-password",
-      "status": 400,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 6,
+      "path": "/api/v1/apar/auth/allowed-roles",
+      "url": "http://localhost:8000/api/v1/apar/auth/allowed-roles",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 1,
       "request_payload": {},
       "response_json": {
-        "message": "Teacher ID is required",
-        "statusCode": 400,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Teacher ID is required\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/controllers/aparAuth.controller.js:283:11\n    at file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/async-handler.js:3:21\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Teacher ID is required",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
-      "used_multipart": false,
-      "file_attached": false
+      "used_multipart": true,
+      "file_attached": true
     },
     {
       "method": "POST",
       "path": "/api/v1/apar/auth/logout",
       "url": "http://localhost:8000/api/v1/apar/auth/logout",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 7,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 1,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
-      "used_multipart": false,
-      "file_attached": false
+      "used_multipart": true,
+      "file_attached": true
     },
     {
       "method": "GET",
@@ -351,97 +314,212 @@
       "status": 401,
       "ok": true,
       "classification": "client-error",
-      "duration_ms": 6,
+      "duration_ms": 2,
       "response_json": {
-        "message": "Invalid or expired session",
+        "message": "Authentication required",
         "statusCode": 401,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "Authentication required",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
       "used_multipart": false,
       "file_attached": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/apar/auth/profile/avatar",
+      "url": "http://localhost:8000/api/v1/apar/auth/profile/avatar",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 1,
+      "request_payload": {},
+      "response_json": {
+        "message": "invalid csrf token",
+        "statusCode": 500,
+        "errors": [],
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "invalid csrf token",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\apar.auth.routes.js",
+      "used_multipart": true,
+      "file_attached": true
     },
     {
       "method": "POST",
       "path": "/api/v1/apar/auth/verify-role",
       "url": "http://localhost:8000/api/v1/apar/auth/verify-role",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 9,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
-      "used_multipart": false,
-      "file_attached": false
+      "used_multipart": true,
+      "file_attached": true
     },
     {
       "method": "POST",
       "path": "/api/v1/apar/auth/change-password",
       "url": "http://localhost:8000/api/v1/apar/auth/change-password",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 8,
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
       "routeFile": "src\\routes\\apar.auth.routes.js",
+      "used_multipart": true,
+      "file_attached": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "url": "http://localhost:8000/api/v1/notifications",
+      "status": 401,
+      "ok": true,
+      "classification": "client-error",
+      "duration_ms": 3,
+      "response_json": {
+        "message": "Authentication required",
+        "statusCode": 401,
+        "errors": [],
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:60:12)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:342:13)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "Authentication required",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\notification.routes.js",
       "used_multipart": false,
       "file_attached": false
     },
     {
-      "method": "POST",
-      "path": "/api/v1/upload",
-      "url": "http://localhost:8000/api/v1/upload",
-      "status": 401,
-      "ok": true,
-      "classification": "client-error",
-      "duration_ms": 6,
+      "method": "PATCH",
+      "path": "/api/v1/notifications/000000000000000000000000/read",
+      "url": "http://localhost:8000/api/v1/notifications/000000000000000000000000/read",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
       "request_payload": {},
       "response_json": {
-        "message": "Invalid or expired session",
-        "statusCode": 401,
+        "message": "invalid csrf token",
+        "statusCode": 500,
         "errors": [],
-        "stack": "Error: Invalid or expired session\n    at verifyAccessToken (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/utils/jwt.js:29:11)\n    at authenticate (file:///C:/Users/tanej/OneDrive/Desktop/WEBD/IQAC/project/backend/src/middlewares/auth.middleware.js:44:21)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:582:12)\n    at next (C:\\Users\\tanej\\OneDrive\\Desktop\\WEBD\\IQAC\\project\\backend\\node_modules\\router\\index.js:291:5)",
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
         "success": false
       },
       "analysis": {
-        "response_message": "Invalid or expired session",
+        "response_message": "invalid csrf token",
         "requires_files": false,
         "validation_error": false
       },
-      "routeFile": "src\\routes\\upload.routes.js",
-      "used_multipart": true,
-      "file_attached": true
+      "routeFile": "src\\routes\\notification.routes.js",
+      "used_multipart": false,
+      "file_attached": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/notifications/read-all",
+      "url": "http://localhost:8000/api/v1/notifications/read-all",
+      "status": 500,
+      "ok": false,
+      "classification": "server-error",
+      "duration_ms": 2,
+      "request_payload": {},
+      "response_json": {
+        "message": "invalid csrf token",
+        "statusCode": 500,
+        "errors": [],
+        "stack": "ForbiddenError: invalid csrf token\n    at doubleCsrf (file:///D:/DTUPROJECT/projectAlp/backend/node_modules/csrf-csrf/dist/index.js:30:33)\n    at file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/csrf.middleware.js:15:53\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "invalid csrf token",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\notification.routes.js",
+      "used_multipart": false,
+      "file_attached": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/stats",
+      "url": "http://localhost:8000/api/v1/dashboard/stats",
+      "status": 401,
+      "ok": true,
+      "classification": "client-error",
+      "duration_ms": 3,
+      "response_json": {
+        "message": "Authentication required",
+        "statusCode": 401,
+        "errors": [],
+        "stack": "Error: Authentication required\n    at authenticate (file:///D:/DTUPROJECT/projectAlp/backend/src/middlewares/auth.middleware.js:25:13)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:291:5)\n    at router.handle (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:60:12)\n    at Layer.handleRequest (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\DTUPROJECT\\projectAlp\\backend\\node_modules\\router\\index.js:342:13)",
+        "success": false
+      },
+      "analysis": {
+        "response_message": "Authentication required",
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\dashboard.routes.js",
+      "used_multipart": false,
+      "file_attached": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/departments",
+      "url": "http://localhost:8000/api/v1/departments",
+      "status": 404,
+      "ok": true,
+      "classification": "client-error",
+      "duration_ms": 2,
+      "response_text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /api/v1/departments</pre>\n</body>\n</html>\n",
+      "analysis": {
+        "requires_files": false,
+        "validation_error": false
+      },
+      "routeFile": "src\\routes\\departments.routes.js",
+      "used_multipart": false,
+      "file_attached": false
     }
   ]
 }

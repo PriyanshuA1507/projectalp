@@ -37,3 +37,4 @@ export { Training } from './training.model.js';
 
 // APAR Form (separate lifecycle)
 export { AparForm } from './aparForm.model.js';
+export { IqacApproval } from './iqacApproval.model.js';
