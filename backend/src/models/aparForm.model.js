@@ -44,6 +44,7 @@ const AparFormSchema = new mongoose.Schema({
         report_end_date: Date,
         section_officer: String,
         sc_st_status: String,
+        absence_taken: String,
         absence_period: String,
         title: String,
         academics: String,

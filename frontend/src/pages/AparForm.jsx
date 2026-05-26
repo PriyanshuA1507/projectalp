@@ -98,6 +98,11 @@ const getAcademicYearFromDates = (start, end) => {
     return `${startYear}-${endYear}`;
 };
 
+const hasCompleteAbsencePeriods = (absencePeriod) => String(absencePeriod || '')
+    .split('\n')
+    .filter(row => row.trim())
+    .every(row => (row.match(/\d{4}-\d{2}-\d{2}/g) || []).length >= 2);
+
 const getColumns = (rows) => {
     const columns = [];
     rows.forEach(row => {
@@ -530,6 +535,7 @@ export default function AparForm() {
             report_end_date: '',
             section_officer: '',
             sc_st_status: '',
+            absence_taken: '',
             absence_period: '',
             title: '',
             academics: '',
@@ -1092,7 +1098,9 @@ export default function AparForm() {
         if (!personal.sc_st_status || !personal.sc_st_status.trim()) errors.push('Caste category is required');
         if (!personal.joining_date) errors.push('Joining date is required');
         if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');
-        if (!personal.absence_period || !personal.absence_period.trim()) errors.push('Absence period is required');
+        if (!personal.absence_taken || !personal.absence_taken.trim()) errors.push('Leave/absence option is required');
+        if (personal.absence_taken === 'Yes' && (!personal.absence_period || !personal.absence_period.trim())) errors.push('Absence period is required');
+        if (personal.absence_taken === 'Yes' && personal.absence_period && !hasCompleteAbsencePeriods(personal.absence_period)) errors.push('Start and end date are required for each absence period');
 
         // Validate email format if provided
         if (personal.email && personal.email.trim()) {
@@ -1241,7 +1249,8 @@ export default function AparForm() {
     };
 
     const handlePersonalChange = (e) => {
-        setFormData({ ...formData, personal: { ...formData.personal, [e.target.name]: e.target.value } });
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, personal: { ...prev.personal, [name]: value } }));
     };
 
     // Generic handler for array fields

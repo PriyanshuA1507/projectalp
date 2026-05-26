@@ -1,9 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { validateDateOfBirth, validateJoiningDate, getFieldError } from '../../utils/personal.validation.util.js';
-import { FiAlertCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiPlus, FiTrash2 } from 'react-icons/fi';
 
 export default function PartIPersonal({ personal, onChange, readOnly, departments = [], validationErrors = [] }) {
   const [dateErrors, setDateErrors] = useState({});
+
+  const parseAbsenceRow = (row = '') => {
+    const dates = String(row).match(/\d{4}-\d{2}-\d{2}/g) || [];
+    return {
+      start_date: dates[0] || '',
+      end_date: dates[1] || ''
+    };
+  };
+
+  const serializeAbsenceRow = (row) => {
+    if (!row.start_date && !row.end_date) return '';
+    return `${row.start_date || ''} to ${row.end_date || ''}`.trim();
+  };
+
+  const absenceRows = String(personal.absence_period || '')
+    .split('\n')
+    .map(parseAbsenceRow);
+  const displayAbsenceRows = absenceRows.length ? absenceRows : [{ start_date: '', end_date: '' }];
+  const canAddAbsenceRow = displayAbsenceRows.every(row => row.start_date && row.end_date);
+
+  const updateAbsenceRows = (rows) => {
+    onChange({
+      target: {
+        name: 'absence_period',
+        value: rows.map(serializeAbsenceRow).join('\n')
+      }
+    });
+  };
+
+  const handleAbsenceChange = (index, field, value) => {
+    const updatedRows = [...displayAbsenceRows];
+    updatedRows[index] = { ...updatedRows[index], [field]: value };
+    updateAbsenceRows(updatedRows);
+  };
+
+  const addAbsenceRow = () => {
+    updateAbsenceRows([...displayAbsenceRows, { start_date: '', end_date: '' }]);
+  };
+
+  const removeAbsenceRow = (index) => {
+    const updatedRows = displayAbsenceRows.filter((_, rowIndex) => rowIndex !== index);
+    updateAbsenceRows(updatedRows.length ? updatedRows : [{ start_date: '', end_date: '' }]);
+  };
+
+  const handleAbsenceTakenChange = (e) => {
+    onChange(e);
+    if (e.target.value === 'No') {
+      onChange({
+        target: {
+          name: 'absence_period',
+          value: ''
+        }
+      });
+    }
+  };
 
   // Validate dates whenever they change
   useEffect(() => {
@@ -139,15 +194,89 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
            <option value="Level 10">Level 10</option>
            <option value="Level 11">Level 11</option>
            <option value="Level 12">Level 12</option>
+           <option value="Level 13A">Level 13</option>
            <option value="Level 13A">Level 13A</option>
            <option value="Level 14">Level 14</option>
            <option value="Level 15">Level 15</option>
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">9) Period of absence from duty <span className="text-red-500">*</span></label>
-          <input required aria-required="true" type="text" name="absence_period" value={personal.absence_period || ''} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            9) Have you taken any leave or remained absent during the appraisal period? <span className="text-red-500">*</span>
+          </label>
+          <select
+            required
+            aria-required="true"
+            name="absence_taken"
+            value={personal.absence_taken || ''}
+            onChange={handleAbsenceTakenChange}
+            disabled={readOnly}
+            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+          >
+            <option value="">Select Option</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+
+          {personal.absence_taken === 'Yes' && (
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Period of absence from duty <span className="text-red-500">*</span></label>
+              {displayAbsenceRows.map((row, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Start date<span className="text-red-500">*</span></label>
+                    <input
+                      required
+                      aria-required="true"
+                      type="date"
+                      name="absence_period_start"
+                      value={row.start_date}
+                      min={personal.joining_date || undefined}
+                      onChange={(e) => handleAbsenceChange(index, 'start_date', e.target.value)}
+                      disabled={readOnly}
+                      className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">End date<span className="text-red-500">*</span></label>
+                    <input
+                      required
+                      aria-required="true"
+                      type="date"
+                      name="absence_period_end"
+                      value={row.end_date}
+                      min={row.start_date || undefined}
+                      onChange={(e) => handleAbsenceChange(index, 'end_date', e.target.value)}
+                      disabled={readOnly}
+                      className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                    />
+                  </div>
+                  {!readOnly && displayAbsenceRows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeAbsenceRow(index)}
+                      className="inline-flex items-center justify-center gap-2 md:self-end md:w-auto w-full px-4 py-2.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors"
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={addAbsenceRow}
+                  disabled={!canAddAbsenceRow}
+                  className="inline-flex items-center justify-center gap-2 w-full md:w-auto bg-indigo-600 text-white rounded-lg px-6 py-2.5 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm transition-colors font-medium"
+                >
+                  <FiPlus className="h-4 w-4" />
+                  Add Row
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

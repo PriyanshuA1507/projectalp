@@ -60,7 +60,8 @@ const personalSchema = z.object({
   report_start_date: optionalString,
   report_end_date: optionalString,
   sc_st_status: nonEmptyString('Caste category'),
-  absence_period: requiredString('Absence period'),
+  absence_taken: requiredString('Leave/absence option'),
+  absence_period: optionalString,
   grade: requiredString('Grade')
 }).superRefine((data, ctx) => {
   if (!hasRequiredGraduation(data)) {
@@ -69,6 +70,30 @@ const personalSchema = z.object({
       message: 'Graduation qualification is required',
       path: ['qualification_undergraduate'],
     });
+  }
+
+  if (data.absence_taken === 'Yes') {
+    if (!data.absence_period?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Absence period is required',
+        path: ['absence_period'],
+      });
+      return;
+    }
+
+    const hasIncompletePeriod = data.absence_period
+      .split('\n')
+      .filter(row => row.trim())
+      .some(row => (row.match(/\d{4}-\d{2}-\d{2}/g) || []).length < 2);
+
+    if (hasIncompletePeriod) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Start and end date are required for each absence period',
+        path: ['absence_period'],
+      });
+    }
   }
 });
 
@@ -544,6 +569,7 @@ export const aparDraftSchema = requestSchema(z.object({
       report_start_date: optionalString,
       report_end_date: optionalString,
       sc_st_status: optionalString,
+      absence_taken: optionalString,
       absence_period: optionalString,
       grade: optionalString
     }).optional(),
