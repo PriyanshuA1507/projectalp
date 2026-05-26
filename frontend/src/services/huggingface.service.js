@@ -5,10 +5,10 @@ import {
 
 const HF_ROUTER_BASE = import.meta.env.VITE_HF_ROUTER_URL || 'https://router.huggingface.co/v1';
 const DEFAULT_MODEL_CANDIDATES = [
-  'Qwen/Qwen3-4B-Thinking-2507',
-  'Qwen/Qwen2.5-7B-Instruct-1M',
+  'Qwen/Qwen2.5-7B-Instruct',
   'google/gemma-2-2b-it',
   'mistralai/Mistral-7B-Instruct-v0.3',
+  'meta-llama/Llama-3.2-3B-Instruct',
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
