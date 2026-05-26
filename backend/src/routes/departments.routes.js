@@ -1,12 +1,15 @@
 import { Router } from "express"
-import { enterData, getData, updateData, deleteData, getById } from "../controllers/departments.controller.js"
+import { enterData, getData, updateData, deleteData, getById, getDepartmentList } from "../controllers/departments.controller.js"
 import { upload } from "../middlewares/multer.middleware.js";
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router()
 
 router.route("/set").post(enterData)
 
 router.route("/get").get(getData)
+
+router.route("/list").get(authenticate, getDepartmentList)
 
 router.route("/update/:id").put(updateData)
 

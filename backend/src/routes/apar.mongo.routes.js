@@ -12,7 +12,8 @@ import {
     listAllForms,
     getDeanAparStatus,
     getFacultyInfo,
-    getFacultyHistory
+    getFacultyHistory,
+    getFacultyHistoryByDean
 } from "../controllers/apar.mongo.controller.js";
 import checkDuplicate from "../controllers/duplicate-check.controller.js";
 import { authenticate } from '../middlewares/auth.middleware.js';
@@ -30,6 +31,7 @@ router.route("/list").get(authenticate, listAllForms);
 router.route("/dean/status").get(authenticate, getDeanAparStatus);
 router.route("/info").get(authenticate, getFacultyInfo);
 router.route("/history").get(authenticate, getFacultyHistory);
+router.route("/dean/history").get(authenticate, getFacultyHistoryByDean);
 
 // Duplicate detection
 router.route("/check-duplicate").post(authenticate, checkDuplicate);

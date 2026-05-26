@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiArchive, FiCheckCircle, FiClock, FiLoader, FiSearch, FiUsers } from 'react-icons/fi';
+import { FiArchive, FiCheckCircle, FiClock, FiLoader, FiSearch, FiUsers, FiX } from 'react-icons/fi';
 import { aparFormReportingService } from '../../services/apar_form_reporting.service.js';
 import { aparLogout } from '../../store/slices/aparAuthSlice.js';
+import { DepartmentService } from '../../services/department.services.js';
 import AparShellHeader from '../../components/AparShellHeader.jsx';
 
 const normalizeAY = (value) => String(value || '').replace(/\s+/g, '').replace(/\//g, '-').trim();
@@ -40,6 +41,12 @@ export default function DeanDashboard() {
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [error, setError] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [facultyHistory, setFacultyHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -49,11 +56,22 @@ export default function DeanDashboard() {
     });
   }, []);
 
+  const loadDepartments = useCallback(async () => {
+    try {
+      const response = await DepartmentService.getDepartmentList();
+      console.log('Departments response:', response);
+      setDepartments(Array.isArray(response) ? response : []);
+    } catch (err) {
+      console.error('failed to load departments', err);
+    }
+  }, []);
+
   const loadRows = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await aparFormReportingService.getDeanStatus(normalizeAY(currentAY));
+      const departmentId = selectedDepartment === 'all' ? undefined : selectedDepartment;
+      const response = await aparFormReportingService.getDeanStatus(normalizeAY(currentAY), departmentId);
       setRows(Array.isArray(response?.rows) ? response.rows : []);
       setSummary({
         totalFaculty: response?.totalFaculty || 0,
@@ -68,7 +86,11 @@ export default function DeanDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [currentAY]);
+  }, [currentAY, selectedDepartment]);
+
+  useEffect(() => {
+    loadDepartments();
+  }, [loadDepartments]);
 
   useEffect(() => {
     loadRows();
@@ -95,6 +117,25 @@ export default function DeanDashboard() {
       setLogoutLoading(false);
     }
   };
+
+  const loadFacultyHistory = useCallback(async (facultyId, ay) => {
+    setHistoryLoading(true);
+    try {
+      const response = await aparFormReportingService.getFacultyHistoryByDean(facultyId, ay);
+      setFacultyHistory(Array.isArray(response?.data) ? response.data : []);
+    } catch (err) {
+      console.error('failed to load faculty history', err);
+      setFacultyHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const handleStatusClick = useCallback(async (row) => {
+    setSelectedFaculty(row);
+    setStatusModalOpen(true);
+    await loadFacultyHistory(row.faculty_id, row.ay);
+  }, [loadFacultyHistory]);
 
   return (
     <div className="apar-page-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
@@ -154,6 +195,22 @@ export default function DeanDashboard() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+          <select
+            value={selectedDepartment}
+            onChange={(event) => setSelectedDepartment(event.target.value)}
+            className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((dept) => (
+              <option key={dept.department_id} value={dept.department_id}>
+                {dept.department_name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="mb-6 max-w-md">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -207,9 +264,12 @@ export default function DeanDashboard() {
                           </span>
                         </td>
                         <td className="!text-left">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(row.status)}`}>
+                          <button
+                            onClick={() => handleStatusClick(row)}
+                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${getStatusColor(row.status)}`}
+                          >
                             {row.status || 'Unknown'}
-                          </span>
+                          </button>
                         </td>
                         <td className="!text-left text-sm text-gray-500">{formatDate(row.updatedAt || row.submittedAt)}</td>
                       </tr>
@@ -223,6 +283,87 @@ export default function DeanDashboard() {
 
         {user?.departmentId && (
           <p className="mt-4 text-xs text-gray-500">Mapped department/faculty: {user.departmentId}</p>
+        )}
+
+        {/* Status Timeline Modal */}
+        {statusModalOpen && selectedFaculty && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="max-w-2xl w-full max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl">
+              <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  APAR Status Timeline - {selectedFaculty.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setStatusModalOpen(false);
+                    setSelectedFaculty(null);
+                  }}
+                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="px-6 py-4">
+                <div className="mb-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Faculty ID:</span>
+                    <span className="font-medium text-gray-900">{selectedFaculty.faculty_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Current Status:</span>
+                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(selectedFaculty.status)}`}>
+                      {selectedFaculty.status || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Academic Year:</span>
+                    <span className="font-medium text-gray-900">{selectedFaculty.ay}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Last Updated:</span>
+                    <span className="font-medium text-gray-900">{formatDate(selectedFaculty.updatedAt || selectedFaculty.submittedAt)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h4 className="mb-3 text-sm font-semibold text-gray-900">Status History</h4>
+                  {historyLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <FiLoader className="h-4 w-4 animate-spin" />
+                      Loading history...
+                    </div>
+                  ) : facultyHistory && facultyHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {facultyHistory.map((historyItem, index) => (
+                        <div key={index} className="flex items-start gap-3 rounded-lg bg-gray-50 p-3">
+                          <div className={`mt-1 h-2 w-2 rounded-full ${
+                            historyItem.status.includes('accepted') || historyItem.status.includes('review') ? 'bg-green-500' :
+                            historyItem.status.includes('query') ? 'bg-yellow-500' :
+                            historyItem.status.includes('submitted') ? 'bg-blue-500' : 'bg-gray-500'
+                          }`} />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{historyItem.status}</div>
+                            <div className="text-xs text-gray-500">
+                              Academic Year: {historyItem.ay} | Updated: {formatDate(historyItem.updatedAt)}
+                            </div>
+                            {historyItem.timeline && (
+                              <div className="mt-2 text-xs text-gray-600">
+                                {historyItem.timeline.submitted_at && (
+                                  <div>Submitted: {formatDate(historyItem.timeline.submitted_at)}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">No history available</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

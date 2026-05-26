@@ -659,6 +659,39 @@ const getFacultyHistory = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, list, "Faculty APAR history fetched"));
 });
 
+const getFacultyHistoryByDean = asyncHandler(async (req, res) => {
+    const role = normalizeRoleValue(req.user?.role);
+    if (role !== APAR_ROLES.DEAN) {
+        throw new ApiError(403, "Only Dean accounts can view faculty APAR history");
+    }
+
+    const faculty_id = req.query.faculty_id;
+    if (!faculty_id) {
+        throw new ApiError(400, "Faculty ID is required");
+    }
+
+    const ay = req.query.ay ? normalizeAY(req.query.ay) : undefined;
+
+    const query = { faculty_id };
+    if (ay) query.ay = ay;
+
+    const forms = await AparForm.find(query).sort({ ay: -1 }).lean();
+    const list = forms.map(f => ({
+        faculty_id: f.faculty_id,
+        ay: normalizeAY(f.ay),
+        status: f.status,
+        timeline: f.timeline,
+        history: f.history,
+        query_comment: f.query_comment || (f.remarks && f.remarks.query_comment),
+        reporting_query: f.reporting_query,
+        reviewing_query: f.reviewing_query,
+        updatedAt: f.updatedAt,
+        createdAt: f.createdAt
+    }));
+
+    return res.status(200).json(new ApiResponse(200, list, "Faculty APAR history fetched by dean"));
+});
+
 const DELETE_ALLOWED_STATUSES = new Set([
     'Draft',
     'Query Raised',
@@ -1931,9 +1964,10 @@ const getDeanAparStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Academic year (ay) is required");
     }
 
-    const departmentId = req.user?.departmentId;
+    // Allow department filter from query param, fallback to user's mapped department
+    const departmentId = req.query.department_id || req.user?.departmentId;
     if (!departmentId) {
-        throw new ApiError(400, "Dean account is not mapped to a department/faculty");
+        throw new ApiError(400, "Department ID is required (either from query or user mapping)");
     }
 
     const [facultyProfiles, departmentUsers] = await Promise.all([
@@ -2221,6 +2255,7 @@ const isDuplicateEntry = (entry1, entry2, type) => {
 export {
     getForm,
     getFacultyHistory,
+    getFacultyHistoryByDean,
     deleteForm,
     saveForm,
     submitForm,

@@ -123,10 +123,23 @@ const getById = asyncHandler(async (req, res) => {
         )
 })
 
+const getDepartmentList = asyncHandler(async (req, res) => {
+    const response = await get()
+    const departmentList = response.map(dept => ({
+        department_id: dept.department_id,
+        department_name: dept.department_name
+    }))
+    res.status(200)
+        .json(
+            new ApiResponse(200, departmentList, "department list sent successfully !")
+        )
+})
+
 export {
     enterData,
     getData,
     updateData,
     deleteData,
-    getById
+    getById,
+    getDepartmentList
 }

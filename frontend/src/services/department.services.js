@@ -60,6 +60,16 @@ class DepartmentServices {
         }
     }
 
+    async getDepartmentList() {
+        try {
+            const response = await this.api.get("/departments/list")
+            return response
+        } catch (error) {
+            console.log("Error getting department list")
+            throw error
+        }
+    }
+
 }
 
 export const DepartmentService = new DepartmentServices();
