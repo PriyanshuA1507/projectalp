@@ -55,8 +55,8 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
             name="department_id"
             value={personal.department_id}
             onChange={onChange}
-            disabled={readOnly}
-            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+            disabled={true}
+            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 bg-gray-50 text-gray-500 transition-colors"
           >
             <option value="">Select Department</option>
             {departments.map((dept) => (
@@ -65,6 +65,7 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-500">Department is auto-filled from your profile and cannot be changed here.</p>
         </div>
 
         <div>

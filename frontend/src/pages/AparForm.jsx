@@ -356,12 +356,15 @@ export default function AparForm() {
         ) {
             // Try to set department_id from user info if available
             const userDeptId = aparUser.department_id || aparUser.departmentId;
-            if (userDeptId && departments.some(d => d.department_id === userDeptId)) {
+            const userDeptName = aparUser.department;
+            const matchingDept = departments.find(d => d.department_id === userDeptId || d.department_name === userDeptName);
+
+            if (matchingDept) {
                 setFormData(prev => ({
                     ...prev,
                     personal: {
                         ...prev.personal,
-                        department_id: userDeptId
+                        department_id: matchingDept.department_id
                     }
                 }));
             }
