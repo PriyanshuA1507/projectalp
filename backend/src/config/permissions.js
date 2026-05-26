@@ -74,8 +74,9 @@ const ALL_PROTECTED_PATHS = [
   '/api/v1/conference_research_papers'
 ];
 
-const DEFAULT_GET_ROLES = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
-const DEFAULT_POST_ROLES = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
+const ADMIN_ROLES = [ROLES.IQAC_HEAD, ROLES.DEAN];
+const DEFAULT_GET_ROLES = [...ADMIN_ROLES, ROLES.DEPARTMENT_HOD];
+const DEFAULT_POST_ROLES = [...ADMIN_ROLES, ROLES.DEPARTMENT_HOD];
 const INCLUDE_FACULTY_ROLES = true;
 
 const FACULTY_GET_PATHS = new Set([
@@ -86,8 +87,8 @@ const FACULTY_GET_PATHS = new Set([
 ]);
 
 export const routePermissions = ALL_PROTECTED_PATHS.reduce((accumulator, path) => {
-  let getRoles = ADMIN_ONLY_PATHS.has(path) ? [ROLES.IQAC_HEAD] : DEFAULT_GET_ROLES;
-  let postRoles = ADMIN_ONLY_PATHS.has(path) ? [ROLES.IQAC_HEAD] : DEFAULT_POST_ROLES;
+  let getRoles = ADMIN_ONLY_PATHS.has(path) ? ADMIN_ROLES : DEFAULT_GET_ROLES;
+  let postRoles = ADMIN_ONLY_PATHS.has(path) ? ADMIN_ROLES : DEFAULT_POST_ROLES;
 
   if (INCLUDE_FACULTY_ROLES && FACULTY_POST_PATHS.has(path)) {
     postRoles = [...new Set([...postRoles, ROLES.FACULTY])];
@@ -102,7 +103,7 @@ export const routePermissions = ALL_PROTECTED_PATHS.reduce((accumulator, path) =
     POST: postRoles,
     PUT: postRoles,
     PATCH: postRoles,
-    DELETE: [ROLES.IQAC_HEAD]
+    DELETE: ADMIN_ROLES
   };
 
   return accumulator;

@@ -163,7 +163,7 @@ export const initializeSocket = (httpServer) => {
 
             const normalizedRole = role ? role.toLowerCase() : '';
 
-            if (normalizedRole.includes('iqac')) {
+            if (normalizedRole.includes('iqac') || normalizedRole.includes('dean')) {
                 socket.join('IQAC_HEAD');
                 console.log(`IQAC Head joined role notification room`);
             }

@@ -26,7 +26,7 @@ export default function Login() {
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/app';
-  const roleOptions = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
+  const roleOptions = [ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD];
   const [roleOptionsState, setRoleOptionsState] = useState(roleOptions);
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isEmailValid = emailRegex.test(email.trim().toLowerCase());
@@ -67,7 +67,7 @@ export default function Login() {
     }
 
     if (!roleOptions.includes(selectedRole)) {
-      setError('Only IQAC Head and Department HOD can sign in.');
+      setError('Only IQAC Head, Dean, and Department HOD can sign in.');
       return;
     }
 

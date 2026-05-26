@@ -63,6 +63,8 @@ const getAllowedRolesFor = (role) => {
   switch (normalizedRole) {
     case ROLES.IQAC_HEAD:
       return [ROLES.IQAC_HEAD];
+    case ROLES.DEAN:
+      return [ROLES.DEAN];
     case ROLES.DEPARTMENT_HOD:
       return [ROLES.DEPARTMENT_HOD];
     case ROLES.FACULTY:

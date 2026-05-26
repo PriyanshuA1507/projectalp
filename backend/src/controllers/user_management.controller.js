@@ -23,8 +23,8 @@ const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
 
 const assertIqacHead = (req) => {
   const role = normalizeRoleValue(req.user?.systemRole ?? req.user?.role);
-  if (role !== ROLES.IQAC_HEAD) {
-    throw new ApiError(403, 'Only IQAC Head can manage users');
+  if (role !== ROLES.IQAC_HEAD && role !== ROLES.DEAN) {
+    throw new ApiError(403, 'Only IQAC Head or Dean can manage users');
   }
 };
 

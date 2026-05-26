@@ -4,7 +4,7 @@ import { ROLES } from '../config/rolePermissions.js';
 import { selectInitializeStatus, selectRole } from '../store/slices/authSlice.js';
 import AccessDenied from './AccessDenied.jsx';
 
-const ALLOWED_IQAC_ROLES = new Set([ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD]);
+const ALLOWED_IQAC_ROLES = new Set([ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD]);
 
 export default function IqacRoleRoute({ children }) {
   const role = useSelector(selectRole);
@@ -19,7 +19,7 @@ export default function IqacRoleRoute({ children }) {
   }
 
   if (!ALLOWED_IQAC_ROLES.has(role)) {
-    return <AccessDenied message="Only IQAC Head and Department HOD accounts can access the IQAC section." />;
+    return <AccessDenied message="Only IQAC Head, Dean, and Department HOD accounts can access the IQAC section." />;
   }
 
   return children;

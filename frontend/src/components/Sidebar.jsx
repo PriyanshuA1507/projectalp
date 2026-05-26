@@ -245,7 +245,7 @@ export default function Sidebar() {
 
         <NavLink to="/app" icon={<FiGrid />} label="Dashboard" isCollapsed={isCollapsed} />
         <NavLink to="/app/reports" icon={<FiFileText />} label="Reports" isCollapsed={isCollapsed} />
-        {role === ROLES.IQAC_HEAD && (
+        {(role === ROLES.IQAC_HEAD || role === ROLES.DEAN) && (
           <NavLink to="/app/user-management" icon={<FiUserPlus />} label="User Management" isCollapsed={isCollapsed} />
         )}
 
