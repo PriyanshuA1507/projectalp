@@ -51,16 +51,20 @@ const sanitizeUser = (user, additionalInfo = {}) => {
   };
 };
 
-const getAllowedRolesFor = (aparRole) => {
-  // Always include Officer (Graded) as everyone can login as Faculty/Officer
+const getAllowedRolesFor = (userOrAparRole) => {
+  const userRecord = userOrAparRole && typeof userOrAparRole === 'object' ? userOrAparRole : null;
+  const aparRole = userRecord ? userRecord.aparRole : userOrAparRole;
+  const normalizedSystemRole = normalizeRoleValue(userRecord?.role);
+  const normalizedAparRole = normalizeRoleValue(aparRole);
+
+  if (normalizedSystemRole === ROLES.DEAN || normalizedAparRole === ROLES.DEAN) {
+    return [ROLES.DEAN];
+  }
+
   const allowed = [ROLES.OFFICER];
 
-  // Add specific APAR role if assigned
-  if (aparRole) {
-    const normalized = normalizeRoleValue(aparRole);
-    if (normalized === ROLES.REPORTING_OFFICER || normalized === ROLES.REVIEWING_OFFICER) {
-      allowed.push(normalized);
-    }
+  if (normalizedAparRole === ROLES.REPORTING_OFFICER || normalizedAparRole === ROLES.REVIEWING_OFFICER) {
+    allowed.push(normalizedAparRole);
   }
 
   return allowed;
@@ -72,14 +76,22 @@ const canLoginAsRole = (userRecord, requestedRole) => {
   const normalizedRequested = normalizeRoleValue(requestedRole);
   if (!normalizedRequested) return false;
 
-  // Always allow login as Officer (Graded) - everyone can login as Faculty/Officer
+  const normalizedSystemRole = normalizeRoleValue(userRecord.role);
+  const normalizedAparRole = normalizeRoleValue(userRecord.aparRole);
+
+  if (normalizedRequested === ROLES.DEAN) {
+    return normalizedSystemRole === ROLES.DEAN || normalizedAparRole === ROLES.DEAN;
+  }
+
+  if (normalizedSystemRole === ROLES.DEAN || normalizedAparRole === ROLES.DEAN) {
+    return false;
+  }
+
   if (normalizedRequested === ROLES.OFFICER) {
     return true;
   }
 
-  // If user has an explicit APAR role, allow login as that specific role
-  if (userRecord.aparRole) {
-    const normalizedAparRole = normalizeRoleValue(userRecord.aparRole);
+  if (normalizedAparRole) {
     return normalizedRequested === normalizedAparRole;
   }
 
@@ -194,11 +206,12 @@ export const aparLogin = asyncHandler(async (req, res) => {
 
   // If they don't have an apar_role set but passed the check, assign them a default one
   if (!userRecord.aparRole) {
+    const normalizedSystemRole = normalizeRoleValue(userRecord.role);
     await updateUserAttributes({
       id: userRecord.id,
       email: userRecord.email,
       role: userRecord.role,
-      aparRole: ROLES.OFFICER,
+      aparRole: normalizedSystemRole === ROLES.DEAN ? ROLES.DEAN : ROLES.OFFICER,
       departmentId: userRecord.departmentId
     });
     userRecord = await findUserById(userRecord.id);
@@ -228,7 +241,7 @@ export const aparLogin = asyncHandler(async (req, res) => {
     maxAge: SESSION_TTL_MS
   });
 
-  const allowedRoles = getAllowedRolesFor(userRecord.aparRole || tokenRole);
+  const allowedRoles = getAllowedRolesFor(userRecord);
 
   res.status(200).json(new ApiResponse(200, {
     user: sanitizeUser(userRecord, {
@@ -267,9 +280,7 @@ export const aparAllowedRoles = asyncHandler(async (req, res) => {
     facultyMember = await findFacultyByEmail(normalizedEmail);
   }
 
-  // Use getAllowedRolesFor to determine allowed roles
-  // This always includes Officer (Graded) and optionally adds specific APAR role if assigned
-  const allowed = getAllowedRolesFor(userRecord?.aparRole ?? null);
+  const allowed = getAllowedRolesFor(userRecord ?? null);
 
   res.status(200).json(new ApiResponse(200, { allowedRoles: allowed }, 'Allowed APAR roles fetched'));
 });

@@ -23,8 +23,8 @@ const DEFAULT_INITIAL_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '';
 
 const assertIqacHead = (req) => {
   const role = normalizeRoleValue(req.user?.systemRole ?? req.user?.role);
-  if (role !== ROLES.IQAC_HEAD && role !== ROLES.DEAN) {
-    throw new ApiError(403, 'Only IQAC Head or Dean can manage users');
+  if (role !== ROLES.IQAC_HEAD) {
+    throw new ApiError(403, 'Only IQAC Head can manage users');
   }
 };
 
@@ -127,7 +127,9 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Designation is required for faculty details');
   }
 
-  const aparRole = shouldBeReportingOfficer
+  const aparRole = normalizedRole === ROLES.DEAN
+    ? APAR_ROLES.DEAN
+    : shouldBeReportingOfficer
     ? APAR_ROLES.REPORTING_OFFICER
     : shouldBeReviewingOfficer
       ? APAR_ROLES.REVIEWING_OFFICER
@@ -223,6 +225,12 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Valid role is required');
   }
 
+  const nextAparRole = normalizedRole === ROLES.DEAN
+    ? APAR_ROLES.DEAN
+    : aparRole === undefined
+      ? (existingUser.aparRole === APAR_ROLES.DEAN ? null : existingUser.aparRole)
+      : aparRole;
+
   const updatedUser = await updateUserAttributes({
     id,
     email: emailToUse,
@@ -230,7 +238,7 @@ export const updateManagedUser = asyncHandler(async (req, res) => {
     name: existingUser.name,
     designation: existingUser.designation,
     departmentId: departmentId === undefined ? existingUser.departmentId : departmentId,
-    aparRole: aparRole === undefined ? existingUser.aparRole : aparRole
+    aparRole: nextAparRole
   });
 
   // If admin provided a new password, hash and update it

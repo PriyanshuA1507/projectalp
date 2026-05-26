@@ -11,9 +11,10 @@ import { validatePasswordPolicy } from '../utils/passwordPolicy.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD];
+const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD];
 const APAR_ROLE_OPTIONS = [
   { value: '', label: 'None' },
+  { value: 'Dean', label: 'Dean' },
   { value: 'Reporting Officer', label: 'Reporting Officer' },
   { value: 'Reviewing Officer', label: 'Reviewing Officer' }
 ];
@@ -55,7 +56,7 @@ export default function UserManagement() {
   const [createPasswordVisible, setCreatePasswordVisible] = useState(false);
   const [passwordVisibility, setPasswordVisibility] = useState({});
 
-  const isIqacHead = role === ROLES.IQAC_HEAD || role === ROLES.DEAN;
+  const isIqacHead = role === ROLES.IQAC_HEAD;
 
   const filteredUsers = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -151,7 +152,10 @@ export default function UserManagement() {
   const handleCreateRoleChange = (value) => {
     setCreateForm((current) => ({
       ...current,
-      role: value
+      role: value,
+      ...(value === ROLES.DEAN
+        ? { isReportingOfficer: 'no', isReviewingOfficer: 'no' }
+        : {})
     }));
   };
 
@@ -235,7 +239,8 @@ export default function UserManagement() {
       ...current,
       [userId]: {
         ...(current[userId] || {}),
-        [field]: value
+        [field]: value,
+        ...(field === 'role' && value === ROLES.DEAN ? { aparRole: 'Dean' } : {})
       }
     }));
   };
@@ -301,7 +306,7 @@ export default function UserManagement() {
   }
 
   if (!isIqacHead) {
-    return <AccessDenied message="Only IQAC Head or Dean accounts can add users or change privileges." />;
+    return <AccessDenied message="Only IQAC Head accounts can add users or change privileges." />;
   }
 
   return (

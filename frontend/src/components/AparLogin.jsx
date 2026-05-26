@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { aparLogin } from '../store/slices/aparAuthSlice.js';
 import { aparAuthService } from '../services/aparAuth.service.js';
+import { ROLES as APAR_ROLES } from '../config/aparRoles.js';
 import LoginLayout, { LoginField } from './LoginLayout.jsx';
 
 export default function AparLogin({ loginData, setLoginData }) {
@@ -15,12 +16,17 @@ export default function AparLogin({ loginData, setLoginData }) {
   const authError = useSelector((state) => state.aparAuth.error);
   const [localError, setLocalError] = useState('');
 
-  const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
+  const [localLoginData, setLocalLoginData] = useState({ id: '', password: '', role: APAR_ROLES.OFFICER });
   const effectiveLoginData = loginData ?? localLoginData;
   const effectiveSetLoginData = setLoginData ?? setLocalLoginData;
   const normalizedIdLive = effectiveLoginData.id?.trim().toLowerCase();
   const isEmailValidLive = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdLive || '');
-  const [aparRoleOptions, setAparRoleOptions] = useState(['Officer (Graded)', 'Reporting Officer', 'Reviewing Officer']);
+  const [aparRoleOptions, setAparRoleOptions] = useState([
+    APAR_ROLES.OFFICER,
+    APAR_ROLES.REPORTING_OFFICER,
+    APAR_ROLES.REVIEWING_OFFICER,
+    APAR_ROLES.DEAN
+  ]);
 
   const fetchAparAllowedRoles = async (emailValue) => {
     const normalized = emailValue?.trim().toLowerCase();
@@ -28,7 +34,15 @@ export default function AparLogin({ loginData, setLoginData }) {
     try {
       const resp = await aparAuthService.getAllowedRoles(normalized);
       const allowed = resp?.allowedRoles ?? [];
-      if (allowed.length > 0) setAparRoleOptions(allowed);
+      if (allowed.length > 0) {
+        setAparRoleOptions(allowed);
+        if (!allowed.includes(effectiveLoginData.role)) {
+          effectiveSetLoginData({ ...effectiveLoginData, role: allowed[0] });
+        }
+      } else {
+        setAparRoleOptions([]);
+        effectiveSetLoginData({ ...effectiveLoginData, role: '' });
+      }
     } catch {
       // ignore
     }
@@ -41,7 +55,11 @@ export default function AparLogin({ loginData, setLoginData }) {
   useEffect(() => {
     if (isAuthenticated) {
       const roleToUse = aparRole || effectiveLoginData.role;
-      if (roleToUse === 'Reporting Officer' || roleToUse === 'Reviewing Officer') {
+      if (roleToUse === APAR_ROLES.DEAN) {
+        navigate('/apar/dean', { replace: true });
+        return;
+      }
+      if (roleToUse === APAR_ROLES.REPORTING_OFFICER || roleToUse === APAR_ROLES.REVIEWING_OFFICER) {
         navigate('/apar/reporting', { replace: true });
         return;
       }
@@ -80,7 +98,7 @@ export default function AparLogin({ loginData, setLoginData }) {
   return (
     <LoginLayout
       variant="apar"
-      subtitle="Annual Performance Appraisal — sign in with your institutional email."
+      subtitle="Annual Performance Appraisal - sign in with your institutional email."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
         <LoginField label="Email address" htmlFor="email" variant="apar">
@@ -131,6 +149,7 @@ export default function AparLogin({ loginData, setLoginData }) {
             {aparRoleOptions.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
+            {aparRoleOptions.length === 0 && <option value="">No APAR role available</option>}
           </select>
         </LoginField>
 
@@ -138,10 +157,10 @@ export default function AparLogin({ loginData, setLoginData }) {
 
         <button
           type="submit"
-          disabled={status === 'loading' || !isEmailValidLive}
+          disabled={status === 'loading' || !isEmailValidLive || aparRoleOptions.length === 0}
           className="login-submit bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 focus:ring-emerald-500"
         >
-          {status === 'loading' ? 'Signing in…' : 'Sign in to APAR'}
+          {status === 'loading' ? 'Signing in...' : 'Sign in to APAR'}
         </button>
       </form>
     </LoginLayout>

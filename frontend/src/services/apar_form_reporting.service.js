@@ -21,6 +21,11 @@ class AparFormReportingService {
     return this.api.get(endpoint)
   }
 
+  async getDeanStatus(ay) {
+    if (!ay) throw new Error('Academic year is required')
+    return this.api.get(`/apar/mongo/dean/status?ay=${encodeURIComponent(ay)}`)
+  }
+
   async submitReview(form) {
     return this.api.post('/apar/mongo/reviewing/submit', form)
   }

@@ -12,7 +12,7 @@ export const canAccessForm = (role, resourceId) => {
     return false;
   }
 
-  if (role === ROLES.IQAC_HEAD || role === ROLES.DEAN) {
+  if (role === ROLES.IQAC_HEAD) {
     return true;
   }
 
@@ -32,7 +32,7 @@ export const canAccessTable = (role, resourceId) => {
     return false;
   }
 
-  if (role === ROLES.IQAC_HEAD || role === ROLES.DEAN) {
+  if (role === ROLES.IQAC_HEAD) {
     return true;
   }
 

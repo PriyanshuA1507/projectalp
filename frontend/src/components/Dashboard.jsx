@@ -869,7 +869,7 @@ export default function Dashboard() {
     let cancelled = false;
 
     const fetchApprovalRequests = async () => {
-      if (![ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD].includes(role)) {
+      if (![ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD].includes(role)) {
         setApprovalRequests([]);
         return;
       }
@@ -1444,7 +1444,7 @@ export default function Dashboard() {
         </WidgetBlock>
       </div>
 
-      {[ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD].includes(role) && (
+      {[ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD].includes(role) && (
         <WidgetBlock title="Faculty Approval Decisions" className="mb-5">
           {recentApprovalRequests.length > 0 ? (
             <div className="divide-y divide-gray-100">

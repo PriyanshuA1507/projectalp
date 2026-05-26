@@ -151,7 +151,7 @@ export default function Sidebar() {
         if (!cancelled) {
           setDepartments(list);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setDepartments([]);
         }
@@ -245,7 +245,7 @@ export default function Sidebar() {
 
         <NavLink to="/app" icon={<FiGrid />} label="Dashboard" isCollapsed={isCollapsed} />
         <NavLink to="/app/reports" icon={<FiFileText />} label="Reports" isCollapsed={isCollapsed} />
-        {(role === ROLES.IQAC_HEAD || role === ROLES.DEAN) && (
+        {role === ROLES.IQAC_HEAD && (
           <NavLink to="/app/user-management" icon={<FiUserPlus />} label="User Management" isCollapsed={isCollapsed} />
         )}
 

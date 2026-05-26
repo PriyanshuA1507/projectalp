@@ -1,7 +1,8 @@
 export const ROLES = {
   OFFICER: 'Officer (Graded)',
   REVIEWING_OFFICER: 'Reviewing Officer',
-  REPORTING_OFFICER: 'Reporting Officer'
+  REPORTING_OFFICER: 'Reporting Officer',
+  DEAN: 'Dean'
 };
 
 export const ROLE_VALUES = Object.values(ROLES);
@@ -15,7 +16,8 @@ const ROLE_ALIASES = {
   receiving_officer: ROLES.REVIEWING_OFFICER,
   'receiving officer': ROLES.REVIEWING_OFFICER,
   reporting_officer: ROLES.REPORTING_OFFICER,
-  'reporting officer': ROLES.REPORTING_OFFICER
+  'reporting officer': ROLES.REPORTING_OFFICER,
+  dean: ROLES.DEAN
 };
 
 export const normalizeRoleValue = (value) => {

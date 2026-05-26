@@ -7,7 +7,7 @@ import { Faculty } from '../models/faculty.model.js';
 import { getApprovalResource } from '../config/iqacApprovalRegistry.js';
 import { createNotification } from './notification.controller.js';
 
-const APPROVAL_CREATOR_ROLES = new Set(['IQAC Head', 'Dean', 'Department HOD']);
+const APPROVAL_CREATOR_ROLES = new Set(['IQAC Head', 'Department HOD']);
 const FACULTY_ID_KEYS = new Set(['faculty_id', 'supervisor_id', 'co_supervisor_id']);
 const FACULTY_ARRAY_KEYS = new Set(['faculty_ids']);
 
@@ -232,7 +232,7 @@ export const createIqacApproval = asyncHandler(async (req, res) => {
   }
 
   if (!APPROVAL_CREATOR_ROLES.has(req.user?.role)) {
-    throw new ApiError(403, 'Only IQAC Head, Dean, or Department HOD can request faculty approval');
+    throw new ApiError(403, 'Only IQAC Head or Department HOD can request faculty approval');
   }
 
   const payloadWithFiles = await attachUploadedFiles(parsePayload(req.body), req.files || []);
@@ -286,7 +286,7 @@ export const getMyIqacApprovals = asyncHandler(async (req, res) => {
 
 export const getCreatedIqacApprovals = asyncHandler(async (req, res) => {
   if (!APPROVAL_CREATOR_ROLES.has(req.user?.role)) {
-    throw new ApiError(403, 'Only IQAC Head, Dean, or Department HOD can view submitted approval requests');
+    throw new ApiError(403, 'Only IQAC Head or Department HOD can view submitted approval requests');
   }
 
   const query = {};

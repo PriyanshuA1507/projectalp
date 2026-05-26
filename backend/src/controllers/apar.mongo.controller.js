@@ -3,6 +3,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { resolveToReadableId } from "../utils/apar-helpers.js";
 import { assertFacultyAccess, buildListFormsQuery } from "../utils/apar-access.js";
+import { normalizeRoleValue, ROLES as APAR_ROLES } from "../config/aparRoles.js";
 import { AparForm } from "../models/aparForm.model.js";
 import { findUsersByOfficerMapping } from "../data-access/users.data-access.js";
 import { findById as findFacultyById, syncAparToFaculty } from "../data-access/faculty.data-access.js";
@@ -1919,6 +1920,110 @@ const listAllForms = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, list, "All forms for AY fetched"));
 });
 
+const getDeanAparStatus = asyncHandler(async (req, res) => {
+    const role = normalizeRoleValue(req.user?.role);
+    if (role !== APAR_ROLES.DEAN) {
+        throw new ApiError(403, "Only Dean accounts can view Dean APAR status");
+    }
+
+    const ay = normalizeAY(req.query.ay);
+    if (!ay) {
+        throw new ApiError(400, "Academic year (ay) is required");
+    }
+
+    const departmentId = req.user?.departmentId;
+    if (!departmentId) {
+        throw new ApiError(400, "Dean account is not mapped to a department/faculty");
+    }
+
+    const [facultyProfiles, departmentUsers] = await Promise.all([
+        Faculty.find({ department_id: departmentId })
+            .select('faculty_id name email designation department_id')
+            .lean(),
+        User.find({ department_id: departmentId })
+            .select('user_id name email designation role department_id')
+            .lean()
+    ]);
+
+    const usersById = new Map(departmentUsers.map((user) => [user.user_id, user]));
+    const facultyById = new Map();
+
+    for (const faculty of facultyProfiles) {
+        const user = usersById.get(faculty.faculty_id);
+        if (user?.role === 'Dean' || user?.role === 'IQAC Head') {
+            continue;
+        }
+        facultyById.set(faculty.faculty_id, {
+            faculty_id: faculty.faculty_id,
+            name: faculty.name,
+            email: faculty.email,
+            designation: faculty.designation,
+            department_id: faculty.department_id,
+            role: user?.role || 'Faculty Member'
+        });
+    }
+
+    for (const user of departmentUsers) {
+        if (!user.user_id || user.role === 'Dean' || user.role === 'IQAC Head') {
+            continue;
+        }
+        if (!facultyById.has(user.user_id)) {
+            facultyById.set(user.user_id, {
+                faculty_id: user.user_id,
+                name: user.name,
+                email: user.email,
+                designation: user.designation,
+                department_id: user.department_id,
+                role: user.role
+            });
+        }
+    }
+
+    const facultyIds = [...facultyById.keys()];
+    const forms = facultyIds.length
+        ? await AparForm.find({ ay, faculty_id: { $in: facultyIds } })
+            .select('faculty_id ay status updatedAt createdAt timeline')
+            .lean()
+        : [];
+    const formsByFacultyId = new Map(forms.map((form) => [form.faculty_id, form]));
+
+    const rows = [...facultyById.values()]
+        .map((faculty) => {
+            const form = formsByFacultyId.get(faculty.faculty_id);
+            const status = form?.status || 'Not Filled';
+            const hasSubmitted = Boolean(
+                form?.timeline?.submitted_at
+                || (form && !['Draft', 'Not Filled', 'not_filled'].includes(status))
+            );
+
+            return {
+                faculty_id: faculty.faculty_id,
+                name: faculty.name || faculty.faculty_id,
+                email: faculty.email || null,
+                designation: faculty.designation || null,
+                department_id: faculty.department_id,
+                role: faculty.role || null,
+                ay,
+                status,
+                hasSubmitted,
+                submittedAt: form?.timeline?.submitted_at || null,
+                updatedAt: form?.updatedAt || null
+            };
+        })
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    const submittedCount = rows.filter((row) => row.hasSubmitted).length;
+
+    return res.status(200).json(new ApiResponse(200, {
+        ay,
+        departmentId,
+        totalFaculty: rows.length,
+        submittedCount,
+        notSubmittedCount: rows.length - submittedCount,
+        rows
+    }, "Dean APAR status fetched"));
+});
+
 const getFacultyInfo = asyncHandler(async (req, res) => {
     let faculty_id = req.user?.userId || req.user?.faculty_id || req.user?.id;
     faculty_id = await resolveToReadableId(faculty_id);
@@ -2125,6 +2230,7 @@ export {
     getPendingReviewing,
     submitReviewingRemarks,
     listAllForms,
+    getDeanAparStatus,
     getFacultyInfo,
     syncIqacToAparForm  // Export for auto-sync utility
 };

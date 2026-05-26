@@ -58,7 +58,8 @@ const UserSchema = new mongoose.Schema({
         enum: [
             'Officer (Graded)',
             'Reviewing Officer',
-            'Reporting Officer'
+            'Reporting Officer',
+            'Dean'
         ],
         required: false // Not everyone might have an APAR role assigned yet
     },

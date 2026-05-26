@@ -10,6 +10,7 @@ import {
     getPendingReviewing,
     submitReviewingRemarks,
     listAllForms,
+    getDeanAparStatus,
     getFacultyInfo,
     getFacultyHistory
 } from "../controllers/apar.mongo.controller.js";
@@ -26,6 +27,7 @@ router.route("/save").post(authenticate, validate(aparDraftSchema), saveForm);
 router.route("/save-to-monthly").post(authenticate, saveToMonthly);
 router.route("/submit").post(authenticate, validate(aparFormSchema), submitForm);
 router.route("/list").get(authenticate, listAllForms);
+router.route("/dean/status").get(authenticate, getDeanAparStatus);
 router.route("/info").get(authenticate, getFacultyInfo);
 router.route("/history").get(authenticate, getFacultyHistory);
 

@@ -16,6 +16,9 @@ const getAllowedRolesFor = (role) => {
   if (normalized === ROLES.REPORTING_OFFICER.toLowerCase()) {
     return [ROLES.REPORTING_OFFICER, ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
   }
+  if (normalized === ROLES.DEAN.toLowerCase()) {
+    return [ROLES.DEAN];
+  }
   if (normalized === ROLES.REVIEWING_OFFICER.toLowerCase()) {
     return [ROLES.REVIEWING_OFFICER, ROLES.OFFICER];
   }

@@ -63,8 +63,6 @@ const getAllowedRolesFor = (role) => {
   switch (normalizedRole) {
     case ROLES.IQAC_HEAD:
       return [ROLES.IQAC_HEAD];
-    case ROLES.DEAN:
-      return [ROLES.DEAN];
     case ROLES.DEPARTMENT_HOD:
       return [ROLES.DEPARTMENT_HOD];
     case ROLES.FACULTY:
@@ -401,6 +399,11 @@ export const verifyRole = asyncHandler(async (req, res) => {
 
   if (currentRole !== normalizedClientRole) {
     throw new ApiError(409, 'Role mismatch detected');
+  }
+
+  const allowedRoles = getAllowedRolesFor(currentRole);
+  if (!allowedRoles.includes(normalizedClientRole)) {
+    throw new ApiError(403, `You are not allowed to use the IQAC role ${normalizedClientRole}.`);
   }
 
   res.status(200).json(
