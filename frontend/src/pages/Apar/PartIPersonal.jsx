@@ -1,8 +1,41 @@
-import React from 'react';
-import { normalizeQualifications } from '../../utils/qualification.util.js';
+import React, { useState, useEffect } from 'react';
+import { validateDateOfBirth, validateJoiningDate, getFieldError } from '../../utils/personal.validation.util.js';
+import { FiAlertCircle } from 'react-icons/fi';
 
-export default function PartIPersonal({ personal, onChange, readOnly, departments = [] }) {
-  const qualifications = normalizeQualifications(personal);
+export default function PartIPersonal({ personal, onChange, readOnly, departments = [], validationErrors = [] }) {
+  const [dateErrors, setDateErrors] = useState({});
+
+  // Validate dates whenever they change
+  useEffect(() => {
+    const errors = {};
+
+    if (personal.date_of_birth) {
+      const dobValidation = validateDateOfBirth(personal.date_of_birth);
+      if (!dobValidation.valid) {
+        errors.date_of_birth = dobValidation.error;
+      }
+    }
+
+    if (personal.joining_date) {
+      const joiningValidation = validateJoiningDate(personal.joining_date, personal.date_of_birth);
+      if (!joiningValidation.valid) {
+        errors.joining_date = joiningValidation.error;
+      }
+    }
+
+    setDateErrors(errors);
+  }, [personal.date_of_birth, personal.joining_date]);
+
+  const renderFieldError = (fieldName) => {
+    const error = dateErrors[fieldName];
+    if (!error) return null;
+    return (
+      <div className="mt-1 flex items-center gap-1 text-red-600 text-sm">
+        <FiAlertCircle size={16} />
+        <span>{error}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
@@ -47,54 +80,27 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">4) Enter your date of birth <span className="text-red-500">*</span></label>
-          <input required aria-required="true" type="date" name="date_of_birth" value={personal.date_of_birth} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
+          <input 
+            required 
+            aria-required="true" 
+            type="date" 
+            name="date_of_birth" 
+            value={personal.date_of_birth} 
+            onChange={onChange} 
+            disabled={readOnly} 
+            className={`w-full border rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors ${
+              dateErrors.date_of_birth ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {renderFieldError('date_of_birth')}
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">5) Enter the Academic Qualifications</label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Graduation <span className="text-red-500">*</span>
-              </label>
-              <input
-                required
-                aria-required="true"
-                type="text"
-                name="qualification_undergraduate"
-                value={personal.qualification_undergraduate ?? qualifications.qualification_undergraduate}
-                onChange={onChange}
-                disabled={readOnly}
-                placeholder="e.g., B.Tech in CSE"
-                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Post Graduation</label>
-              <input
-                type="text"
-                name="qualification_postgraduate"
-                value={personal.qualification_postgraduate ?? qualifications.qualification_postgraduate}
-                onChange={onChange}
-                disabled={readOnly}
-                placeholder="e.g., M.Tech in CSE"
-                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">PhD</label>
-              <input
-                type="text"
-                name="qualification_phd"
-                value={personal.qualification_phd ?? qualifications.qualification_phd}
-                onChange={onChange}
-                disabled={readOnly}
-                placeholder="e.g., Ph.D. in CSE"
-                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-              />
-            </div>
-          </div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">5) Enter the Academic Qualifications <span className="text-red-500">*</span></label>
+          <textarea required aria-required="true" name="qualification" value={personal.qualification} onChange={onChange} rows={4} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
+            
         </div>
+        
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">6) Select the caste <span className="text-red-500">*</span></label>
@@ -109,7 +115,19 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">7) Date of continuous employment <span className="text-red-500">*</span></label>
-          <input required aria-required="true" type="date" name="joining_date" value={personal.joining_date} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
+          <input 
+            required 
+            aria-required="true" 
+            type="date" 
+            name="joining_date" 
+            value={personal.joining_date} 
+            onChange={onChange} 
+            disabled={readOnly} 
+            className={`w-full border rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors ${
+              dateErrors.joining_date ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {renderFieldError('joining_date')}
         </div>
 
         <div>

@@ -23,6 +23,7 @@ import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
 import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
 import { normalizeQualifications, hasRequiredGraduation } from '../utils/qualification.util.js';
+import { validatePersonalData } from '../utils/personal.validation.util.js';
 
 const toTitle = (value) => String(value || '')
     .replace(/_/g, ' ')
@@ -932,6 +933,11 @@ export default function AparForm() {
         // Only save if in editable mode
         if (isReadOnlyMode()) return true;
 
+        // Validate Personal Data when saving draft
+        if (currentStep === 1 && !validatePersonalDataStep()) {
+            return false;
+        }
+
         setIsSavingDraft(true);
         try {
             const ay = reduxAy || loginData.academic_year || (location.state?.ay) || (() => {
@@ -1028,6 +1034,23 @@ export default function AparForm() {
         }
     };
 
+    /**
+     * Validate Personal Data specific business rules
+     * Checks DOB and Joining Date validations
+     */
+    const validatePersonalDataStep = () => {
+        const personal = formData.personal || {};
+        const validation = validatePersonalData(personal);
+
+        if (!validation.valid) {
+            const errorMessages = validation.errors.map(err => err.message).join('; ');
+            toast.error(errorMessages);
+            return false;
+        }
+
+        return true;
+    };
+
     const validateOfficerAction = (type) => {
         if (type === 'reporting' && !validateStepFields(5)) return false;
         if (type === 'reviewing' && !validateStepFields(6)) return false;
@@ -1040,6 +1063,9 @@ export default function AparForm() {
 
     const nextStep = async () => {
         if (currentStep < totalSteps) {
+            // Special validation for Personal Data step (step 1)
+            if (currentStep === 1 && !validatePersonalDataStep()) return;
+            
             if (!validateStepFields(currentStep)) return;
             if (activeRole === 'Officer (Graded)') {
                 const saved = await handleSaveDraft(true);
@@ -1071,6 +1097,14 @@ export default function AparForm() {
             if (!emailRegex.test(personal.email.trim())) {
                 errors.push('Invalid email format');
             }
+        }
+
+        // Validate DOB and Joining Date business rules
+        const personalValidation = validatePersonalData(personal);
+        if (!personalValidation.valid) {
+            personalValidation.errors.forEach(err => {
+                errors.push(err.message);
+            });
         }
 
         // Validate Assessment Scores (Part V) - must be between 1-10
