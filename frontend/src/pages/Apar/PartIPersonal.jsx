@@ -106,11 +106,12 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">6) Select the caste <span className="text-red-500">*</span></label>
           <select required aria-required="true" name="sc_st_status" value={personal.sc_st_status} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors">
-            <option value="">Select Caste</option>
-            <option value="General">General</option>
-            <option value="SC">Scheduled Caste(SC)</option>
-            <option value="ST">Scheduled Tribe(ST)</option>
-            <option value="OBC">OBC</option>
+            <option value="">Select Category</option>
+            <option value="UR">UR</option>
+            <option value="OBC-NCL">OBC-NCL</option>
+            <option value="SC">SC</option>
+            <option value="ST">ST</option>
+            <option value="EWS">EWS</option>
           </select>
         </div>
 
@@ -130,10 +131,18 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
           />
           {renderFieldError('joining_date')}
         </div>
-
+            
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">8) Present Grade <span className="text-red-500">*</span></label>
-          <input required aria-required="true" type="text" name="grade" value={personal.grade || ''} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
+           <select required aria-required="true" name="grade" value={personal.grade} onChange={onChange} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors">
+           <option value="">Select Grade</option>
+           <option value="Level 10">Level 10</option>
+           <option value="Level 11">Level 11</option>
+           <option value="Level 12">Level 12</option>
+           <option value="Level 13A">Level 13A</option>
+           <option value="Level 14">Level 14</option>
+           <option value="Level 15">Level 15</option>
+          </select>
         </div>
 
         <div>
