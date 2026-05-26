@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     FiArrowLeft,
     FiUploadCloud,
@@ -13,8 +13,6 @@ import {
     FiHeart,
     FiCpu,
     FiKey,
-    FiEye,
-    FiEyeOff,
 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -24,8 +22,8 @@ import { FEEDBACK_CONTEXTS, FEEDBACK_TYPE_MAP } from '../config/feedbackContexts
 import { parseFeedbackFile, summarizeFeedbackRows } from '../utils/parseFeedbackFile.js';
 import {
     analyzeFeedbackWithHuggingFace,
-    getStoredHfApiKey,
-    storeHfApiKey,
+    getConfiguredHfApiKey,
+    hasConfiguredEnvHfApiKey,
 } from '../services/huggingface.service.js';
 
 const ANALYSIS_TYPES = [
@@ -82,16 +80,9 @@ export default function FeedbackAnalysis() {
     const [loading, setLoading] = useState(false);
     const [progressMessage, setProgressMessage] = useState('');
     const [analysisResult, setAnalysisResult] = useState(null);
-    const [apiKey, setApiKey] = useState('');
-    const [showApiKey, setShowApiKey] = useState(false);
-    const [rememberKey, setRememberKey] = useState(true);
 
     const selectedConfig = ANALYSIS_TYPES.find((t) => t.id === selectedType);
-    const hasEnvKey = Boolean(import.meta.env.VITE_HUGGINGFACE_API_KEY?.trim());
-
-    useEffect(() => {
-        setApiKey(getStoredHfApiKey());
-    }, []);
+    const hasEnvKey = hasConfiguredEnvHfApiKey();
 
     const handleFileChange = async (e) => {
         const nextFile = e.target.files?.[0];
@@ -103,8 +94,9 @@ export default function FeedbackAnalysis() {
             try {
                 const rows = await parseFeedbackFile(nextFile);
                 setRowCount(rows.length);
-            } catch {
+            } catch (error) {
                 setRowCount(0);
+                toast.error(error.message || 'Could not read the selected file');
             }
         }
     };
@@ -115,14 +107,10 @@ export default function FeedbackAnalysis() {
             return;
         }
 
-        const key = apiKey.trim() || getStoredHfApiKey();
+        const key = getConfiguredHfApiKey();
         if (!key) {
-            toast.error('Enter your Hugging Face API key below');
+            toast.error('Add VITE_HUGGINGFACE_API_KEY to frontend/.env and restart the dev server');
             return;
-        }
-
-        if (rememberKey) {
-            storeHfApiKey(key);
         }
 
         const contextKey = FEEDBACK_TYPE_MAP[selectedConfig.apiType];
@@ -134,11 +122,12 @@ export default function FeedbackAnalysis() {
 
         setLoading(true);
         setAnalysisResult(null);
-        setProgressMessage('Parsing spreadsheet…');
+        setProgressMessage('Parsing spreadsheet...');
 
         try {
             const rows = await parseFeedbackFile(file);
             setRowCount(rows.length);
+            setProgressMessage('Building anonymized feedback summary...');
             const dataString = summarizeFeedbackRows(rows);
 
             const analysis = await analyzeFeedbackWithHuggingFace({
@@ -190,7 +179,7 @@ export default function FeedbackAnalysis() {
                     </h1>
                     <p className="mt-2 text-lg text-gray-600">
                         {selectedConfig
-                            ? 'Upload CSV/Excel — analysis runs in your browser via Hugging Face.'
+                            ? 'Upload CSV/Excel - analysis runs in your browser via Hugging Face.'
                             : 'Select a feedback form. AI inference uses JavaScript only (no server upload).'}
                     </p>
                 </header>
@@ -224,48 +213,20 @@ export default function FeedbackAnalysis() {
                         <div className="feedback-section-card rounded-2xl border border-violet-200 bg-white/95 p-6 shadow-sm animate-slide-up">
                             <h3 className="mb-4 flex items-center text-lg font-bold text-gray-900">
                                 <FiKey className="mr-2 text-violet-600 feedback-icon-glow" />
-                                Hugging Face API Key
+                                Hugging Face Environment Key
                             </h3>
                             {hasEnvKey ? (
                                 <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 shadow-sm">
                                     <span className="flex items-center">
-                                        <span className="mr-2">✓</span>
+                                        <span className="mr-2">OK</span>
                                         Using key from <code className="font-mono text-xs bg-emerald-100 px-1 rounded">VITE_HUGGINGFACE_API_KEY</code> in your .env file.
                                     </span>
                                 </p>
                             ) : (
-                                <div className="space-y-3">
-                                    <div className="relative">
-                                        <input
-                                            type={showApiKey ? 'text' : 'password'}
-                                            value={apiKey}
-                                            onChange={(e) => setApiKey(e.target.value)}
-                                            placeholder="hf_xxxxxxxxxxxxxxxx"
-                                            className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-12 font-mono text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowApiKey((v) => !v)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                        >
-                                            {showApiKey ? <FiEyeOff /> : <FiEye />}
-                                        </button>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm text-gray-600">
-                                        <input
-                                            type="checkbox"
-                                            checked={rememberKey}
-                                            onChange={(e) => setRememberKey(e.target.checked)}
-                                            className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-                                        />
-                                        Remember for this browser session
-                                    </label>
-                                    <p className="text-xs text-gray-500">
-                                        Token needs <strong>Inference Providers</strong> permission. Add{' '}
-                                        <code className="rounded bg-gray-100 px-1">VITE_HUGGINGFACE_API_KEY=hf_...</code> to{' '}
-                                        <code className="rounded bg-gray-100 px-1">frontend/.env</code>, then restart the dev server.
-                                    </p>
-                                </div>
+                                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 shadow-sm">
+                                    Add <code className="rounded bg-amber-100 px-1">VITE_HUGGINGFACE_API_KEY=hf_...</code> to{' '}
+                                    <code className="rounded bg-amber-100 px-1">frontend/.env</code>, then restart the dev server.
+                                </p>
                             )}
                         </div>
 
@@ -292,7 +253,7 @@ export default function FeedbackAnalysis() {
                                     </p>
                                     <p className="mt-1 text-sm text-gray-500">
                                         {rowCount > 0 ? (
-                                            <span className="text-emerald-600 font-medium">✓ {rowCount} rows detected</span>
+                                            <span className="text-emerald-600 font-medium">{rowCount} rows detected</span>
                                         ) : 'Supported: .xlsx, .xls, .csv'}
                                     </p>
                                 </div>
@@ -305,16 +266,16 @@ export default function FeedbackAnalysis() {
                             <button
                                 type="button"
                                 onClick={handleAnalyze}
-                                disabled={!file || loading}
+                                disabled={!file || loading || !hasEnvKey}
                                 className={`mt-6 feedback-button-primary flex w-full items-center justify-center rounded-xl py-4 text-lg font-bold text-white transition
-                                    ${!file || loading
+                                    ${!file || loading || !hasEnvKey
                                         ? 'cursor-not-allowed opacity-50'
                                         : ''}`}
                             >
                                 {loading ? (
                                     <>
                                         <FiLoader className="mr-3 h-6 w-6 animate-spin" />
-                                        Running Hugging Face analysis…
+                                        Running Hugging Face analysis...
                                     </>
                                 ) : (
                                     <>
@@ -327,7 +288,7 @@ export default function FeedbackAnalysis() {
                             <div className="mt-6 flex items-start rounded-xl border border-violet-200 bg-violet-50/80 p-4 backdrop-blur-sm">
                                 <FiBookOpen className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-violet-600 feedback-icon-glow" />
                                 <p className="text-sm text-violet-900">
-                                    <strong>Tip:</strong> Use clear column headers. Data stays in your browser — only the summary is sent to Hugging Face for inference.
+                                    <strong>Tip:</strong> Use clear column headers. Data stays in your browser - only the anonymized summary is sent to Hugging Face for inference.
                                 </p>
                             </div>
                         </div>

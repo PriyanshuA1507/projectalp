@@ -1,5 +1,6 @@
 export const ROLES = {
   IQAC_HEAD: 'IQAC Head',
+  DEAN: 'Dean',
   DEPARTMENT_HOD: 'Department HOD',
   FACULTY: 'Faculty Member'
 };
@@ -11,7 +12,7 @@ export const canAccessForm = (role, resourceId) => {
     return false;
   }
 
-  if (role === ROLES.IQAC_HEAD) {
+  if (role === ROLES.IQAC_HEAD || role === ROLES.DEAN) {
     return true;
   }
 
@@ -31,7 +32,7 @@ export const canAccessTable = (role, resourceId) => {
     return false;
   }
 
-  if (role === ROLES.IQAC_HEAD) {
+  if (role === ROLES.IQAC_HEAD || role === ROLES.DEAN) {
     return true;
   }
 
@@ -50,6 +51,8 @@ export const getRoleBadgeColor = (role) => {
   switch (role) {
     case ROLES.IQAC_HEAD:
       return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+    case ROLES.DEAN:
+      return 'bg-sky-100 text-sky-700 border border-sky-200';
     case ROLES.DEPARTMENT_HOD:
       return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
     case ROLES.FACULTY:
@@ -62,6 +65,7 @@ export const getRoleBadgeColor = (role) => {
 
 export const ROLE_LABELS = {
   [ROLES.IQAC_HEAD]: 'IQAC Head',
+  [ROLES.DEAN]: 'Dean',
   [ROLES.DEPARTMENT_HOD]: 'Department HOD',
   [ROLES.FACULTY]: 'Faculty Member'
 };

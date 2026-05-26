@@ -1,7 +1,7 @@
 import { ApiError } from '../utils/api-error.js';
 import { normalizeRoleValue, ROLES } from '../config/roles.js';
 
-const ALLOWED_IQAC_ROLES = new Set([ROLES.IQAC_HEAD, ROLES.DEPARTMENT_HOD]);
+const ALLOWED_IQAC_ROLES = new Set([ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD]);
 
 export const requireIqacRole = (req, res, next) => {
   const activeRole = normalizeRoleValue(req.user?.role) ?? req.user?.role;
@@ -11,5 +11,5 @@ export const requireIqacRole = (req, res, next) => {
     return next();
   }
 
-  return next(new ApiError(403, 'Only IQAC Head or Department HOD can access this section'));
+  return next(new ApiError(403, 'Only IQAC Head, Dean, or Department HOD can access this section'));
 };

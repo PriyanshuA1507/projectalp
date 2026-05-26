@@ -1,5 +1,6 @@
 export const ROLES = {
   IQAC_HEAD: 'IQAC Head',
+  DEAN: 'Dean',
   DEPARTMENT_HOD: 'Department HOD',
   FACULTY: 'Faculty Member'
 };
@@ -9,6 +10,7 @@ export const ROLE_VALUES = Object.values(ROLES);
 const ROLE_ALIASES = {
   iqac_head: ROLES.IQAC_HEAD,
   'iqac head': ROLES.IQAC_HEAD,
+  dean: ROLES.DEAN,
   department_hod: ROLES.DEPARTMENT_HOD,
   'department hod': ROLES.DEPARTMENT_HOD,
   faculty: ROLES.FACULTY,

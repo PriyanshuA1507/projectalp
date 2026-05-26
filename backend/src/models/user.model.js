@@ -46,6 +46,7 @@ const UserSchema = new mongoose.Schema({
         required: true,
         enum: [
             'IQAC Head',
+            'Dean',
             'Department HOD',
             'Faculty Member'
         ],
