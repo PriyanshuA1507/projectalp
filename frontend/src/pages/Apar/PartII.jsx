@@ -632,6 +632,10 @@ import React from 'react';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'sonner';
 
+
+
+
+
 const requiredCourseFields = [
     { key: 'name_of_course', label: 'Name of the course', idPrefix: 'course-name' },
     { key: 'degree_type', label: 'Degree type of course', idPrefix: 'degree-type' },
@@ -762,6 +766,37 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
         }, 0);
     };
 
+    const validateTimeTableHours = (semester) => {
+    const provided = Number(timeTable?.provided?.[semester] || 0);
+    const actual = Number(timeTable?.actual?.[semester] || 0);
+
+    if (!Number.isFinite(provided) || !Number.isFinite(actual) || actual <= provided) {
+        return;
+    }
+
+    toast.error(
+        `Actually taken hours cannot exceed provided hours for ${semester === 'odd_semester' ? 'odd semester' : 'even semester'
+        }.`
+    );
+
+    updateField('teaching', 'time_table', {
+        ...timeTable,
+        actual: {
+            ...timeTable.actual,
+            [semester]: ''
+        }
+    });
+
+    window.setTimeout(() => {
+        const field = document.getElementById(
+            semester === 'odd_semester'
+                ? 'time-table-actual-odd'
+                : 'time-table-actual-even'
+        );
+
+        if (field) field.focus();
+    }, 0);
+};
     const isNumberInput = (target) => target?.tagName === 'INPUT' && target.type === 'number';
 
     const handleNumberKeyDownCapture = (e) => {
@@ -899,24 +934,24 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         <div className="font-semibold mb-2">a) Provided in the academic year</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester</label>
-                                <input id="time-table-provided-odd" type="number" min="0" disabled={readOnly} value={timeTable?.provided?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester<span className="text-red-500">*</span></label>
+                                <input id="time-table-provided-odd" type="number" min="0" required disabled={readOnly} value={timeTable?.provided?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">For even semester</label>
-                                <input id="time-table-provided-even" type="number" min="0" disabled={readOnly} value={timeTable?.provided?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">For even semester<span className="text-red-500">*</span></label>
+                                <input id="time-table-provided-even" type="number" min="0" required disabled={readOnly} value={timeTable?.provided?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
 
                         <div className="mt-4 font-semibold mb-2">b) Actually taken during the academic year</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester</label>
-                                <input id="time-table-actual-odd" type="number" min="0" max={timeTable?.provided?.odd_semester || ''} disabled={readOnly} value={timeTable?.actual?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester<span className="text-red-500">*</span></label>
+                                <input id="time-table-actual-odd" type="number" min="0" max={timeTable?.provided?.odd_semester || ''} required disabled={readOnly} value={timeTable?.actual?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, odd_semester: e.target.value } }); }} onBlur={() => validateTimeTableHours('odd_semester')} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">For even semester</label>
-                                <input id="time-table-actual-even" type="number" min="0" max={timeTable?.provided?.even_semester || ''} disabled={readOnly} value={timeTable?.actual?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">For even semester<span className="text-red-500">*</span></label>
+                                <input id="time-table-actual-even" type="number" min="0" max={timeTable?.provided?.even_semester || ''} required disabled={readOnly} value={timeTable?.actual?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, even_semester: e.target.value } }); }} onBlur={() => validateTimeTableHours('even_semester')} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
                     </div>
