@@ -129,6 +129,37 @@ const getCourseValidationIssues = (coursesTaught = []) => coursesTaught.flatMap(
     return [];
 });
 
+const getTimeTableValidationIssues = (timeTable = {}) => {
+    const pairs = [
+        {
+            semester: 'odd',
+            label: 'odd semester',
+            provided: timeTable?.provided?.odd_semester,
+            actual: timeTable?.actual?.odd_semester,
+            id: 'time-table-actual-odd'
+        },
+        {
+            semester: 'even',
+            label: 'even semester',
+            provided: timeTable?.provided?.even_semester,
+            actual: timeTable?.actual?.even_semester,
+            id: 'time-table-actual-even'
+        }
+    ];
+
+    return pairs
+        .filter(({ provided, actual }) => {
+            if (isBlankCourseValue(provided) || isBlankCourseValue(actual)) return false;
+            const providedNumber = Number(provided);
+            const actualNumber = Number(actual);
+            return Number.isFinite(providedNumber) && Number.isFinite(actualNumber) && actualNumber > providedNumber;
+        })
+        .map(({ label, id }) => ({
+            id,
+            message: `Actually taken for ${label} cannot exceed provided hours/periods.`
+        }));
+};
+
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const flattenRecord = (record, prefix = '') => {
@@ -1052,6 +1083,31 @@ export default function AparForm() {
         return false;
     };
 
+    const validateTimeTable = ({ focus = true, navigateToPart = false } = {}) => {
+        const issues = getTimeTableValidationIssues(formData?.teaching?.time_table || {});
+        if (issues.length === 0) return true;
+
+        const firstIssue = issues[0];
+        toast.error(firstIssue.message);
+
+        const focusInvalidField = () => {
+            const field = typeof document !== 'undefined' ? document.getElementById(firstIssue.id) : null;
+            if (field) {
+                field.focus();
+                if (typeof field.reportValidity === 'function') field.reportValidity();
+            }
+        };
+
+        if (navigateToPart && currentStep !== 2) {
+            setCurrentStep(2);
+            window.setTimeout(focusInvalidField, 0);
+        } else if (focus) {
+            focusInvalidField();
+        }
+
+        return false;
+    };
+
     const handleSaveDraft = async (silent = false) => {
         // Only save if in editable mode
         if (isReadOnlyMode()) return true;
@@ -1062,6 +1118,10 @@ export default function AparForm() {
         }
 
         if (!validateCoursesTaught({ navigateToPart: true })) {
+            return false;
+        }
+
+        if (!validateTimeTable({ navigateToPart: true })) {
             return false;
         }
 
@@ -1194,6 +1254,7 @@ export default function AparForm() {
             if (currentStep === 1 && !validatePersonalDataStep()) return;
             
             if (currentStep === 2 && !validateCoursesTaught()) return;
+            if (currentStep === 2 && !validateTimeTable()) return;
             if (!validateStepFields(currentStep)) return;
             if (activeRole === 'Officer (Graded)') {
                 const saved = await handleSaveDraft(true);

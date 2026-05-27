@@ -900,11 +900,11 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester</label>
-                                <input type="number" min="0" disabled={readOnly} value={timeTable?.provided?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <input id="time-table-provided-odd" type="number" min="0" disabled={readOnly} value={timeTable?.provided?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">For even semester</label>
-                                <input type="number" min="0" disabled={readOnly} value={timeTable?.provided?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <input id="time-table-provided-even" type="number" min="0" disabled={readOnly} value={timeTable?.provided?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, provided: { ...timeTable.provided, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
 
@@ -912,11 +912,11 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">For odd semester</label>
-                                <input type="number" min="0" disabled={readOnly} value={timeTable?.actual?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <input id="time-table-actual-odd" type="number" min="0" max={timeTable?.provided?.odd_semester || ''} disabled={readOnly} value={timeTable?.actual?.odd_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, odd_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">For even semester</label>
-                                <input type="number" min="0" disabled={readOnly} value={timeTable?.actual?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <input id="time-table-actual-even" type="number" min="0" max={timeTable?.provided?.even_semester || ''} disabled={readOnly} value={timeTable?.actual?.even_semester || ''} onChange={(e) => { updateField('teaching', 'time_table', { ...timeTable, actual: { ...timeTable.actual, even_semester: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
                     </div>
@@ -929,8 +929,8 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         <div className="font-semibold mb-2 text-indigo-800">For odd semester</div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Lectures</label>
-                                <input type="number" min="0" disabled={readOnly} value={workloadWeek?.odd_semester?.lectures || ''} onChange={(e) => { updateField('teaching', 'workload_week', { ...workloadWeek, odd_semester: { ...workloadWeek.odd_semester, lectures: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm text-gray-700 mb-1">Lectures<span className="text-red-500">*</span></label>
+                                <input type="number" min="0" required disabled={readOnly} value={workloadWeek?.odd_semester?.lectures || ''} onChange={(e) => { updateField('teaching', 'workload_week', { ...workloadWeek, odd_semester: { ...workloadWeek.odd_semester, lectures: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-700 mb-1">Tutorials</label>
@@ -949,8 +949,8 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         <div className="font-semibold mb-2 text-indigo-800">For even semester</div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Lectures</label>
-                                <input type="number" min="0" disabled={readOnly} value={workloadWeek?.even_semester?.lectures || ''} onChange={(e) => { updateField('teaching', 'workload_week', { ...workloadWeek, even_semester: { ...workloadWeek.even_semester, lectures: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
+                                <label className="block text-sm text-gray-700 mb-1">Lectures<span className="text-red-500">*</span></label>
+                                <input type="number" min="0" required disabled={readOnly} value={workloadWeek?.even_semester?.lectures || ''} onChange={(e) => { updateField('teaching', 'workload_week', { ...workloadWeek, even_semester: { ...workloadWeek.even_semester, lectures: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-700 mb-1">Tutorials</label>
