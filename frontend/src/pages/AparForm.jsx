@@ -1280,13 +1280,13 @@ export default function AparForm() {
             errors.push(submitMessage);
         });
 
-        // Validate DOB and Joining Date business rules
-        const personalValidation = validatePersonalData(personal);
-        if (!personalValidation.valid) {
-            personalValidation.errors.forEach(err => {
-                errors.push(err.message);
-            });
-        }
+        // // Validate DOB and Joining Date business rules
+        // const personalValidation = validatePersonalData(personal);
+        // if (!personalValidation.valid) {
+        //     personalValidation.errors.forEach(err => {
+        //         errors.push(err.message);
+        //     });
+        // }
 
         // Validate course rows added in Part II
         getCourseValidationIssues(formData?.teaching?.courses_taught || []).forEach(({ submitMessage }) => {
@@ -1311,23 +1311,23 @@ export default function AparForm() {
              errors.push('You must certify the Corporate Life section in Part IV');
         }
 
-         // Validate Corporate Life (Part IV)
-        const corporate = formData.corporate || {};
-        const hasContribution = isFilled(corporate.curriculum_development) || 
-                                isFilled(corporate.course_development_details) || 
-                                isFilled(corporate.lab_development) || 
-                                isFilled(corporate.cultural_activities) || 
-                                isFilled(corporate.sports_community) || 
-                                isFilled(corporate.admin_assignment) || 
-                                isFilled(corporate.any_other);
+        //  // Validate Corporate Life (Part IV)
+        // const corporate = formData.corporate || {};
+        // const hasContribution = isFilled(corporate.curriculum_development) || 
+        //                         isFilled(corporate.course_development_details) || 
+        //                         isFilled(corporate.lab_development) || 
+        //                         isFilled(corporate.cultural_activities) || 
+        //                         isFilled(corporate.sports_community) || 
+        //                         isFilled(corporate.admin_assignment) || 
+        //                         isFilled(corporate.any_other);
         
-        if (!hasContribution) {
-            errors.push('Please fill at least one field in Part IV - Corporate Life');
-        }
+        // if (!hasContribution) {
+        //     errors.push('Please fill at least one field in Part IV - Corporate Life');
+        // }
         
-        if (corporate.certify !== 'true' && corporate.certify !== true && !certified) {
-             errors.push('You must certify the Corporate Life section in Part IV');
-        }
+        // if (corporate.certify !== 'true' && corporate.certify !== true && !certified) {
+        //      errors.push('You must certify the Corporate Life section in Part IV');
+        // }
 
         // Validate Assessment Scores (Part V)
         const assessment = formData.assessment || {};
