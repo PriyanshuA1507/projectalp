@@ -21,7 +21,7 @@ import AparTimeline from '../components/AparTimeline.jsx';
 import { mergeNewEntry } from '../hooks/useAparRealTimeSync';
 import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
-import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
+import { useSocket } from '../context/SocketContext.jsx'; 
 import { normalizeQualifications, hasRequiredGraduation } from '../utils/qualification.util.js';
 import { getAcademicYearFromAparForm, normalizeAcademicYear } from '../utils/academicYear.util.js';
 
@@ -58,24 +58,41 @@ const flattenRecord = (record, prefix = '') => {
     }, {});
 };
 
+// IMPROVED: Better formatting for exports (Excel/Word)
 const toDisplayValue = (value) => {
-    if (value === null || value === undefined || value === '') return '';
+    if (value === null || value === undefined || value === '') return 'N/A';
+    
+    // Handle Booleans explicitly
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (value === 'true') return 'Yes';
+    if (value === 'false') return 'No';
+
+    // Handle Dates properly
+    if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value))) {
+        try {
+            return new Date(value).toLocaleDateString('en-GB'); // Formats to DD/MM/YYYY
+        } catch(e) {
+            return value;
+        }
+    }
+
     if (Array.isArray(value)) {
-        if (!value.length) return '';
+        if (!value.length) return 'None';
         return value.map((item, index) => {
             if (isPlainObject(item)) {
                 const details = Object.entries(flattenRecord(item))
                     .map(([key, val]) => `${key}: ${val}`)
-                    .join(', ');
+                    .join(' | '); // Better separator for Excel/Word
                 return `${index + 1}. ${details}`;
             }
             return `${index + 1}. ${String(item)}`;
-        }).join('\n');
+        }).join('\n\n'); // Add double line break for readability
     }
+    
     if (isPlainObject(value)) {
         return Object.entries(flattenRecord(value))
             .map(([key, val]) => `${key}: ${val}`)
-            .join('; ');
+            .join('\n');
     }
     return String(value);
 };
@@ -234,16 +251,17 @@ const createSummaryTable = (formData, aparUser, ay) => ({
 });
 
 export default function AparForm() {
-    const { socket } = useSocket(); // Get socket from context
+    const { socket } = useSocket(); 
     const navigate = useNavigate();
     const location = useLocation();
     const [currentStep, setCurrentStep] = useState(1);
-    // auth state moved up to use in totalSteps logic
+    
     const [loginData, setLoginData] = useState({ id: '', password: '', role: 'Officer (Graded)' });
     const aparUser = useSelector((state) => state.aparAuth.user);
     const aparRole = useSelector((state) => state.aparAuth.role);
     const reduxAy = useSelector(selectAparAcademicYear);
     const activeRole = aparRole || loginData.role;
+    
     const getSteps = () => {
         if (activeRole === 'Reporting Officer') return 6;
         if (activeRole === 'Reviewing Officer') return 7;
@@ -269,7 +287,6 @@ export default function AparForm() {
             const res = await AparFormGradedService.saveToMonthly(payload);
             toast.success('Saved Section III to monthly collections');
 
-            // Merge returned research data with IDs back into formData to prevent duplicates on subsequent saves
             if (res?.research) {
                 setFormData(prev => ({
                     ...prev,
@@ -283,7 +300,6 @@ export default function AparForm() {
         }
     };
 
-    // Prefill faculty profile info on user change (ensures prefill even if AY is not yet set)
     React.useEffect(() => {
         if (!aparUser) return;
         (async () => {
@@ -314,14 +330,13 @@ export default function AparForm() {
             }
         })();
     }, [aparUser]);
+
     const [viewMode, setViewMode] = useState('form');
-    // Track form status for completion screen
     const [formStatus, setFormStatus] = useState('Draft');
     const [departments, setDepartments] = useState([]);
 
     console.log("Hello DTU!!!")
 
-    // Ensure departments are available early for Part I rendering
     React.useEffect(() => {
         (async () => {
             try {
@@ -347,14 +362,12 @@ export default function AparForm() {
         }
     }, [aparUser, aparRole]);
 
-    // Ensure department_id is set from user info if not already set after departments are loaded
     React.useEffect(() => {
         if (
             departments.length > 0 &&
             aparUser &&
             (!formData.personal.department_id || !departments.some(d => d.department_id === formData.personal.department_id))
         ) {
-            // Try to set department_id from user info if available
             const userDeptId = aparUser.department_id || aparUser.departmentId;
             if (userDeptId && departments.some(d => d.department_id === userDeptId)) {
                 setFormData(prev => ({
@@ -368,11 +381,6 @@ export default function AparForm() {
         }
     }, [departments, aparUser]);
 
-
-
-
-
-    // Reporting/Reviewing officer: fetch pending submissions for dashboard
     React.useEffect(() => {
         if (!aparUser) return;
         const role = aparRole || loginData.role;
@@ -382,7 +390,6 @@ export default function AparForm() {
             try {
                 let rows = []
                 if (role === 'Reporting Officer') {
-                    // assignments are fixed; fetch assigned officers via reporting service
                     const resp = await aparFormReportingService.getAssigned()
                     rows = resp?.rows || resp?.data || resp || []
                 } else if (role === 'Reviewing Officer') {
@@ -402,39 +409,29 @@ export default function AparForm() {
         })()
     }, [aparUser, aparRole, viewMode, loginData.academic_year, reduxAy])
 
-    // WebSocket Real-Time Sync - automatically updates form when IQAC adds new entries
     const handleNewEntry = useCallback((data) => {
-        // console.log('📬 Real-time update received:', data);
         setFormData(prev => ({
             ...prev,
             research: mergeNewEntry(prev.research, data)
         }));
-        // Optional: Set a flag to indicate unsaved changes
-        // setHasUnsavedChanges(true);
     }, []);
 
-    // (Logic moved to main useEffect)
     const gradedId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
-    // const currentAy = reduxAy || loginData.academic_year;
-    // useAparRealTimeSync call removed to avoid double-joining/conditional issues
 
     const totalSteps = getSteps();
     const [personalOpen, setPersonalOpen] = useState(true);
 
-    // Submitted forms (for Reporting/Reviewing Officer dashboard)
     const [submittedForms, setSubmittedForms] = useState([]);
     const [certified, setCertified] = useState(false);
     const [selectedFacultyRaw, setSelectedFacultyRaw] = useState(null);
 
-    // Popup State
     const [queryModalOpen, setQueryModalOpen] = useState(false);
     const [queryComment, setQueryComment] = useState('');
     const [isSavingDraft, setIsSavingDraft] = useState(false);
-    const [pendingAction, setPendingAction] = useState(null); // { type: 'reporting' | 'reviewing', status: string }
+    const [pendingAction, setPendingAction] = useState(null); 
     const [deleteModal, setDeleteModal] = useState({ open: false, section: null, field: null, index: null });
     const [submitConfirmModal, setSubmitConfirmModal] = useState({ open: false, type: null, status: null });
 
-    // Deduplication ref for socket events
     const lastEventRef = React.useRef(0);
 
     const requestDelete = (section, field, index) => {
@@ -508,9 +505,7 @@ export default function AparForm() {
     };
 
 
-    // Form State
     const [formData, setFormData] = useState({
-        // Step 1: Faculty (Personal Data)
         personal: {
             name: '',
             designation: '',
@@ -533,7 +528,6 @@ export default function AparForm() {
             caste: '',
             grade: ''
         },
-        // Step 2: Self Appraisal & Teaching
         teaching: {
             immovable_property_return: '',
             health_checkup_file: null,
@@ -541,12 +535,10 @@ export default function AparForm() {
             courses_taught: [
                 { name_of_course: '', total_lectures_scheduled: '', total_lectures_engaged: '', tutorials_scheduled: '', tutorials_engaged: '', labs_scheduled: '', labs_engaged: '', reasons_not_engaged: '', degree_type: 'UG' }
             ],
-            // total hours/periods provided in timetable vs actually taken
             time_table: {
                 provided: { odd_semester: '', even_semester: '' },
                 actual: { odd_semester: '', even_semester: '' }
             },
-            // workload per week for odd/even semesters
             workload_week: {
                 odd_semester: { lectures: '', tutorials: '', practicals: '', seminars: '' },
                 even_semester: { lectures: '', tutorials: '', practicals: '', seminars: '' }
@@ -562,14 +554,13 @@ export default function AparForm() {
             },
             academic_planning: ''
         },
-        // Step 3: Research
         research: {
             journals: [],
             conferences: [],
-            events: [], // Keep for now or rename to fdp_participation
+            events: [], 
             projects: [],
-            phd_guidance: [], // legacy array
-            phd_supervision: [], // New IQAC structure
+            phd_guidance: [],
+            phd_supervision: [], 
             books: [],
             fdps: [],
             consultancy: [],
@@ -579,16 +570,14 @@ export default function AparForm() {
             collaborations: [],
             faculty_visits: [],
             memberships: [],
-            // Text fields
             summer_institutes: '',
             ug_pg_guidance: '',
-            phd_guidance_text: 'See PhD Supervision table above', // Helper text or default
+            phd_guidance_text: 'See PhD Supervision table above', 
             research_guidance: '',
             industry_interaction: '',
             memberships_text: '',
             other_activities: ''
         },
-        // Step 4: Corporate Life
         corporate: {
             curriculum_development: '',
             course_development_details: '',
@@ -599,14 +588,12 @@ export default function AparForm() {
             any_other: '',
             certify: false
         },
-        // Step 6: Numerical Assessment (Reporting Officer Only)
         assessment: {
             section_a: { q1: '', q2: '', q3: '', q4: '', overall_grading: '' },
             section_b: { q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7a: '', q7b: '', q8: '', q9: '', q10: '', q11: '', overall_grading: '' },
             section_c: { q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', overall_grading: '' },
             general: { q1: '', q2: '', q3: '', q4: '', q5: '', q6: '' }
         },
-        // Step 7: Remarks (Reviewing Officer Only)
         remarks: {
             length_of_service: '',
             satisfied_with_reporting: '',
@@ -620,21 +607,17 @@ export default function AparForm() {
         timeline: {}
     });
 
-    // --- Refactored Fetch Logic to be Reusable ---
     const fetchFormData = useCallback(async (gradedId, ay) => {
         if (!gradedId) return;
         try {
-            // 1. FIRST: Fetch Faculty Info from Faculty table (baseline data)
             let facultyInfo = null;
             try {
                 const infoRes = await AparFormGradedService.getFacultyInfo();
                 facultyInfo = infoRes.data || infoRes;
-                // console.log('📋 Faculty Info fetched:', facultyInfo);
             } catch (infoErr) {
                 console.error('Failed to fetch faculty info:', infoErr);
             }
 
-            // 2. Pre-fill form with faculty data first
             if (facultyInfo) {
                 setFormData(prev => ({
                     ...prev,
@@ -652,10 +635,8 @@ export default function AparForm() {
                         grade: facultyInfo.grade || prev.personal.grade
                     }
                 }));
-                // console.log('✅ Form pre-filled with faculty data');
             }
 
-            // 3. Fetch Departments
             try {
                 const deptRes = await DepartmentService.getDepartments();
                 const depts = deptRes.data || deptRes || [];
@@ -664,16 +645,13 @@ export default function AparForm() {
                 console.error('Failed to fetch departments', deptErr);
             }
 
-            // 4. THEN: Check Mongo Form and overlay it (mongo data takes precedence over faculty data)
             const mongoRes = await AparFormGradedService.getForm(gradedId, ay)
             const mongoData = mongoRes.data || mongoRes
             if (mongoData && mongoData.faculty_id) {
-                // Found in Mongo! Populate state.
                 if (mongoData.status) {
                     setFormStatus(mongoData.status);
                 }
 
-                // Restore AY if missing
                 if (!ay && mongoData.ay) {
                     ay = mongoData.ay
                     setLoginData(prev => ({ ...prev, academic_year: ay }))
@@ -690,7 +668,7 @@ export default function AparForm() {
                         joining_date: mongoData.personal?.joining_date ? mongoData.personal.joining_date.substring(0, 10) : prev.personal.joining_date,
                     },
                     teaching: { ...prev.teaching, ...(mongoData.teaching || {}) },
-                    research: { ...prev.research, ...(mongoData.research || {}) }, // Crucial: Updates Research Tables
+                    research: { ...prev.research, ...(mongoData.research || {}) }, 
                     corporate: { ...prev.corporate, ...(mongoData.corporate || {}) },
                     assessment: { ...prev.assessment, ...(mongoData.assessment || {}) },
                     remarks: { ...prev.remarks, ...(mongoData.remarks || {}) },
@@ -698,29 +676,23 @@ export default function AparForm() {
                     reviewing_query: mongoData.reviewing_query
                 }))
                 console.log('✅ Form overlaid with MongoDB data');
-            } else {
-                // console.log('ℹ️ No existing APAR form found in MongoDB');
-            }
+            } 
 
         } catch (e) {
             console.error("Auto-refresh failed", e);
         }
-    }, []); // Empty deps - function is stable
+    }, []); 
 
-    // --- Socket.IO Room Joining and Listener ---
     React.useEffect(() => {
         if (!socket || !aparUser) return;
 
         const facultyId = aparUser.teacherId || aparUser.faculty_id || aparUser.id;
 
-        // Resolve AY
         let rawAy = reduxAy || loginData.academic_year || (location.state?.ay);
-        // Fallback AY derivation
         if (!rawAy && formData.personal?.report_start_date && formData.personal?.report_end_date) {
             rawAy = getAcademicYearFromDates(formData.personal.report_start_date, formData.personal.report_end_date);
         }
 
-        // Helper to normalize AY for consistent room names and API calls
         const normalizeAy = (val) => {
             if (!val || typeof val !== 'string') return '';
             const cleanVal = val.trim();
@@ -735,15 +707,10 @@ export default function AparForm() {
 
         if (facultyId && ay) {
             socket.emit('join_apar_room', { faculty_id: facultyId, ay });
-            // console.log(`[FRONTEND] Requesting join APAR Room: ${facultyId}, ${ay}`);
-
-            // Initial Fetch on Load
             fetchFormData(facultyId, ay);
         }
 
         const handleDataUpdate = () => {
-            // console.log('[FRONTEND] Received Update:', data);
-            // toast.info("New IQAC data received. Refreshing form...", { autoClose: 3000 }); // Removed to avoid double popup with NotificationBell
             fetchFormData(facultyId, ay);
         };
 
@@ -751,10 +718,6 @@ export default function AparForm() {
             const now = Date.now();
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
-
-            // console.log('[FRONTEND] 📬 Real-time NEW ENTRY received:', data);
-
-            // Small delay to ensure DB write propagates
             setTimeout(() => {
                 const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
                 if (facultyId && ay) {
@@ -767,9 +730,7 @@ export default function AparForm() {
             const now = Date.now();
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
-
             console.log('[FRONTEND] 📬 Real-time UPDATE ENTRY received:', data);
-
             setTimeout(() => {
                 const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
                 if (facultyId && ay) {
@@ -782,9 +743,6 @@ export default function AparForm() {
             const now = Date.now();
             if (now - lastEventRef.current < 1000) return;
             lastEventRef.current = now;
-
-            // console.log('[FRONTEND] 📬 Real-time DELETE ENTRY received:', data);
-
             setTimeout(() => {
                 const facultyId = aparUser?.teacherId || aparUser?.faculty_id || aparUser?.id;
                 if (facultyId && ay) {
@@ -794,17 +752,13 @@ export default function AparForm() {
         };
 
         const handleBulkEntries = (data) => {
-            // console.log('[FRONTEND] 📬 Bulk entries received:', data);
             toast.success(`${data.count} new entries synced`);
             if (data.entries && Array.isArray(data.entries)) {
                 data.entries.forEach(e => handleNewEntry(e));
             }
         };
 
-        const handleRoomJoined = () => {
-            // console.log('[FRONTEND] ✅ Successfully joined room:', data);
-            // toast.success(`Connected to Sync Stream: ${data.roomName}`);
-        };
+        const handleRoomJoined = () => {};
 
         socket.on('apar_data_updated', handleDataUpdate);
         socket.on('new_entry', handleNewEntrySocket);
@@ -818,7 +772,6 @@ export default function AparForm() {
         });
 
         return () => {
-            // Cleanup listener
             socket.off('apar_data_updated', handleDataUpdate);
             socket.off('new_entry', handleNewEntrySocket);
             socket.off('update_entry', handleUpdateEntrySocket);
@@ -828,9 +781,6 @@ export default function AparForm() {
             if (facultyId && ay) socket.emit('leave_apar_room', { faculty_id: facultyId, ay });
         };
     }, [socket, aparUser, reduxAy, loginData.academic_year, location.state?.ay, formData.personal.report_start_date, formData.personal.report_end_date, fetchFormData]);
-
-
-    // authentication from redux (APAR)
 
     const handlePrint = () => window.print();
 
@@ -909,15 +859,13 @@ export default function AparForm() {
 
     const isReadOnlyMode = () => {
         const role = aparRole || loginData.role;
-        // Reporting/Reviewing are always read-only for Parts I-IV
         if (role === 'Reporting Officer' || role === 'Reviewing Officer') return true;
 
-        // Officer (Graded) is read-only if status is Submitted or not in editable statuses
         if (formStatus === 'Submitted') return true;
         const isEditable = !formStatus || ['Draft', 'Query Raised', 'not_filled', 'Query Raised by Reporting officer', 'Query Raised by Reviewing officer'].includes(formStatus);
         return !isEditable;
     };
-    // Always fetch form data when component mounts or when ay changes (from dashboard navigation)
+
     React.useEffect(() => {
         if (!gradedId) return;
         let ay = reduxAy || loginData.academic_year || (location.state?.ay);
@@ -930,7 +878,6 @@ export default function AparForm() {
     }, [gradedId, reduxAy, loginData.academic_year, location.state]);
 
     const handleSaveDraft = async (silent = false) => {
-        // Only save if in editable mode
         if (isReadOnlyMode()) return true;
 
         setIsSavingDraft(true);
@@ -955,8 +902,6 @@ export default function AparForm() {
                 formData: formData
             };
 
-            // console.log('[APAR SAVE] Sending Draft Payload:', payload);
-
             await AparFormGradedService.saveDraft(payload);
             if (!silent) toast.success('Progress saved and synced to profile');
             return true;
@@ -971,8 +916,6 @@ export default function AparForm() {
             setIsSavingDraft(false);
         }
     };
-
-
 
     const validateStepFields = (step = currentStep) => {
         try {
@@ -1039,9 +982,40 @@ export default function AparForm() {
         return true;
     };
 
+    // STRICT VALIDATION FIX: Checks React state and trims whitespaces
     const nextStep = async () => {
         if (currentStep < totalSteps) {
+            // 1. Run standard DOM validation for basic inputs
             if (!validateStepFields(currentStep)) return;
+
+            // 2. STRICT STATE VALIDATION FOR STEP 4 (Corporate Life)
+            if (currentStep === 4 && !isReadOnlyMode()) {
+                const corporate = formData.corporate || {};
+                
+                // Helper to check if a string exists and isn't just blank spaces
+                const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+
+                const hasContribution = isFilled(corporate.curriculum_development) || 
+                                        isFilled(corporate.course_development_details) || 
+                                        isFilled(corporate.lab_development) || 
+                                        isFilled(corporate.cultural_activities) || 
+                                        isFilled(corporate.sports_community) || 
+                                        isFilled(corporate.admin_assignment) || 
+                                        isFilled(corporate.any_other);
+
+                if (!hasContribution) {
+                    toast.error('Please provide details for at least one contribution in Part IV.');
+                    return; // HARD STOP: Prevents moving to Step 5
+                }
+
+                // Explicitly verify the certification checkbox state
+                if (corporate.certify !== 'true' && corporate.certify !== true) {
+                    toast.error('You must certify the Corporate Life section before proceeding.');
+                    return; // HARD STOP: Prevents moving to Step 5
+                }
+            }
+
+            // 3. Save draft and proceed
             if (activeRole === 'Officer (Graded)') {
                 const saved = await handleSaveDraft(true);
                 if (saved) toast.success('Draft saved');
@@ -1051,33 +1025,54 @@ export default function AparForm() {
         }
     };
 
+    // STRICT VALIDATION FIX: Submission check using trim
     const validateFormData = () => {
         const errors = [];
 
+        // Helper to check for empty spaces
+        const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+
         // Validate Personal Data (Part I)
         const personal = formData.personal || {};
-        if (!personal.name || !personal.name.trim()) errors.push('Name is required');
-        if (!personal.department_id || !personal.department_id.trim()) errors.push('Department is required');
-        if (!personal.designation || !personal.designation.trim()) errors.push('Designation is required');
+        if (!isFilled(personal.name)) errors.push('Name is required');
+        if (!isFilled(personal.department_id)) errors.push('Department is required');
+        if (!isFilled(personal.designation)) errors.push('Designation is required');
         if (!personal.date_of_birth) errors.push('Date of birth is required');
         if (!hasRequiredGraduation(personal)) errors.push('Graduation qualification is required');
-        if (!personal.sc_st_status || !personal.sc_st_status.trim()) errors.push('Caste category is required');
+        if (!isFilled(personal.sc_st_status)) errors.push('Caste category is required');
         if (!personal.joining_date) errors.push('Joining date is required');
-        if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');
-        if (!personal.absence_period || !personal.absence_period.trim()) errors.push('Absence period is required');
+        if (!isFilled(personal.grade)) errors.push('Grade is required');
+        if (!isFilled(personal.absence_period)) errors.push('Absence period is required');
 
-        // Validate email format if provided
-        if (personal.email && personal.email.trim()) {
+        if (isFilled(personal.email)) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(personal.email.trim())) {
                 errors.push('Invalid email format');
             }
         }
 
-        // Validate Assessment Scores (Part V) - must be between 1-10
+        // Validate Corporate Life (Part IV)
+        const corporate = formData.corporate || {};
+        const hasContribution = isFilled(corporate.curriculum_development) || 
+                                isFilled(corporate.course_development_details) || 
+                                isFilled(corporate.lab_development) || 
+                                isFilled(corporate.cultural_activities) || 
+                                isFilled(corporate.sports_community) || 
+                                isFilled(corporate.admin_assignment) || 
+                                isFilled(corporate.any_other);
+        
+        if (!hasContribution) {
+            errors.push('Please fill at least one field in Part IV - Corporate Life');
+        }
+        
+        if (corporate.certify !== 'true' && corporate.certify !== true && !certified) {
+             errors.push('You must certify the Corporate Life section in Part IV');
+        }
+
+        // Validate Assessment Scores (Part V)
         const assessment = formData.assessment || {};
         const validateScore = (value, fieldName) => {
-            if (value && value.trim()) {
+            if (isFilled(value)) {
                 const num = parseInt(value);
                 if (isNaN(num) || num < 1 || num > 10) {
                     errors.push(`${fieldName} must be between 1 and 10`);
@@ -1094,37 +1089,24 @@ export default function AparForm() {
         }
 
         if (assessment.section_b) {
-            validateScore(assessment.section_b.q1, 'Section B Q1');
-            validateScore(assessment.section_b.q2, 'Section B Q2');
-            validateScore(assessment.section_b.q3, 'Section B Q3');
-            validateScore(assessment.section_b.q4, 'Section B Q4');
-            validateScore(assessment.section_b.q5, 'Section B Q5');
-            validateScore(assessment.section_b.q6, 'Section B Q6');
-            validateScore(assessment.section_b.q7a, 'Section B Q7a');
-            validateScore(assessment.section_b.q7b, 'Section B Q7b');
-            validateScore(assessment.section_b.q8, 'Section B Q8');
-            validateScore(assessment.section_b.q9, 'Section B Q9');
-            validateScore(assessment.section_b.q10, 'Section B Q10');
-            validateScore(assessment.section_b.overall_grading, 'Section B Overall Grading');
+            ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7a', 'q7b', 'q8', 'q9', 'q10', 'overall_grading'].forEach(q => {
+                validateScore(assessment.section_b[q], `Section B ${q.toUpperCase()}`);
+            });
         }
 
         if (assessment.section_c) {
-            validateScore(assessment.section_c.q1, 'Section C Q1');
-            validateScore(assessment.section_c.q2, 'Section C Q2');
-            validateScore(assessment.section_c.q3, 'Section C Q3');
-            validateScore(assessment.section_c.q4, 'Section C Q4');
-            validateScore(assessment.section_c.q5, 'Section C Q5');
-            validateScore(assessment.section_c.q6, 'Section C Q6');
-            validateScore(assessment.section_c.overall_grading, 'Section C Overall Grading');
+            ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'overall_grading'].forEach(q => {
+                validateScore(assessment.section_c[q], `Section C ${q.toUpperCase()}`);
+            });
         }
 
         if (assessment.general) {
             validateScore(assessment.general.q6, 'Overall Numerical Grading');
         }
 
-        // Validate Remarks (Part VI) - if disagree, reason is required
+        // Validate Remarks (Part VI)
         const remarks = formData.remarks || {};
-        if (remarks.agree_with_assessment === 'No' && (!remarks.disagreement_reason || !remarks.disagreement_reason.trim())) {
+        if (remarks.agree_with_assessment === 'No' && (!isFilled(remarks.disagreement_reason))) {
             errors.push('Please provide reason for disagreement with assessment');
         }
 
@@ -1145,14 +1127,12 @@ export default function AparForm() {
                 return;
             }
 
-            // Validate form data before submission
             const validationErrors = validateFormData();
             if (validationErrors.length > 0) {
                 toast.error(`Validation errors: ${validationErrors.slice(0, 5).join(', ')}${validationErrors.length > 5 ? '...' : ''}`);
                 return;
             }
 
-            // Enforce final certification for editable submissions
             if (!isReadOnlyMode() && !certified) {
                 toast.error('Please certify the form before submitting.');
                 return;
@@ -1165,7 +1145,6 @@ export default function AparForm() {
             };
             let submitPayload = payload;
 
-            // 1) Save Section III to monthly collections before final submission
             try {
                 const monthlyRes = await AparFormGradedService.saveToMonthly(payload);
                 if (monthlyRes?.research) {
@@ -1183,10 +1162,9 @@ export default function AparForm() {
                 console.error('Monthly save before submit failed:', e);
                 const msg = e.response?.data?.message || 'Failed to save monthly data before submission';
                 toast.error(msg);
-                return; // Do not proceed to submit if monthly save failed
+                return; 
             }
 
-            // 2) Proceed with final submission
             await AparFormGradedService.submit(submitPayload);
             toast.success('APAR Form Submitted Successfully!');
             navigate('/apar/dashboard');
@@ -1208,7 +1186,6 @@ export default function AparForm() {
         setFormData({ ...formData, personal: { ...formData.personal, [e.target.name]: e.target.value } });
     };
 
-    // Generic handler for array fields
     const addItem = (section, field, initialItem) => {
         setFormData(prev => ({
             ...prev,
@@ -1266,7 +1243,6 @@ export default function AparForm() {
                 }
             };
 
-            // Auto-calculate per-section overall grading as average of numeric questions
             const numericKeys = {
                 section_a: ['q1', 'q2', 'q3', 'q4'],
                 section_b: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7a', 'q7b', 'q8', 'q9', 'q10'],
@@ -1285,7 +1261,6 @@ export default function AparForm() {
                 }
             }
 
-            // Auto-calculate overall numerical grading (Weighted A+B+C) into general.q6
             const a = parseInt((next.assessment.section_a?.overall_grading ?? '').toString(), 10);
             const b = parseInt((next.assessment.section_b?.overall_grading ?? '').toString(), 10);
             const c = parseInt((next.assessment.section_c?.overall_grading ?? '').toString(), 10);
@@ -1304,7 +1279,6 @@ export default function AparForm() {
                 };
             }
 
-            // Auto-select Section B q11 (textual grade) based on Section B overall_grading
             const bOverall = parseInt((next.assessment.section_b?.overall_grading ?? '').toString(), 10);
             if (Number.isFinite(bOverall)) {
                 let gradeText = '';
@@ -1328,7 +1302,6 @@ export default function AparForm() {
         });
     };
 
-    // Generic updater for simple fields inside a named section (e.g., teaching.description_of_duties)
     const updateField = (section, key, value) => {
         setFormData(prev => ({
             ...prev,
@@ -1419,8 +1392,6 @@ export default function AparForm() {
 
     const handleLoadForm = async (faculty) => {
         try {
-            // Fetch full form data
-            // Prioritize raw data as string splitting is fragile
             const facultyId = faculty.raw?.faculty_id || faculty.faculty_id || faculty.id?.split('-')[0];
             const ay = faculty.raw?.ay || faculty.ay || faculty.id?.split('-').slice(1).join('-');
 
@@ -1430,8 +1401,6 @@ export default function AparForm() {
             }
 
             const res = await aparFormReportingService.getForm(facultyId, ay);
-            // API response structure: { statusCode, data, message, success }
-            // So res is the JSON body. res.data is the form object.
             const mongoData = res.data || res;
 
             if (!mongoData) {
@@ -1468,8 +1437,6 @@ export default function AparForm() {
         }
     };
 
-    // If navigated here with a selected faculty (from reporting dashboard), load it
-    // const location = useLocation();
     React.useEffect(() => {
         const sf = location.state?.selectedFaculty;
         if (sf) {
@@ -1514,7 +1481,6 @@ export default function AparForm() {
         );
     }
 
-    // console.log('DEBUG: Timeline Check', { viewMode, activeRole, formStatus, timeline: formData.timeline });
     const submitConfirmationCopy = getSubmitConfirmationText();
     const certificationLocked = (
         (activeRole === 'Reporting Officer' && formStatus === 'Forwarded by Reporting officer') ||
@@ -1529,7 +1495,6 @@ export default function AparForm() {
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">
             <Toaster richColors position="top-right" />
-            {/* Navigation & Actions - Hidden in Print */}
             <div className="max-w-7xl mx-auto mb-6">
                 <div className="flex justify-between items-center print:hidden mb-4">
                     <button
@@ -1577,12 +1542,9 @@ export default function AparForm() {
                         <ProfileDropdown />
                     </div>
                 </div>
-
-
             </div>
 
             <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden p-8 print:shadow-none print:p-0">
-
                 {viewMode === 'list' && (activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') ? (
                     <>
                         <div>
@@ -1619,8 +1581,6 @@ export default function AparForm() {
                     </>
                 ) : (
                     <>
-                        {/* Header - Always Visible */}
-                        {/* Header - Always Visible */}
                         <div className="border-b-2 border-gray-200 pb-6 mb-8">
                             <div className="flex items-center justify-center gap-6 mb-6">
                                 <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-28 w-auto object-contain" />
@@ -1638,7 +1598,6 @@ export default function AparForm() {
                             </div>
                         </div>
 
-                        {/* Progress Bar - Hidden in Print */}
                         <div className="mb-8 print:hidden">
                             <div className="flex justify-between mb-2">
                                 <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-600 bg-indigo-200">
@@ -1667,11 +1626,8 @@ export default function AparForm() {
                         </div>
 
                         <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-
-                            {/* Step 1: Personal Data - Mapped to 'faculty' table */}
                             <div id="apar-step-1" className={currentStep === 1 ? 'block' : 'hidden print:block'}>
                                 <div className="shadow-lg">
-                                    {/* Import Part I component to render the personal data fields */}
                                     <div>
                                         <button onClick={() => setPersonalOpen(p => !p)} className="text-sm text-indigo-600 mb-3">{personalOpen ? 'Hide' : 'Show'} Personal Data</button>
                                         {personalOpen && <PartIPersonal personal={formData.personal} onChange={handlePersonalChange} readOnly={isReadOnlyMode()} departments={departments} />}
@@ -1679,37 +1635,30 @@ export default function AparForm() {
                                 </div>
                             </div>
 
-                            {/* Step 2: Self Appraisal */}
                             <div id="apar-step-2" className={currentStep === 2 ? 'block' : 'hidden print:block'}>
                                 <PartII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateAssessment={updateAssessment} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
-                            {/* Step 3: Research - HEAVY Schema Mapping */}
                             <div id="apar-step-3" className={currentStep === 3 ? 'block' : 'hidden print:block'}>
                                 <PartIII formData={formData} academicYear={activeAparAcademicYear} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} onSaveMonthly={handleSaveMonthly} />
                             </div>
 
-                            {/* Step 4: Corporate Life */}
                             <div id="apar-step-4" className={currentStep === 4 ? 'block' : 'hidden print:block'}>
                                 <PartIV formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateField={updateField} readOnly={isReadOnlyMode()} />
                             </div>
 
-                            {/* Step 5: Numerical Assessment (Reporting Officer Only - Read/Write, Reviewing Officer - Read Only) */}
                             {(activeRole === 'Reporting Officer' || activeRole === 'Reviewing Officer') && (
                                 <div id="apar-step-5" className={currentStep === 5 ? 'block' : 'hidden print:block'}>
                                     <PartV formData={formData} updateAssessment={updateAssessment} activeRole={activeRole} formStatus={formStatus} />
                                 </div>
                             )}
 
-
-                            {/* Step 6: Remarks of the Reviewing Officer (Reviewing Officer Only) */}
                             {activeRole === 'Reviewing Officer' && (
                                 <div id="apar-step-6" className={currentStep === 6 ? 'block' : 'hidden print:block'}>
                                     <PartVIRemarks formData={formData} updateRemarks={updateRemarks} formStatus={formStatus} />
                                 </div>
                             )}
 
-                            {/* Step 5/6/7: Review & Submit */}
                             <div id={`apar-step-${totalSteps}`} className={currentStep === totalSteps ? 'block' : 'hidden print:block'}>
                                 <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
                                     <h3 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">One Final Check</h3>
@@ -1733,14 +1682,13 @@ export default function AparForm() {
                                                 onChange={(e) => setCertified(e.target.checked)}
                                             />
                                             <div className="ml-3">
-                                                <label htmlFor="certification" className="text-sm font-medium text-gray-900 cursor-pointer">I certify that the information’s given above are correct and factual to the best of my knowledge.</label>
+                                                <label htmlFor="certification" className="text-sm font-medium text-gray-900 cursor-pointer">I certify that the information given above is correct and factual to the best of my knowledge.</label>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Navigation Buttons - Hidden in Print */}
                             {(
                                 <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 print:hidden">
                                     <button
@@ -1753,7 +1701,6 @@ export default function AparForm() {
                                     </button>
 
                                     <div className="flex gap-4">
-                                        {/* Save Draft/Monthly Buttons */}
                                         {(activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'Query Raised by Reporting officer', 'Query Raised by Reviewing officer', 'not_filled'].includes(formStatus || 'Draft')) && (
                                             <>
                                                 <button
@@ -1767,20 +1714,8 @@ export default function AparForm() {
                                             </>
                                         )}
 
-                                        {/* {currentStep === 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setCurrentStep(totalSteps)}
-                                                className="px-6 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center"
-                                            >
-                                                {/* Go to Last Page */}
-                                        {/* </button>
-                                        )}} */}
-
                                         {currentStep === totalSteps ? (
                                             <>
-                                                {/* Case 1: Reporting Officer Actions */}
-                                                {/* Only show actions if NOT already forwarded (or can re-verify if needed, but user requested NO changes) */}
                                                 {activeRole === 'Reporting Officer' && formStatus !== 'Forwarded by Reporting officer' && (
                                                     <div className="flex gap-4">
                                                         <button
@@ -1800,7 +1735,6 @@ export default function AparForm() {
                                                     </div>
                                                 )}
 
-                                                {/* Case 2: Reviewing Officer Actions */}
                                                 {activeRole === 'Reviewing Officer' && formStatus !== 'Accepted by Reviewing officer' && (
                                                     <div className="flex gap-4">
                                                         <button
@@ -1820,7 +1754,6 @@ export default function AparForm() {
                                                     </div>
                                                 )}
 
-                                                {/* Case 3: Officer (Graded) - Standard Submit */}
                                                 {activeRole === 'Officer (Graded)' && ['Draft', 'Query Raised', 'Query Raised by Reporting officer', 'Query Raised by Reviewing officer', 'not_filled'].includes(formStatus || 'Draft') && (
                                                     <button
                                                         type="button"
@@ -1845,10 +1778,9 @@ export default function AparForm() {
                             )}
                         </form>
                     </>
-                )} {/* End of viewMode check */}
+                )}
             </div>
 
-            {/* Submit Confirmation Modal */}
             {submitConfirmModal.open && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm print:hidden">
                     <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl">
@@ -1881,11 +1813,9 @@ export default function AparForm() {
                 </div>
             )}
 
-            {/* Query Comment Modal */}
             {queryModalOpen && (
                 <div className="fixed inset-0 bg-transparent overflow-y-auto h-full w-full flex items-center justify-center z-50 backdrop-blur-md">
                     <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full m-4 overflow-hidden transform transition-all border border-gray-100">
-                        {/* Header */}
                         <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
                             <h3 className="text-xl font-bold text-white flex items-center">
                                 <FiAlertCircle className="mr-2" /> Raise Query
@@ -1895,7 +1825,6 @@ export default function AparForm() {
                             </button>
                         </div>
 
-                        {/* Body */}
                         <div className="p-6">
                             <p className="text-gray-600 text-sm mb-4">
                                 Please provide a detailed reason for raising this query. This comment will be visible to the Officer to help them address the issue.
@@ -1911,7 +1840,6 @@ export default function AparForm() {
                             ></textarea>
                         </div>
 
-                        {/* Footer */}
                         <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3 border-t border-gray-100">
                             <button
                                 onClick={confirmQuerySubmission}
@@ -1930,19 +1858,15 @@ export default function AparForm() {
                 </div>
             )}
 
-            {/* Footer Info */}
             <div className="max-w-7xl mx-auto mt-8 text-center text-gray-500 text-sm print:hidden">
                 <p>Annual Performance Assessment Report System &copy; {new Date().getFullYear()} DTU</p>
             </div>
-            {/* Delete Confirmation Modal */}
+            
             {deleteModal.open && (
                 <div className="fixed inset-0 z-[100] overflow-y-auto print:hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-
-                    {/* Backdrop */}
                     <div className="fixed inset-0 bg-white/20 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setDeleteModal({ ...deleteModal, open: false })}></div>
 
                     <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
-                        {/* Modal Panel */}
                         <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
                             <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                 <div className="sm:flex sm:items-start">
