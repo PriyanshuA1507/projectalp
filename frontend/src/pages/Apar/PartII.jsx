@@ -645,14 +645,72 @@ const requiredCourseFields = [
 
 const isBlankCourseValue = (value) => value === null || value === undefined || String(value).trim() === '';
 
-const getFirstMissingCourseField = (coursesTaught) => {
+const courseEngagementLimits = [
+    {
+        scheduledKey: 'total_lectures_scheduled',
+        engagedKey: 'total_lectures_engaged',
+        scheduledLabel: 'Total lectures Scheduled',
+        engagedLabel: 'Total lectures engaged',
+        idPrefix: 'lectures-eng'
+    },
+    {
+        scheduledKey: 'tutorials_scheduled',
+        engagedKey: 'tutorials_engaged',
+        scheduledLabel: 'Tutorials Scheduled',
+        engagedLabel: 'Tutorials engaged',
+        idPrefix: 'tut-eng'
+    },
+    {
+        scheduledKey: 'labs_scheduled',
+        engagedKey: 'labs_engaged',
+        scheduledLabel: 'Labs Scheduled',
+        engagedLabel: 'Labs engaged',
+        idPrefix: 'labs-eng'
+    }
+];
+
+const hasEngagedLessThanScheduled = (course = {}) => courseEngagementLimits.some(({ scheduledKey, engagedKey }) => {
+    if (isBlankCourseValue(course[scheduledKey]) || isBlankCourseValue(course[engagedKey])) return false;
+    const scheduled = Number(course[scheduledKey]);
+    const engaged = Number(course[engagedKey]);
+    return Number.isFinite(scheduled) && Number.isFinite(engaged) && engaged < scheduled;
+});
+
+const getFirstCourseValidationIssue = (coursesTaught) => {
     for (let idx = 0; idx < coursesTaught.length; idx += 1) {
         const course = coursesTaught[idx] || {};
         const missingField = requiredCourseFields.find(({ key }) => {
             const value = key === 'degree_type' ? (course[key] || 'UG') : course[key];
             return isBlankCourseValue(value);
         });
-        if (missingField) return { idx, ...missingField };
+        if (missingField) {
+            return {
+                idx,
+                idPrefix: missingField.idPrefix,
+                message: `Please fill ${missingField.label} in Course ${idx + 1} before adding another course.`
+            };
+        }
+
+        const exceededLimit = courseEngagementLimits.find(({ scheduledKey, engagedKey }) => {
+            const scheduled = Number(course[scheduledKey]);
+            const engaged = Number(course[engagedKey]);
+            return Number.isFinite(scheduled) && Number.isFinite(engaged) && engaged > scheduled;
+        });
+        if (exceededLimit) {
+            return {
+                idx,
+                idPrefix: exceededLimit.idPrefix,
+                message: `${exceededLimit.engagedLabel} cannot exceed ${exceededLimit.scheduledLabel} in Course ${idx + 1}.`
+            };
+        }
+
+        if (hasEngagedLessThanScheduled(course) && isBlankCourseValue(course.reasons_not_engaged)) {
+            return {
+                idx,
+                idPrefix: 'reasons',
+                message: `Please fill reasons for not engaging all scheduled classes in Course ${idx + 1}.`
+            };
+        }
     }
     return null;
 };
@@ -669,10 +727,10 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
     const tutorialsTests = teachingData?.tutorials_tests || { ug_odd: {}, ug_even: {}, pg_odd: {}, pg_even: {} };
 
     const handleAddCourse = () => {
-        const missing = getFirstMissingCourseField(coursesTaught);
-        if (missing) {
-            toast.error(`Please fill ${missing.label} in Course ${missing.idx + 1} before adding another course.`);
-            const field = document.getElementById(`${missing.idPrefix}-${missing.idx}`);
+        const issue = getFirstCourseValidationIssue(coursesTaught);
+        if (issue) {
+            toast.error(issue.message);
+            const field = document.getElementById(`${issue.idPrefix}-${issue.idx}`);
             if (field) {
                 field.focus();
                 if (typeof field.reportValidity === 'function') field.reportValidity();
@@ -681,6 +739,27 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
         }
 
         addItem('teaching', 'courses_taught', { name_of_course: '', total_lectures_scheduled: '', total_lectures_engaged: '', tutorials_scheduled: '', tutorials_engaged: '', labs_scheduled: '', labs_engaged: '', reasons_not_engaged: '', degree_type: 'UG' });
+    };
+
+    const handleEngagedBlur = (idx, limit) => {
+        const course = coursesTaught[idx] || {};
+        const scheduledValue = course[limit.scheduledKey];
+        const engagedValue = course[limit.engagedKey];
+
+        if (isBlankCourseValue(scheduledValue) || isBlankCourseValue(engagedValue)) return;
+
+        const scheduled = Number(scheduledValue);
+        const engaged = Number(engagedValue);
+
+        if (!Number.isFinite(scheduled) || !Number.isFinite(engaged) || engaged <= scheduled) return;
+
+        toast.error(`${limit.engagedLabel} cannot exceed ${limit.scheduledLabel} in Course ${idx + 1}.`);
+        updateArrayField('teaching', 'courses_taught', idx, limit.engagedKey, '');
+
+        window.setTimeout(() => {
+            const field = document.getElementById(`${limit.idPrefix}-${idx}`);
+            if (field) field.focus();
+        }, 0);
     };
 
     return (
@@ -718,52 +797,52 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                     <h4 className="text-md font-semibold text-gray-800 mb-2">i) Courses taught at various levels</h4>
                     <div className="space-y-4">
                         {coursesTaught.map((course, idx) => {
-                            const showReasons = Number(course.total_lectures_engaged) < Number(course.total_lectures_scheduled) && course.total_lectures_scheduled !== '';
+                            const showReasons = hasEngagedLessThanScheduled(course);
 
                             return (
                                 <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                                         <div>
-                                            <label htmlFor={`course-name-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Name of the course</label>
+                                            <label htmlFor={`course-name-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Name of the course <span className="text-red-500">*</span></label>
                                             <input id={`course-name-${idx}`} type="text" required disabled={readOnly} value={course.name_of_course || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'name_of_course', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`degree-type-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Degree type of course</label>
+                                            <label htmlFor={`degree-type-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Degree type of course <span className="text-red-500">*</span></label>
                                             <select id={`degree-type-${idx}`} required disabled={readOnly} value={course.degree_type || 'UG'} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'degree_type', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors">
                                                 <option>UG</option>
                                                 <option>PG</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label htmlFor={`lectures-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures Scheduled</label>
+                                            <label htmlFor={`lectures-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures Scheduled <span className="text-red-500">*</span></label>
                                             <input id={`lectures-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.total_lectures_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`lectures-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures engaged</label>
-                                            <input id={`lectures-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.total_lectures_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <label htmlFor={`lectures-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures engaged <span className="text-red-500">*</span></label>
+                                            <input id={`lectures-eng-${idx}`} type="number" min="0" max={course.total_lectures_scheduled || ''} required disabled={readOnly} value={course.total_lectures_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_engaged', e.target.value)} onBlur={() => handleEngagedBlur(idx, courseEngagementLimits[0])} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`tut-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials Scheduled</label>
+                                            <label htmlFor={`tut-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials Scheduled <span className="text-red-500">*</span></label>
                                             <input id={`tut-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.tutorials_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`tut-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials engaged</label>
-                                            <input id={`tut-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.tutorials_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <label htmlFor={`tut-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials engaged <span className="text-red-500">*</span></label>
+                                            <input id={`tut-eng-${idx}`} type="number" min="0" max={course.tutorials_scheduled || ''} required disabled={readOnly} value={course.tutorials_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_engaged', e.target.value)} onBlur={() => handleEngagedBlur(idx, courseEngagementLimits[1])} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`labs-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs Scheduled</label>
+                                            <label htmlFor={`labs-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs Scheduled <span className="text-red-500">*</span></label>
                                             <input id={`labs-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.labs_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
-                                            <label htmlFor={`labs-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs engaged</label>
-                                            <input id={`labs-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.labs_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <label htmlFor={`labs-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs engaged <span className="text-red-500">*</span></label>
+                                            <input id={`labs-eng-${idx}`} type="number" min="0" max={course.labs_scheduled || ''} required disabled={readOnly} value={course.labs_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_engaged', e.target.value)} onBlur={() => handleEngagedBlur(idx, courseEngagementLimits[2])} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                     </div>
                                     
                                     {showReasons && (
                                         <div className="mb-3 p-3 bg-red-50 border border-red-100 rounded-lg">
-                                            <label htmlFor={`reasons-${idx}`} className="block text-sm font-medium text-red-800 mb-1">Reasons for not engaging all scheduled classes</label>
-                                            <textarea id={`reasons-${idx}`} rows="2" disabled={readOnly} value={course.reasons_not_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'reasons_not_engaged', e.target.value)} className="w-full border border-red-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 p-3 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"></textarea>
+                                            <label htmlFor={`reasons-${idx}`} className="block text-sm font-medium text-red-800 mb-1">Reasons for not engaging all scheduled classes<span className="text-red-500">*</span></label>
+                                            <textarea id={`reasons-${idx}`} rows="2" required disabled={readOnly} value={course.reasons_not_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'reasons_not_engaged', e.target.value)} className="w-full border border-red-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 p-3 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"></textarea>
                                         </div>
                                     )}
 

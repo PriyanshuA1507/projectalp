@@ -54,14 +54,80 @@ const requiredCourseFields = [
 
 const isBlankCourseValue = (value) => value === null || value === undefined || String(value).trim() === '';
 
-const getCourseValidationIssues = (coursesTaught = []) => coursesTaught.flatMap((course = {}, index) => (
-    requiredCourseFields
+const courseEngagementLimits = [
+    {
+        scheduledKey: 'total_lectures_scheduled',
+        engagedKey: 'total_lectures_engaged',
+        scheduledLabel: 'Total lectures Scheduled',
+        engagedLabel: 'Total lectures engaged',
+        idPrefix: 'lectures-eng'
+    },
+    {
+        scheduledKey: 'tutorials_scheduled',
+        engagedKey: 'tutorials_engaged',
+        scheduledLabel: 'Tutorials Scheduled',
+        engagedLabel: 'Tutorials engaged',
+        idPrefix: 'tut-eng'
+    },
+    {
+        scheduledKey: 'labs_scheduled',
+        engagedKey: 'labs_engaged',
+        scheduledLabel: 'Labs Scheduled',
+        engagedLabel: 'Labs engaged',
+        idPrefix: 'labs-eng'
+    }
+];
+
+const hasEngagedLessThanScheduled = (course = {}) => courseEngagementLimits.some(({ scheduledKey, engagedKey }) => {
+    if (isBlankCourseValue(course[scheduledKey]) || isBlankCourseValue(course[engagedKey])) return false;
+    const scheduled = Number(course[scheduledKey]);
+    const engaged = Number(course[engagedKey]);
+    return Number.isFinite(scheduled) && Number.isFinite(engaged) && engaged < scheduled;
+});
+
+const getCourseValidationIssues = (coursesTaught = []) => coursesTaught.flatMap((course = {}, index) => {
+    const missingIssues = requiredCourseFields
         .filter(({ key }) => {
             const value = key === 'degree_type' ? (course[key] || 'UG') : course[key];
             return isBlankCourseValue(value);
         })
-        .map((field) => ({ ...field, index }))
-));
+        .map((field) => ({
+            ...field,
+            index,
+            message: `Please fill ${field.label} in Course ${index + 1}.`,
+            submitMessage: `Course ${index + 1}: ${field.label} is required`
+        }));
+
+    if (missingIssues.length > 0) return missingIssues;
+
+    const exceededIssues = courseEngagementLimits
+        .filter(({ scheduledKey, engagedKey }) => {
+            const scheduled = Number(course[scheduledKey]);
+            const engaged = Number(course[engagedKey]);
+            return Number.isFinite(scheduled) && Number.isFinite(engaged) && engaged > scheduled;
+        })
+        .map((field) => ({
+            ...field,
+            index,
+            message: `${field.engagedLabel} cannot exceed ${field.scheduledLabel} in Course ${index + 1}.`,
+            submitMessage: `Course ${index + 1}: ${field.engagedLabel} cannot exceed ${field.scheduledLabel}`
+        }));
+
+    if (exceededIssues.length > 0) return exceededIssues;
+
+    if (hasEngagedLessThanScheduled(course) && isBlankCourseValue(course.reasons_not_engaged)) {
+        return [{
+            key: 'reasons_not_engaged',
+            label: 'Reasons for not engaging all scheduled classes',
+            idPrefix: 'reasons',
+            index,
+            message: `Please fill reasons for not engaging all scheduled classes in Course ${index + 1}.`,
+            submitMessage: `Course ${index + 1}: Reasons for not engaging all scheduled classes is required`
+        }];
+    }
+
+    return [];
+});
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -974,7 +1040,7 @@ export default function AparForm() {
         if (issues.length === 0) return true;
 
         const firstIssue = issues[0];
-        toast.error(`Please fill ${firstIssue.label} in Course ${firstIssue.index + 1}.`);
+        toast.error(firstIssue.message);
 
         if (navigateToPart && currentStep !== 2) {
             setCurrentStep(2);
@@ -1172,8 +1238,8 @@ export default function AparForm() {
         }
 
         // Validate course rows added in Part II
-        getCourseValidationIssues(formData?.teaching?.courses_taught || []).forEach(({ label, index }) => {
-            errors.push(`Course ${index + 1}: ${label} is required`);
+        getCourseValidationIssues(formData?.teaching?.courses_taught || []).forEach(({ submitMessage }) => {
+            errors.push(submitMessage);
         });
 
         // Validate Assessment Scores (Part V) - must be between 1-10
