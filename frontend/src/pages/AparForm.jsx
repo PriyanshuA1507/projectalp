@@ -1256,7 +1256,7 @@ export default function AparForm() {
         if (!isFilled(personal.sc_st_status)) errors.push('Caste category is required');
         if (!personal.joining_date) errors.push('Joining date is required');
         if (!personal.grade || !personal.grade.trim()) errors.push('Grade is required');
-        if (!personal.absence_taken || !personal.absence_taken.trim()) errors.push('Leave/absence option is required');
+        //if (!personal.absence_taken || !personal.absence_taken.trim()) errors.push('Leave/absence option is required');
         if (personal.absence_taken === 'Yes' && (!personal.absence_period || !personal.absence_period.trim())) errors.push('Absence period is required');
         if (personal.absence_taken === 'Yes' && personal.absence_period && !hasCompleteAbsencePeriods(personal.absence_period)) errors.push('Start and end date are required for each absence period');
 
