@@ -440,7 +440,8 @@ export default function AparForm() {
                             email: info.email || prev.personal.email,
                             phone: info.phone || prev.personal.phone,
                             department_id: info.department_id || prev.personal.department_id,
-                            ...normalizeQualifications(info),
+                            
+                             ...normalizeQualifications(info),
                             joining_date: info.joining_date ? info.joining_date.substring(0, 10) : prev.personal.joining_date,
                             date_of_birth: info.date_of_birth ? info.date_of_birth.substring(0, 10) : prev.personal.date_of_birth,
                             sc_st_status: info.sc_st_status || prev.personal.sc_st_status,

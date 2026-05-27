@@ -1,9 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { validateDateOfBirth, validateJoiningDate, getFieldError } from '../../utils/personal.validation.util.js';
 import { FiAlertCircle, FiPlus, FiTrash2 } from 'react-icons/fi';
-
+import { toast } from 'sonner';
 export default function PartIPersonal({ personal, onChange, readOnly, departments = [], validationErrors = [] }) {
   const [dateErrors, setDateErrors] = useState({});
+
+  const validateAbsenceStartDate = (startDate, index) => {  
+  if (!personal.joining_date || !startDate) return;
+
+  if (new Date(startDate) < new Date(personal.joining_date)) {
+    toast.error('Absence start date cannot be earlier than joining date');
+
+    handleAbsenceChange(index, 'start_date', '');
+
+    window.setTimeout(() => {
+      const field = document.getElementsByName('absence_period_start')[index];
+      if (field) field.focus();
+    }, 0);
+  }
+};
+
+  const validateAbsenceEndDateBlur = (startDate, endDate, index) => {
+    if (!startDate || !endDate) return;
+
+    if (new Date(endDate) < new Date(startDate)) {
+      toast.error('Absence end date cannot be earlier than start date');
+
+      handleAbsenceChange(index, 'end_date', '');
+
+      window.setTimeout(() => {
+        const field = document.getElementsByName('absence_period_end')[index];
+        if (field) field.focus();
+      }, 0);
+    }
+  };
 
   const parseAbsenceRow = (row = '') => {
     const dates = String(row).match(/\d{4}-\d{2}-\d{2}/g) || [];
@@ -234,6 +264,7 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
                       value={row.start_date}
                       min={personal.joining_date || undefined}
                       onChange={(e) => handleAbsenceChange(index, 'start_date', e.target.value)}
+                      onBlur={(e) => validateAbsenceStartDate(e.target.value, index)}
                       disabled={readOnly}
                       className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                     />
@@ -247,7 +278,8 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
                       name="absence_period_end"
                       value={row.end_date}
                       min={row.start_date || undefined}
-                      onChange={(e) => handleAbsenceChange(index, 'end_date', e.target.value)}
+                      onChange={(e) => handleAbsenceChange(index, 'end_date', e.target.value)}  
+                      onBlur={(e) => validateAbsenceEndDateBlur(row.start_date, e.target.value, index)}
                       disabled={readOnly}
                       className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                     />
