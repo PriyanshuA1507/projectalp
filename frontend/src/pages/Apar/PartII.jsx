@@ -630,6 +630,32 @@
 
 import React from 'react';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { toast } from 'sonner';
+
+const requiredCourseFields = [
+    { key: 'name_of_course', label: 'Name of the course', idPrefix: 'course-name' },
+    { key: 'degree_type', label: 'Degree type of course', idPrefix: 'degree-type' },
+    { key: 'total_lectures_scheduled', label: 'Total lectures Scheduled', idPrefix: 'lectures-sch' },
+    { key: 'total_lectures_engaged', label: 'Total lectures engaged', idPrefix: 'lectures-eng' },
+    { key: 'tutorials_scheduled', label: 'Tutorials Scheduled', idPrefix: 'tut-sch' },
+    { key: 'tutorials_engaged', label: 'Tutorials engaged', idPrefix: 'tut-eng' },
+    { key: 'labs_scheduled', label: 'Labs Scheduled', idPrefix: 'labs-sch' },
+    { key: 'labs_engaged', label: 'Labs engaged', idPrefix: 'labs-eng' }
+];
+
+const isBlankCourseValue = (value) => value === null || value === undefined || String(value).trim() === '';
+
+const getFirstMissingCourseField = (coursesTaught) => {
+    for (let idx = 0; idx < coursesTaught.length; idx += 1) {
+        const course = coursesTaught[idx] || {};
+        const missingField = requiredCourseFields.find(({ key }) => {
+            const value = key === 'degree_type' ? (course[key] || 'UG') : course[key];
+            return isBlankCourseValue(value);
+        });
+        if (missingField) return { idx, ...missingField };
+    }
+    return null;
+};
 
 export default function PartII({ formData, addItem, removeItem, updateArrayField, updateAssessment, updateField, readOnly }) {
     // Safely extract teaching data to prevent crashes
@@ -641,6 +667,21 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
     const timeTable = teachingData?.time_table || { provided: {}, actual: {} };
     const workloadWeek = teachingData?.workload_week || { odd_semester: {}, even_semester: {} };
     const tutorialsTests = teachingData?.tutorials_tests || { ug_odd: {}, ug_even: {}, pg_odd: {}, pg_even: {} };
+
+    const handleAddCourse = () => {
+        const missing = getFirstMissingCourseField(coursesTaught);
+        if (missing) {
+            toast.error(`Please fill ${missing.label} in Course ${missing.idx + 1} before adding another course.`);
+            const field = document.getElementById(`${missing.idPrefix}-${missing.idx}`);
+            if (field) {
+                field.focus();
+                if (typeof field.reportValidity === 'function') field.reportValidity();
+            }
+            return;
+        }
+
+        addItem('teaching', 'courses_taught', { name_of_course: '', total_lectures_scheduled: '', total_lectures_engaged: '', tutorials_scheduled: '', tutorials_engaged: '', labs_scheduled: '', labs_engaged: '', reasons_not_engaged: '', degree_type: 'UG' });
+    };
 
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
@@ -684,38 +725,38 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                                         <div>
                                             <label htmlFor={`course-name-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Name of the course</label>
-                                            <input id={`course-name-${idx}`} type="text" disabled={readOnly} value={course.name_of_course || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'name_of_course', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`course-name-${idx}`} type="text" required disabled={readOnly} value={course.name_of_course || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'name_of_course', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`degree-type-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Degree type of course</label>
-                                            <select id={`degree-type-${idx}`} disabled={readOnly} value={course.degree_type || 'UG'} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'degree_type', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors">
+                                            <select id={`degree-type-${idx}`} required disabled={readOnly} value={course.degree_type || 'UG'} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'degree_type', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors">
                                                 <option>UG</option>
                                                 <option>PG</option>
                                             </select>
                                         </div>
                                         <div>
                                             <label htmlFor={`lectures-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures Scheduled</label>
-                                            <input id={`lectures-sch-${idx}`} type="number" min="0" disabled={readOnly} value={course.total_lectures_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`lectures-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.total_lectures_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`lectures-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Total lectures engaged</label>
-                                            <input id={`lectures-eng-${idx}`} type="number" min="0" disabled={readOnly} value={course.total_lectures_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`lectures-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.total_lectures_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'total_lectures_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`tut-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials Scheduled</label>
-                                            <input id={`tut-sch-${idx}`} type="number" min="0" disabled={readOnly} value={course.tutorials_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`tut-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.tutorials_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`tut-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Tutorials engaged</label>
-                                            <input id={`tut-eng-${idx}`} type="number" min="0" disabled={readOnly} value={course.tutorials_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`tut-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.tutorials_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'tutorials_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`labs-sch-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs Scheduled</label>
-                                            <input id={`labs-sch-${idx}`} type="number" min="0" disabled={readOnly} value={course.labs_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`labs-sch-${idx}`} type="number" min="0" required disabled={readOnly} value={course.labs_scheduled || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_scheduled', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                         <div>
                                             <label htmlFor={`labs-eng-${idx}`} className="block text-sm font-medium text-gray-700 mb-1">Labs engaged</label>
-                                            <input id={`labs-eng-${idx}`} type="number" min="0" disabled={readOnly} value={course.labs_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
+                                            <input id={`labs-eng-${idx}`} type="number" min="0" required disabled={readOnly} value={course.labs_engaged || ''} onChange={(e) => updateArrayField('teaching', 'courses_taught', idx, 'labs_engaged', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" />
                                         </div>
                                     </div>
                                     
@@ -736,7 +777,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                         })}
                         {!readOnly && (
                             <div className="pt-2">
-                                <button type="button" onClick={() => addItem('teaching', 'courses_taught', { name_of_course: '', total_lectures_scheduled: '', total_lectures_engaged: '', tutorials_scheduled: '', tutorials_engaged: '', labs_scheduled: '', labs_engaged: '', reasons_not_engaged: '', degree_type: 'UG' })} className="w-full md:w-auto bg-indigo-600 text-white rounded-lg px-6 py-2.5 hover:bg-indigo-700 shadow-sm transition-colors flex items-center justify-center font-medium"><FiPlus className="mr-2" /> Add Course</button>
+                                <button type="button" onClick={handleAddCourse} className="w-full md:w-auto bg-indigo-600 text-white rounded-lg px-6 py-2.5 hover:bg-indigo-700 shadow-sm transition-colors flex items-center justify-center font-medium"><FiPlus className="mr-2" /> Add Course</button>
                             </div>
                         )}
                     </div>

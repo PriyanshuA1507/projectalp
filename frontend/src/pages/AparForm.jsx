@@ -41,6 +41,28 @@ const sectionLabels = {
     timeline: 'Timeline'
 };
 
+const requiredCourseFields = [
+    { key: 'name_of_course', label: 'Name of the course', idPrefix: 'course-name' },
+    { key: 'degree_type', label: 'Degree type of course', idPrefix: 'degree-type' },
+    { key: 'total_lectures_scheduled', label: 'Total lectures Scheduled', idPrefix: 'lectures-sch' },
+    { key: 'total_lectures_engaged', label: 'Total lectures engaged', idPrefix: 'lectures-eng' },
+    { key: 'tutorials_scheduled', label: 'Tutorials Scheduled', idPrefix: 'tut-sch' },
+    { key: 'tutorials_engaged', label: 'Tutorials engaged', idPrefix: 'tut-eng' },
+    { key: 'labs_scheduled', label: 'Labs Scheduled', idPrefix: 'labs-sch' },
+    { key: 'labs_engaged', label: 'Labs engaged', idPrefix: 'labs-eng' }
+];
+
+const isBlankCourseValue = (value) => value === null || value === undefined || String(value).trim() === '';
+
+const getCourseValidationIssues = (coursesTaught = []) => coursesTaught.flatMap((course = {}, index) => (
+    requiredCourseFields
+        .filter(({ key }) => {
+            const value = key === 'degree_type' ? (course[key] || 'UG') : course[key];
+            return isBlankCourseValue(value);
+        })
+        .map((field) => ({ ...field, index }))
+));
+
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const flattenRecord = (record, prefix = '') => {
@@ -938,12 +960,42 @@ export default function AparForm() {
         }
     }, [gradedId, reduxAy, loginData.academic_year, location.state]);
 
+    const focusFirstInvalidCourseField = (issue) => {
+        if (!issue || typeof document === 'undefined') return;
+        const field = document.getElementById(`${issue.idPrefix}-${issue.index}`);
+        if (field) {
+            field.focus();
+            if (typeof field.reportValidity === 'function') field.reportValidity();
+        }
+    };
+
+    const validateCoursesTaught = ({ focus = true, navigateToPart = false } = {}) => {
+        const issues = getCourseValidationIssues(formData?.teaching?.courses_taught || []);
+        if (issues.length === 0) return true;
+
+        const firstIssue = issues[0];
+        toast.error(`Please fill ${firstIssue.label} in Course ${firstIssue.index + 1}.`);
+
+        if (navigateToPart && currentStep !== 2) {
+            setCurrentStep(2);
+            window.setTimeout(() => focusFirstInvalidCourseField(firstIssue), 0);
+        } else if (focus) {
+            focusFirstInvalidCourseField(firstIssue);
+        }
+
+        return false;
+    };
+
     const handleSaveDraft = async (silent = false) => {
         // Only save if in editable mode
         if (isReadOnlyMode()) return true;
 
         // Validate Personal Data when saving draft
         if (currentStep === 1 && !validatePersonalDataStep()) {
+            return false;
+        }
+
+        if (!validateCoursesTaught({ navigateToPart: true })) {
             return false;
         }
 
@@ -1075,6 +1127,7 @@ export default function AparForm() {
             // Special validation for Personal Data step (step 1)
             if (currentStep === 1 && !validatePersonalDataStep()) return;
             
+            if (currentStep === 2 && !validateCoursesTaught()) return;
             if (!validateStepFields(currentStep)) return;
             if (activeRole === 'Officer (Graded)') {
                 const saved = await handleSaveDraft(true);
@@ -1117,6 +1170,11 @@ export default function AparForm() {
                 errors.push(err.message);
             });
         }
+
+        // Validate course rows added in Part II
+        getCourseValidationIssues(formData?.teaching?.courses_taught || []).forEach(({ label, index }) => {
+            errors.push(`Course ${index + 1}: ${label} is required`);
+        });
 
         // Validate Assessment Scores (Part V) - must be between 1-10
         const assessment = formData.assessment || {};
