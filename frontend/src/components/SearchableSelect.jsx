@@ -209,7 +209,7 @@ const SearchableSelect = ({
   // Handle selection change
   const handleChange = (selectedOpt) => {
     setSelectedOption(selectedOpt);
-    onChange(selectedOpt ? selectedOpt.value : '');
+    onChange(selectedOpt ? selectedOpt.value : '', selectedOpt?.data || null);
   };
 
   return (

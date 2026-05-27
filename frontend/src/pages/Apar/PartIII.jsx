@@ -2,11 +2,18 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { selectAparUser } from '../../store/slices/aparAuthSlice';
 import DynamicTableSection from '../../components/DynamicTableSection';
-import { ACADEMIC_YEAR_SELECT_FIELD } from '../../utils/academicYear.util.js';
+import {
+    createAcademicYearSelectField,
+    getAcademicYearBounds,
+    getAcademicYearFromAparForm
+} from '../../utils/academicYear.util.js';
 
-export default function PartIII({ formData, addItem, removeItem, updateArrayItem, updateField, readOnly, onSaveMonthly }) {
+export default function PartIII({ formData, academicYear, addItem, removeItem, updateArrayItem, updateField, readOnly, onSaveMonthly }) {
     const user = useSelector(selectAparUser);
     const currentFacultyId = user?.teacherId || user?.faculty_id || user?.userId || user?.user_id || '';
+    const resolvedAcademicYear = getAcademicYearFromAparForm(formData, academicYear);
+    const academicYearField = createAcademicYearSelectField(resolvedAcademicYear);
+    const academicYearBounds = getAcademicYearBounds(resolvedAcademicYear);
 
     // Derive Course options from APAR draft (teaching.courses_taught)
     const draftCourses = (formData?.teaching?.courses_taught || []).filter(Boolean);
@@ -57,7 +64,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     funding_type: '',
                     sanction_number: '',
                     year_of_sanction: '',
-                    academic_year: '',
+                    academic_year: resolvedAcademicYear,
                     start_date: '',
                     end_date: '',
                     amount: '',
@@ -75,10 +82,35 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     { label: 'Funding Agency', key: 'funding_agency_name', required: true, placeholder: 'Enter funding agency' },
                     { label: 'Funding Type', key: 'funding_type', type: 'select', options: ['Government', 'Non-Government', 'Industry'], required: true, placeholder: 'Select funding type' },
                     { label: 'Sanction Number', key: 'sanction_number', placeholder: 'Enter sanction number' },
-                    { label: 'Month-Year of Sanction', key: 'year_of_sanction', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'e.g., 02-2026' },
-                    ACADEMIC_YEAR_SELECT_FIELD,
-                    { label: 'Start Date', key: 'start_date', type: 'date', required: true },
-                    { label: 'End Date', key: 'end_date', type: 'date', required: true },
+                    {
+    label: 'Month-Year of Sanction',
+    key: 'year_of_sanction',
+    type: 'monthYear',
+    required: true,
+    min: academicYearBounds.startMonth,
+    max: academicYearBounds.endMonth,
+    placeholder: 'Select sanction month-year'
+},
+                    academicYearField,
+                    {
+    label: 'Start Date',
+    key: 'start_date',
+    type: 'date',
+    required: true
+},
+                    {
+    label: 'End Date',
+    key: 'end_date',
+    type: 'date',
+    required: true,
+    minDateField: 'start_date',
+    validate: (value, formData) => {
+        if (!value || !formData.start_date) return true;
+        return new Date(value) >= new Date(formData.start_date);
+    },
+    validationMessage: 'End Date must be greater than or equal to Start Date'
+},
+                    
                     { label: 'Amount (INR)', key: 'amount', type: 'number', min: 0, placeholder: 'Enter amount' },
                     { label: 'Status', key: 'status', type: 'select', options: ['Ongoing', 'Completed', 'Submitted'], required: true, placeholder: 'Select status' },
                     { label: 'Outcome', key: 'outcome', placeholder: 'Describe outcome' },
@@ -264,7 +296,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     status: '',
                     result_outcome: '',
                     registration_year: '',
-                    academic_year: '',
+                    academic_year: resolvedAcademicYear,
                     date_of_defence: '',
                     date_of_result_notification: '',
                     remarks: '',
@@ -284,7 +316,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     { label: 'Status', key: 'status', type: 'select', options: ['Ongoing', 'Submitted', 'Awarded'], required: true, placeholder: 'Select status' },
                     { label: 'Result Outcome', key: 'result_outcome', type: 'select',options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
                     { label: 'Reg. Month-Year', key: 'registration_year', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'MM-YYYY' },
-                    ACADEMIC_YEAR_SELECT_FIELD,
+                    academicYearField,
                     { label: 'Defence Date', key: 'date_of_defence', type: 'date' },
                     { label: 'Notification Date', key: 'date_of_result_notification', type: 'date' },
                     { label: 'Remarks', key: 'remarks', placeholder: 'Remarks' },
@@ -342,7 +374,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     platform: '',
                     platform_type: '',
                     target_audience: '',
-                    academic_year: '',
+                    academic_year: resolvedAcademicYear,
                     semester: '',
                     date_of_launching: '',
                     duration_hours: '',
@@ -361,7 +393,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     { label: 'Platform', key: 'platform', required: true, placeholder: 'Enter platform' },
                     { label: 'Platform Type', key: 'platform_type', type: 'select', options: ['LMS', 'MOOC', 'YouTube', 'SWAYAM', 'Internal', 'Other'], required: true, placeholder: 'Select platform type' },
                     { label: 'Target Audience', key: 'target_audience', type: 'select', options: ['UG', 'PG', 'PhD', 'Faculty', 'Students', 'Mixed'], required: true, placeholder: 'Select audience' },
-                    ACADEMIC_YEAR_SELECT_FIELD,
+                    academicYearField,
                     { label: 'Semester', key: 'semester', required: true, placeholder: 'e.g., Odd' },
                     { label: 'Date', key: 'date_of_launching', type: 'date', required: true },
                     { label: 'Duration (Hours)', key: 'duration_hours', type: 'number', min: 0, placeholder: 'Hours' },
@@ -390,7 +422,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     source_of_financial_support: '',
                     duration: '',
                     year: '',
-                    academic_year: '',
+                    academic_year: resolvedAcademicYear,
                     start_date: '',
                     end_date: '',
                     outcome: '',
@@ -410,7 +442,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     { label: 'Funding Source', key: 'source_of_financial_support', placeholder: 'Source' },
                     { label: 'Duration', key: 'duration', placeholder: 'e.g., 2 days' },
                     { label: 'Month-Year', key: 'year', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'MM-YYYY' },
-                    ACADEMIC_YEAR_SELECT_FIELD,
+                    academicYearField,
                     { label: 'Start Date', key: 'start_date', type: 'date', required: true },
                     { label: 'End Date', key: 'end_date', type: 'date', required: true },
                     { label: 'Outcome', key: 'outcome', placeholder: 'Outcome' },
@@ -480,7 +512,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     organising_body: '',
                     venue: '',
                     duration_days: '',
-                    academic_year: '',
+                    academic_year: resolvedAcademicYear,
                     funding_agency: '',
                     start_date: '',
                     end_date: '',
@@ -499,7 +531,7 @@ export default function PartIII({ formData, addItem, removeItem, updateArrayItem
                     { label: 'Organizer', key: 'organising_body', required: true, placeholder: 'Enter organizer' },
                     { label: 'Venue', key: 'venue', placeholder: 'Venue' },
                     { label: 'Duration (Days)', key: 'duration_days', type: 'number', min: 0, required: true, placeholder: 'No. of days' },
-                    ACADEMIC_YEAR_SELECT_FIELD,
+                    academicYearField,
                     { label: 'Funding Agency', key: 'funding_agency', placeholder: 'Agency' },
                     { label: 'Start Date', key: 'start_date', type: 'date', required: true }, 
                     { label: 'End Date', key: 'end_date', type: 'date', required: true },

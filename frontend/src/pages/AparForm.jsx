@@ -23,6 +23,7 @@ import NotificationBell from '../components/NotificationBell.jsx';
 import { DepartmentService } from '../services/department.services.js';
 import { useSocket } from '../context/SocketContext.jsx'; // Import the hook
 import { normalizeQualifications, hasRequiredGraduation } from '../utils/qualification.util.js';
+import { getAcademicYearFromAparForm, normalizeAcademicYear } from '../utils/academicYear.util.js';
 
 const toTitle = (value) => String(value || '')
     .replace(/_/g, ' ')
@@ -94,7 +95,7 @@ const getAcademicYearFromDates = (start, end) => {
     const startYear = new Date(start).getFullYear();
     const endYear = new Date(end).getFullYear();
     if (!Number.isFinite(startYear) || !Number.isFinite(endYear)) return '';
-    return `${startYear}-${endYear}`;
+    return `${startYear}-${String(endYear).slice(-2)}`;
 };
 
 const getColumns = (rows) => {
@@ -1520,6 +1521,10 @@ export default function AparForm() {
         (activeRole === 'Reviewing Officer' && formStatus === 'Accepted by Reviewing officer') ||
         (activeRole === 'Officer (Graded)' && isReadOnlyMode())
     );
+    const activeAparAcademicYear = getAcademicYearFromAparForm(
+        formData,
+        normalizeAcademicYear(reduxAy || loginData.academic_year || location.state?.ay)
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:p-0 print:bg-white">
@@ -1681,7 +1686,7 @@ export default function AparForm() {
 
                             {/* Step 3: Research - HEAVY Schema Mapping */}
                             <div id="apar-step-3" className={currentStep === 3 ? 'block' : 'hidden print:block'}>
-                                <PartIII formData={formData} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} onSaveMonthly={handleSaveMonthly} />
+                                <PartIII formData={formData} academicYear={activeAparAcademicYear} addItem={addItem} removeItem={requestDelete} updateArrayField={updateArrayField} updateArrayItem={updateArrayItem} updateField={updateField} readOnly={isReadOnlyMode()} onSaveMonthly={handleSaveMonthly} />
                             </div>
 
                             {/* Step 4: Corporate Life */}
