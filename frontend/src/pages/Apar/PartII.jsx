@@ -762,8 +762,38 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
         }, 0);
     };
 
+    const isNumberInput = (target) => target?.tagName === 'INPUT' && target.type === 'number';
+
+    const handleNumberKeyDownCapture = (e) => {
+        if (!isNumberInput(e.target)) return;
+        if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+            e.preventDefault();
+        }
+    };
+
+    const handleNumberPasteCapture = (e) => {
+        if (!isNumberInput(e.target)) return;
+        const pastedText = e.clipboardData?.getData('text') || '';
+        if (!/^\d*$/.test(pastedText)) {
+            e.preventDefault();
+        }
+    };
+
+    const handleNumberInputCapture = (e) => {
+        if (!isNumberInput(e.target)) return;
+        const integerValue = String(e.target.value || '').replace(/\D/g, '');
+        if (e.target.value !== integerValue) {
+            e.target.value = integerValue;
+        }
+    };
+
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+        <div
+            className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm"
+            onInputCapture={handleNumberInputCapture}
+            onKeyDownCapture={handleNumberKeyDownCapture}
+            onPasteCapture={handleNumberPasteCapture}
+        >
             
             {/* Header & Score Badge */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4">
