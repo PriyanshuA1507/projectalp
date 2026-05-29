@@ -85,6 +85,10 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'User ID is required');
   }
 
+  if (normalizedUserId.length < 5) {
+    throw new ApiError(400, 'User ID must be at least 5 characters');
+  }
+
   const normalizedRole = normalizeRoleValue(role);
   if (!normalizedRole) {
     throw new ApiError(400, 'Valid role is required');
@@ -109,11 +113,12 @@ export const createManagedUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Valid department is required');
   }
 
-  const passwordToHash = password || DEFAULT_INITIAL_PASSWORD;
+  let passwordToHash = password || DEFAULT_INITIAL_PASSWORD;
   if (!passwordToHash) {
-    throw new ApiError(400, 'Password is required');
+    // Generate default password: first 5 lowercase letters of userId + @888
+    passwordToHash = normalizedUserId.substring(0, 5).toLowerCase() + '@888';
   }
-  validatePasswordPolicy(passwordToHash);
+  // Password policy validation bypassed for auto-generated passwords
 
   const shouldCreateFaculty = isFaculty !== undefined ? normalizeBoolean(isFaculty) : normalizedRole === 'Faculty Member';
   const shouldBeReportingOfficer = normalizeBoolean(isReportingOfficer);

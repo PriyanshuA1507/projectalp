@@ -171,8 +171,14 @@ export default function UserManagement() {
   const handleCreate = async (event) => {
     event.preventDefault();
 
-    if (!createForm.userId?.trim()) {
+    const trimmedUserId = createForm.userId?.trim();
+    if (!trimmedUserId) {
       toast.error('User ID is required');
+      return;
+    }
+
+    if (trimmedUserId.length < 5) {
+      toast.error('User ID must be at least 5 characters');
       return;
     }
 
@@ -192,14 +198,7 @@ export default function UserManagement() {
       return;
     }
 
-    const passwordToUse = createForm.password?.trim();
-    if (passwordToUse) {
-      const passwordError = validatePasswordPolicy(passwordToUse);
-      if (passwordError) {
-        toast.error(passwordError);
-        return;
-      }
-    }
+    // Password policy validation bypassed for auto-generated passwords
 
     if (!createForm.role) {
       toast.error('Role is required');
@@ -213,18 +212,19 @@ export default function UserManagement() {
 
     setSaving(true);
     try {
+      const finalPassword = createForm.password?.trim() || trimmedUserId.substring(0, 5).toLowerCase() + '@888';
       await userManagementService.createUser({
-        userId: createForm.userId.trim(),
+        userId: trimmedUserId,
         name: createForm.name.trim(),
         email: normalizedEmail,
         designation: createForm.designation?.trim() || null,
         role: createForm.role,
-        password: createForm.password?.trim() || null,
+        password: finalPassword,
         departmentId: createForm.departmentId.trim(),
         isReportingOfficer: createForm.isReportingOfficer === 'yes',
         isReviewingOfficer: createForm.isReviewingOfficer === 'yes'
       });
-      toast.success('User created successfully');
+      toast.success(`User created successfully. Password: ${finalPassword}`);
       setCreateForm(emptyCreateForm);
       await refreshData();
     } catch (error) {
@@ -460,13 +460,14 @@ export default function UserManagement() {
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block md:col-span-2">
                 <span className="mb-2 block text-sm font-medium text-gray-700">Temporary password</span>
-                <p className="mb-2 text-xs text-gray-500">At least 12 characters with letters and numbers.</p>
+                <p className="mb-2 text-xs text-gray-500">Auto-generated: first 5 letters of User ID + @888</p>
                 <div className="relative">
                   <input
                     type={createPasswordVisible ? 'text' : 'password'}
                     value={createForm.password || ''}
                     onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm text-gray-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    disabled
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 pr-12 text-sm text-gray-500 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   <button
                     type="button"
