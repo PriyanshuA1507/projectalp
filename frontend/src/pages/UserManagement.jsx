@@ -11,7 +11,7 @@ import { validatePasswordPolicy } from '../utils/passwordPolicy.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD];
+const ROLE_OPTIONS = [ROLES.IQAC_HEAD, ROLES.DEAN, ROLES.DEPARTMENT_HOD, ROLES.FACULTY];
 const APAR_ROLE_OPTIONS = [
   { value: '', label: 'None' },
   { value: 'Dean', label: 'Dean' },
