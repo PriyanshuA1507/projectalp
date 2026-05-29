@@ -628,11 +628,10 @@
 // }
 
 
-import React from 'react';
+//import React from 'react';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'sonner';
-
-
+import React, { useState } from 'react';
 
 
 
@@ -719,6 +718,7 @@ const getFirstCourseValidationIssue = (coursesTaught) => {
     return null;
 };
 
+
 export default function PartII({ formData, addItem, removeItem, updateArrayField, updateAssessment, updateField, readOnly }) {
     // Safely extract teaching data to prevent crashes
     const teachingData = formData?.teaching || {};
@@ -730,6 +730,66 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
     const workloadWeek = teachingData?.workload_week || { odd_semester: {}, even_semester: {} };
     const tutorialsTests = teachingData?.tutorials_tests || { ug_odd: {}, ug_even: {}, pg_odd: {}, pg_even: {} };
 
+    const [errors, setErrors] = useState({});
+
+    const validateURLField = (value, label) => {
+        if (!value?.trim()) return '';
+
+        try {
+            const url = new URL(value);
+
+            if (
+                url.protocol !== 'http:' &&
+                url.protocol !== 'https:'
+            ) {
+                return `${label} must be a valid URL`;
+            }
+
+            return '';
+        } catch {
+            return `${label} must contain only a valid URL`;
+        }
+    };
+
+    const handleURLBlur = (field, value, label) => {
+        const error = validateURLField(value, label);
+
+        setErrors((prev) => ({
+            ...prev,
+            [field]: error,
+        }));
+
+        return !error;
+    };
+
+    const validateOptionalDocuments = () => {
+        const newErrors = {};
+
+        const propertyError = validateURLField(
+            teachingData?.immovable_property_return,
+            'Immovable Property Return'
+        );
+
+        const healthError = validateURLField(
+            teachingData?.health_checkup_file,
+            'Health Checkup Report'
+        );
+
+        if (propertyError) {
+            newErrors.immovable_property_return = propertyError;
+        }
+
+        if (healthError) {
+            newErrors.health_checkup_file = healthError;
+        }
+
+        setErrors((prev) => ({
+            ...prev,
+            ...newErrors,
+        }));
+
+        return Object.keys(newErrors).length === 0;
+    };
     const handleAddCourse = () => {
         const issue = getFirstCourseValidationIssue(coursesTaught);
         if (issue) {
@@ -845,7 +905,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                 {/* Mandatory Documents (Schema Alignment) */}
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-6">
                     <h4 className="text-md font-semibold text-blue-900 mb-4">Optional Documents</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label htmlFor="property-return" className="block text-sm font-medium text-gray-700 mb-1">Immovable Property Return (Document URL)</label>
                             <input id="property-return" type="text" disabled={readOnly} value={teachingData?.immovable_property_return || ''} onChange={(e) => updateField('teaching', 'immovable_property_return', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors bg-white" placeholder="Paste Google Drive or Cloudinary link..." />
@@ -854,7 +914,94 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                             <label htmlFor="health-checkup" className="block text-sm font-medium text-gray-700 mb-1">Health Checkup Report (Document URL)</label>
                             <input id="health-checkup" type="text" disabled={readOnly} value={teachingData?.health_checkup_file || ''} onChange={(e) => updateField('teaching', 'health_checkup_file', e.target.value)} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500 transition-colors bg-white" placeholder="Paste Google Drive or Cloudinary link..." />
                         </div>
-                    </div>
+                    </div> */}
+                            <div>
+                <label
+                    htmlFor="property-return"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                    Immovable Property Return (Document URL)
+                </label>
+
+                <input
+                    id="property-return"
+                    type="text"
+                    disabled={readOnly}
+                    value={teachingData?.immovable_property_return || ''}
+                    onChange={(e) =>
+                        updateField(
+                            'teaching',
+                            'immovable_property_return',
+                            e.target.value
+                        )
+                    }
+                    onBlur={(e) =>
+                        handleURLBlur(
+                            'immovable_property_return',
+                            e.target.value,
+                            'Immovable Property Return'
+                        )
+                    }
+                    className={`w-full border rounded-lg shadow-sm px-4 py-2.5 transition-colors bg-white
+                    ${
+                        errors?.immovable_property_return
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }
+                    disabled:bg-gray-100 disabled:text-gray-500`}
+                    placeholder="Paste Google Drive or Cloudinary link..."
+                />
+
+                {errors?.immovable_property_return && (
+                    <p className="text-red-500 text-sm mt-1">
+                        {errors.immovable_property_return}
+                    </p>
+                )}
+            </div>
+
+            <div>
+                <label
+                    htmlFor="health-checkup"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                    Health Checkup Report (Document URL)
+                </label>
+
+                <input
+                    id="health-checkup"
+                    type="text"
+                    disabled={readOnly}
+                    value={teachingData?.health_checkup_file || ''}
+                    onChange={(e) =>
+                        updateField(
+                            'teaching',
+                            'health_checkup_file',
+                            e.target.value
+                        )
+                    }
+                    onBlur={(e) =>
+                        handleURLBlur(
+                            'health_checkup_file',
+                            e.target.value,
+                            'Health Checkup Report'
+                        )
+                    }
+                    className={`w-full border rounded-lg shadow-sm px-4 py-2.5 transition-colors bg-white
+                    ${
+                        errors?.health_checkup_file
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }
+                    disabled:bg-gray-100 disabled:text-gray-500`}
+                    placeholder="Paste Google Drive or Cloudinary link..."
+                />
+
+                {errors?.health_checkup_file && (
+                    <p className="text-red-500 text-sm mt-1">
+                        {errors.health_checkup_file}
+                    </p>
+                )}
+            </div>
                 </div>
 
                 {/* i) Courses taught at various levels */}
@@ -1032,7 +1179,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.ug_odd?.number_of_tests || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, ug_odd: { ...tutorialsTests.ug_odd, number_of_tests: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Assignment checked</label>
+                                <label className="block text-sm text-gray-700 mb-1">Assignment Assigned</label>
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.ug_odd?.assignment_checked || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, ug_odd: { ...tutorialsTests.ug_odd, assignment_checked: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
@@ -1044,7 +1191,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.ug_even?.number_of_tests || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, ug_even: { ...tutorialsTests.ug_even, number_of_tests: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Assignment checked</label>
+                                <label className="block text-sm text-gray-700 mb-1">Assignment Assigned</label>
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.ug_even?.assignment_checked || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, ug_even: { ...tutorialsTests.ug_even, assignment_checked: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
@@ -1056,7 +1203,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.pg_odd?.number_of_tests || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, pg_odd: { ...tutorialsTests.pg_odd, number_of_tests: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Assignment checked</label>
+                                <label className="block text-sm text-gray-700 mb-1">Assignment Assigned</label>
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.pg_odd?.assignment_checked || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, pg_odd: { ...tutorialsTests.pg_odd, assignment_checked: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
@@ -1068,7 +1215,7 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.pg_even?.number_of_tests || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, pg_even: { ...tutorialsTests.pg_even, number_of_tests: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700 mb-1">Assignment checked</label>
+                                <label className="block text-sm text-gray-700 mb-1">Assignment Assigned</label>
                                 <input type="number" min="0" disabled={readOnly} value={tutorialsTests?.pg_even?.assignment_checked || ''} onChange={(e) => { updateField('teaching', 'tutorials_tests', { ...tutorialsTests, pg_even: { ...tutorialsTests.pg_even, assignment_checked: e.target.value } }); }} className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500" />
                             </div>
                         </div>
