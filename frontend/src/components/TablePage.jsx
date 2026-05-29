@@ -498,11 +498,11 @@ const FilterSection = ({ columns, pendingFilters, setPendingFilters, onApply, on
 
   return (
     <div
-      className="absolute top-full right-0 mt-2 z-50 w-[800px] bg-white rounded-xl shadow-xl border border-gray-200 ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200"
+      className="absolute top-full right-0 mt-2 z-50 w-[90vw] max-w-[800px] bg-white rounded-xl shadow-xl border border-gray-200 ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800">Filter Records</h3>
+      <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800">Filter Records</h3>
         <button
           onClick={onClose}
           className="p-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
@@ -511,8 +511,8 @@ const FilterSection = ({ columns, pendingFilters, setPendingFilters, onApply, on
         </button>
       </div>
 
-      <div className="p-6 overflow-y-auto bg-white max-h-[60vh]">
-        <div className="grid grid-cols-2 gap-5">
+      <div className="p-4 sm:p-6 overflow-y-auto bg-white max-h-[60vh]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           {filterableColumns.map(col => (
             <div key={col.accessor}>
               <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
@@ -524,16 +524,16 @@ const FilterSection = ({ columns, pendingFilters, setPendingFilters, onApply, on
         </div>
       </div>
 
-      <div className="bg-gray-50 px-6 py-4 flex justify-between space-x-3 border-t border-gray-100 rounded-b-xl">
+      <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3 border-t border-gray-100 rounded-b-xl">
         <button
           onClick={onClear}
-          className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-offset-1 focus:ring-gray-200 transition-all"
+          className="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-offset-1 focus:ring-gray-200 transition-all"
         >
           Clear All
         </button>
         <button
           onClick={() => { onApply(); onClose(); }}
-          className="px-3 py-2 bg-indigo-600 border border-transparent rounded-lg text-xs font-medium text-white hover:bg-indigo-700 shadow-sm hover:shadow-md focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-all"
+          className="w-full sm:w-auto px-4 py-2 bg-indigo-600 border border-transparent rounded-lg text-xs sm:text-sm font-medium text-white hover:bg-indigo-700 shadow-sm hover:shadow-md focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-all"
         >
           Apply Filters
         </button>
@@ -809,35 +809,39 @@ export default function TablePage({ config }) {
 
 
 
-      <div className="max-w-6xl mx-auto">
-        <div className="table-page-header mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <span className="form-page-badge">Data table</span>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">{title}</h1>
+      <div className="max-w-6xl mx-auto px-2 sm:px-0">
+        <div className="table-page-header mb-4 sm:mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div className="w-full md:w-auto">
+            <span className="form-page-badge text-[10px] sm:text-xs">Data table</span>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">{title}</h1>
             {scopeIsActive && (
-              <p className="mt-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5 inline-flex items-center gap-2">
-                <FiFilter size={12} />
-                Dashboard scope: Session {academicYear === 'All' ? 'All Years' : academicYear}
-                {' | '}
-                Branch {departmentId === 'All' ? 'All Departments' : departmentId}
-                {departmentLocked ? ' (locked to your department)' : ''}
+              <p className="mt-2 text-[10px] sm:text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2 sm:px-3 py-1.5 inline-flex items-center gap-1 sm:gap-2 flex-wrap">
+                <FiFilter size={10} className="sm:size-12" />
+                <span className="hidden sm:inline">Dashboard scope: Session</span>
+                <span className="sm:hidden">Session</span>
+                {academicYear === 'All' ? 'All Years' : academicYear}
+                <span className="hidden sm:inline">|</span>
+                <span className="sm:hidden">·</span>
+                <span className="hidden sm:inline">Branch</span>
+                {departmentId === 'All' ? 'All Departments' : departmentId}
+                {departmentLocked && <span>(locked)</span>}
                 <span className="text-indigo-500">
-                  — showing {filteredItems.length} of {items.length} records
+                  — {filteredItems.length}/{items.length}
                 </span>
               </p>
             )}
           </div>
-          <div className="flex items-center space-x-3 mt-4 md:mt-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4 md:mt-0">
 
             {/* Export Menu */}
             <div className="relative">
               <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                 disabled={loading || filteredItems.length === 0}
-                className="table-toolbar-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                className="table-toolbar-btn disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
               >
                 <FiDownload />
-                <span>Export</span>
+                <span className="hidden sm:inline">Export</span>
               </button>
               {isExportMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5 border border-gray-100">
@@ -855,10 +859,10 @@ export default function TablePage({ config }) {
             <div className="relative">
               <button
                 onClick={toggleColumnManager}
-                className={`table-toolbar-btn ${isColumnManagerVisible ? 'table-toolbar-btn-active' : ''}`}
+                className={`table-toolbar-btn ${isColumnManagerVisible ? 'table-toolbar-btn-active' : ''} text-xs sm:text-sm`}
               >
                 <FiColumns />
-                <span>Columns</span>
+                <span className="hidden sm:inline">Columns</span>
               </button>
               {isColumnManagerVisible && (
                 <ColumnManager
@@ -873,10 +877,11 @@ export default function TablePage({ config }) {
             <div className="relative">
               <button
                 onClick={toggleFilterBar}
-                className={`table-toolbar-btn ${Object.keys(filters).length > 0 ? 'table-toolbar-btn-active' : ''}`}
+                className={`table-toolbar-btn ${Object.keys(filters).length > 0 ? 'table-toolbar-btn-active' : ''} text-xs sm:text-sm`}
               >
                 <FiFilter />
-                <span>Filter {Object.keys(filters).length > 0 && `(${Object.keys(filters).length})`}</span>
+                <span className="hidden sm:inline">Filter {Object.keys(filters).length > 0 && `(${Object.keys(filters).length})`}</span>
+                <span className="sm:hidden">{Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : 'Filter'}</span>
               </button>
               {isFilterVisible && (
                 <FilterSection
@@ -893,10 +898,11 @@ export default function TablePage({ config }) {
             {addPath && (
               <Link
                 to={addPath}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm"
+                className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm text-xs sm:text-sm"
               >
                 <FiPlus />
-                <span>Add {title}</span>
+                <span className="hidden sm:inline">Add {title}</span>
+                <span className="sm:inline">Add</span>
               </Link>
             )}
           </div>

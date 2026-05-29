@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiSearch, FiUser, FiLogOut, FiPlus, FiX } from 'react-icons/fi';
+import { FiSearch, FiUser, FiLogOut, FiPlus, FiX, FiMenu, FiChevronDown } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import { DepartmentService } from '../services/department.services.js';
@@ -15,7 +15,7 @@ import {
 import { aparLogout } from '../store/slices/aparAuthSlice.js';
 import NotificationBell from './NotificationBell.jsx';
 
-export default function Header() {
+export default function Header({ setMobileMenuOpen }) {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const role = useSelector(selectRole);
@@ -29,6 +29,7 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [departments, setDepartments] = useState([]);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
   const departmentLabel = useMemo(() => {
@@ -93,6 +94,19 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownOpen && !event.target.closest('.profile-dropdown')) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileDropdownOpen]);
+
+  useEffect(() => {
     setActiveIndex(0);
   }, [filteredRoutes.length]);
 
@@ -111,7 +125,7 @@ export default function Header() {
         if (!cancelled) {
           setDepartments(list);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setDepartments([]);
         }
@@ -202,13 +216,23 @@ export default function Header() {
   const roleBadgeClass = getRoleBadgeColor(role);
 
   return (
-    <header className="iqac-header flex h-20 shrink-0 items-center justify-between px-6 sm:px-8 sticky top-0 z-[100]">
-      <div className="relative" ref={searchContainerRef}>
-        <FiSearch className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400" />
+    <header className="iqac-header flex h-16 sm:h-20 shrink-0 items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-[100]">
+      {/* Mobile menu button */}
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(true)}
+        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+      >
+        <FiMenu className="w-6 h-6 text-gray-600" />
+      </button>
+
+      {/* Search - responsive width */}
+      <div className="relative flex-1 max-w-md lg:max-w-none mx-2 lg:mx-0" ref={searchContainerRef}>
+        <FiSearch className="absolute top-1/2 left-3 sm:left-4 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
         <input
           type="text"
           placeholder="Search..."
-          className="w-96 h-12 pl-12 pr-10 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full h-10 sm:h-12 pl-10 sm:pl-12 pr-8 sm:pr-10 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           ref={inputRef}
           value={query}
           onChange={handleChange}
@@ -223,9 +247,9 @@ export default function Header() {
               setActiveIndex(0);
               inputRef.current?.focus();
             }}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="absolute top-1/2 right-2 sm:right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
           >
-            <FiX />
+            <FiX className="w-4 h-4" />
           </button>
         )}
         {isOpen && (
@@ -270,11 +294,13 @@ export default function Header() {
           </div>
         )}
       </div>
-      <div className="flex items-center space-x-6">
+
+      {/* Right side actions */}
+      <div className="flex items-center space-x-3 sm:space-x-6">
         {scopeIsActive && (
           <Link
             to="/app"
-            className="hidden lg:inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+            className="hidden xl:inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
             title="Change filters on Dashboard"
           >
             Session: {academicYear === 'All' ? 'All Years' : academicYear}
@@ -283,30 +309,70 @@ export default function Header() {
           </Link>
         )}
         <NotificationBell />
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-            <FiUser className="w-6 h-6 text-gray-500" />
-          </div>
-          <div>
-            <div className="font-semibold">{displayName}</div>
-            <div className="text-sm text-gray-500">
-              {email && teacherId
-                ? `Teacher ID: ${teacherId}`
-                : email || (teacherId ? `Teacher ID: ${teacherId}` : 'Not signed in')}
+        
+        {/* Profile section - responsive */}
+        <div className="relative profile-dropdown">
+          <button
+            type="button"
+            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+            className="flex items-center space-x-2 sm:space-x-3 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
+              <FiUser className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeClass}`}>
-              {roleLabel}
+            <div className="hidden sm:block text-left">
+              <div className="font-semibold text-sm text-gray-900 truncate max-w-[120px]">{displayName}</div>
+              <div className={`text-xs font-medium ${roleBadgeClass} inline-block px-2 py-0.5 rounded-full`}>
+                {roleLabel}
+              </div>
             </div>
-          </div>
+            <FiChevronDown className={`hidden sm:block w-4 h-4 text-gray-500 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Profile dropdown */}
+          {profileDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-64 sm:w-72 rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50">
+              <div className="p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-b border-gray-100">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
+                    <FiUser className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{displayName}</div>
+                    <div className="text-xs text-gray-500 truncate">{email || teacherId || 'Guest'}</div>
+                    <div className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeClass}`}>
+                      {roleLabel}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-2">
+                {scopeIsActive && (
+                  <Link
+                    to="/app"
+                    className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <span className="text-xs text-gray-500">
+                      Session: {academicYear === 'All' ? 'All Years' : academicYear}
+                    </span>
+                    <span className="mx-2 text-gray-300">·</span>
+                    <span className="text-xs text-gray-500">
+                      Branch: {departmentLabel}
+                    </span>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <FiLogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-full transition hover:bg-indigo-50"
-        >
-          <FiLogOut className="w-4 h-4" />
-          Sign out
-        </button>
       </div>
     </header>
   );

@@ -416,3 +416,135 @@ body.audit-modal-open .audit-table-container {
 .audit-table-container {
     transition: filter 0.3s ease;
 }
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+    /* Better touch targets for mobile */
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        min-height: 44px;
+    }
+
+    /* Improve text readability on mobile */
+    body {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    /* Better spacing for mobile cards */
+    .portal-card,
+    .card,
+    .form-card {
+        margin: 0.5rem 0;
+    }
+
+    /* Mobile-friendly tables */
+    .data-table-wrapper {
+        border-radius: 1rem;
+    }
+
+    .data-table thead th {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.7rem;
+    }
+
+    .data-table tbody td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Mobile form improvements */
+    .form-field-input,
+    .form-field-input-iqac {
+        font-size: 16px; /* Prevent iOS zoom on focus */
+    }
+
+    /* Better mobile buttons */
+    .form-btn-primary,
+    .form-btn-secondary,
+    .table-toolbar-btn,
+    .table-toolbar-btn-primary {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Mobile header adjustments */
+    .iqac-header {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    /* Mobile sidebar adjustments */
+    .iqac-sidebar {
+        width: 16rem !important;
+    }
+
+    /* Better mobile spacing */
+    main {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Extra small mobile improvements */
+    .data-table thead th {
+        font-size: 0.65rem;
+        padding: 0.5rem 0.25rem;
+    }
+
+    .data-table tbody td {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.25rem;
+    }
+
+    /* Compact cards on very small screens */
+    .portal-card {
+        padding: 1rem;
+    }
+
+    /* Better mobile search */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Prevent horizontal scroll on mobile */
+body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* Better focus states for accessibility */
+*:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+/* Safe area insets for mobile devices with notches */
+@supports (padding: max(0px)) {
+    .iqac-header {
+        padding-left: max(0.75rem, env(safe-area-inset-left));
+        padding-right: max(0.75rem, env(safe-area-inset-right));
+        padding-top: max(0.5rem, env(safe-area-inset-top));
+    }
+
+    main {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+}

@@ -9,7 +9,7 @@ import { selectRole } from '../store/slices/authSlice.js';
 import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 import { DepartmentService } from '../services/department.services.js';
 
-const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => {
+const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath, setMobileMenuOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
@@ -47,6 +47,11 @@ const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => 
     e.preventDefault();
     e.stopPropagation();
     navigate(addPath);
+    if (setMobileMenuOpen) setMobileMenuOpen(false);
+  };
+
+  const handleLinkClick = () => {
+    if (setMobileMenuOpen) setMobileMenuOpen(false);
   };
 
   return (
@@ -57,6 +62,7 @@ const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => 
     >
       <Link
         to={to}
+        onClick={handleLinkClick}
         className={`mx-2 flex items-center rounded-xl text-gray-600 transition-all duration-200 ${isActive ? 'bg-indigo-600 font-semibold text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50 hover:text-indigo-700'
           } ${isCollapsed ? 'justify-center h-12' : `justify-center md:justify-start md:px-4 md:pr-10 ${isHovered ? 'min-h-[3rem] py-2' : 'h-12'}`
           }`}
@@ -88,6 +94,7 @@ const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => 
           <span className="text-sm font-semibold text-gray-800 px-3 pb-2 border-b border-gray-100 mb-1">{label}</span>
           <Link
             to={to}
+            onClick={handleLinkClick}
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
           >
             <FiEye className="w-4 h-4" />
@@ -96,6 +103,7 @@ const NavLink = ({ to, icon, label, isCollapsed, matchPaths = [], addPath }) => 
           {addPath && (
             <Link
               to={addPath}
+              onClick={handleLinkClick}
               className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
             >
               <FiPlus className="w-4 h-4" />
@@ -122,7 +130,7 @@ const tables = resources
   })
   .sort((a, b) => a.label.localeCompare(b.label));
 
-export default function Sidebar() {
+export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const role = useSelector(selectRole);
   const { departmentId } = useIqacFilter();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -184,40 +192,50 @@ export default function Sidebar() {
   const showNoResults = searchTerm.trim() && filteredTables.length === 0;
 
   return (
-    <div
-      className={`iqac-sidebar flex flex-col shadow-lg transition-width duration-300 ease-in-out sticky top-0 h-screen z-20 ${isCollapsed ? 'w-20' : 'w-20 md:w-64'
-        }`}
-    >
+    <>
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <div
-        className={`flex h-20 shrink-0 items-center border-b border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white ${isCollapsed ? 'justify-center px-1' : 'justify-center px-4 md:justify-between'
+        className={`iqac-sidebar flex flex-col shadow-lg transition-all duration-300 ease-in-out fixed lg:sticky top-0 h-screen z-50 lg:z-20 ${isCollapsed ? 'w-20' : 'w-72'
+          } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+      >
+      <div
+        className={`flex h-16 sm:h-20 shrink-0 items-center border-b border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white ${isCollapsed ? 'justify-center px-1' : 'justify-between px-4'
           }`}
       >
         <Link
           to="/app"
-          className={`items-center ${isCollapsed ? 'hidden' : 'hidden md:flex min-w-0'
+          onClick={() => setMobileMenuOpen(false)}
+          className={`items-center ${isCollapsed ? 'hidden' : 'flex min-w-0'
             }`}
         >
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="mr-3 h-12 w-auto shrink-0 rounded-lg shadow-sm" />
-          <div className="min-w-0">
+          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="mr-3 h-10 sm:h-12 w-auto shrink-0 rounded-lg shadow-sm" />
+          <div className="min-w-0 hidden sm:block">
             <span className="iqac-sidebar-brand block truncate text-lg font-extrabold tracking-wide">IQAC Portal</span>
             <span className="block truncate text-xs font-medium text-indigo-600/80">{departmentLabel}</span>
           </div>
         </Link>
 
-        <Link
-          to="/app"
-          className={`items-center justify-center ${isCollapsed ? 'flex' : 'flex md:hidden'
-            }`}
-        >
-          <img src="/dtu_logo.jpeg" alt="DTU Logo" className="h-10 w-auto object-contain" />
-        </Link>
-
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 rounded-full hover:bg-gray-100 hidden md:block"
-        >
-          {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1 rounded-full hover:bg-gray-100 hidden md:block"
+          >
+            {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
+          </button>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <FiX className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
       <nav className="flex-grow mt-4 overflow-y-auto">
         {!isCollapsed && (
@@ -243,10 +261,10 @@ export default function Sidebar() {
           </div>
         )}
 
-        <NavLink to="/app" icon={<FiGrid />} label="Dashboard" isCollapsed={isCollapsed} />
-        <NavLink to="/app/reports" icon={<FiFileText />} label="Reports" isCollapsed={isCollapsed} />
+        <NavLink to="/app" icon={<FiGrid />} label="Dashboard" isCollapsed={isCollapsed} setMobileMenuOpen={setMobileMenuOpen} />
+        <NavLink to="/app/reports" icon={<FiFileText />} label="Reports" isCollapsed={isCollapsed} setMobileMenuOpen={setMobileMenuOpen} />
         {role === ROLES.IQAC_HEAD && (
-          <NavLink to="/app/user-management" icon={<FiUserPlus />} label="User Management" isCollapsed={isCollapsed} />
+          <NavLink to="/app/user-management" icon={<FiUserPlus />} label="User Management" isCollapsed={isCollapsed} setMobileMenuOpen={setMobileMenuOpen} />
         )}
 
         {!isCollapsed && (
@@ -274,9 +292,11 @@ export default function Sidebar() {
             label={table.label}
             isCollapsed={isCollapsed}
             matchPaths={table.matchPaths}
+            setMobileMenuOpen={setMobileMenuOpen}
           />
         ))}
       </nav>
     </div>
+    </>
   );
 }
