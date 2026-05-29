@@ -104,6 +104,10 @@ const toStoredMonthYear = (value) => {
     return text;
 };
 
+const getStudentNameFromEntity = (studentData) => {
+    return String(studentData?.name || studentData?.student_name || '').trim();
+};
+
 const ListField = ({ label, name, values, onChange }) => {
     const handleAddItem = () => {
         onChange({ target: { name, value: [...(values || []), ''] } });
@@ -171,7 +175,7 @@ const ObjectListField = ({ label, name, values = [], subFields = [], onChange })
         onChange({ target: { name, value: newValues } });
     };
 
-    const handleItemChange = (index, subAccessor, subValue) => {
+    const handleItemChange = (index, subAccessor, subValue, selectedData = null) => {
         const newValues = [...values];
         const updatedItem = {
             ...newValues[index],
@@ -185,6 +189,14 @@ const ObjectListField = ({ label, name, values = [], subFields = [], onChange })
                 toast.error(`This ${changedField.header || 'entity'} has already been added. Duplicates are not allowed.`);
                 return;
             }
+        }
+
+        if (
+            changedField?.entityType === 'student' &&
+            subAccessor === 'student_id' &&
+            subFields.some(field => field.accessor === 'student_name')
+        ) {
+            updatedItem.student_name = subValue ? getStudentNameFromEntity(selectedData) : '';
         }
 
         newValues[index] = updatedItem;
@@ -261,7 +273,7 @@ const ObjectListField = ({ label, name, values = [], subFields = [], onChange })
                                             <SearchableSelect
                                                 entityType={field.entityType}
                                                 value={item[field.accessor] || ''}
-                                                onChange={(value) => handleItemChange(index, field.accessor, value)}
+                                                onChange={(value, selectedData) => handleItemChange(index, field.accessor, value, selectedData)}
                                                 label={null}
                                                 required={field.required}
                                                 excludeValues={alreadySelected}
@@ -818,7 +830,21 @@ const AddPage = () => {
                     <SearchableSelect
                         entityType={col.entityType}
                         value={formData[col.accessor] || ''}
-                        onChange={(value) => handleChange({ target: { name: col.accessor, value } })}
+                        onChange={(value, selectedData) => {
+                            handleChange({ target: { name: col.accessor, value } });
+                            if (
+                                col.entityType === 'student' &&
+                                col.accessor === 'student_id' &&
+                                resource.columns.some(column => column.accessor === 'student_name')
+                            ) {
+                                handleChange({
+                                    target: {
+                                        name: 'student_name',
+                                        value: value ? getStudentNameFromEntity(selectedData) : ''
+                                    }
+                                });
+                            }
+                        }}
                         required={col.required}
                         label={col.header}
                         disabled={isDisabled}

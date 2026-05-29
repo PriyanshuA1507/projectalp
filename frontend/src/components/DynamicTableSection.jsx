@@ -57,15 +57,28 @@ export default function DynamicTableSection({
         return monthYearMatch ? `${monthYearMatch[2]}-${monthYearMatch[1]}` : undefined;
     };
 
+    const getMonthIndex = (value, fallbackMonth) => {
+        if (value === undefined || value === null || value === '') return null;
+        const normalized = String(value).trim();
+        const boundary = getMonthInputBoundary(normalized, fallbackMonth);
+        const match = boundary?.match(/^(\d{4})-(\d{2})$/);
+        if (!match) return null;
+        return Number(match[1]) * 12 + Number(match[2]);
+    };
+
     const isValidMonthYearValue = (value, field) => {
         const formatted = formatMonthYearValue(value);
         const match = formatted.match(/^(\d{2})-(\d{4})$/);
         if (!match) return false;
         const monthNum = Number(match[1]);
         const yearNum = Number(match[2]);
-        const minYear = field.min || 0;
-        const maxYear = field.max || 9999;
-        return monthNum >= 1 && monthNum <= 12 && !Number.isNaN(yearNum) && yearNum >= minYear && yearNum <= maxYear;
+        if (monthNum < 1 || monthNum > 12 || Number.isNaN(yearNum)) return false;
+
+        const valueIndex = yearNum * 12 + monthNum;
+        const minIndex = getMonthIndex(field.min, '01') ?? 0;
+        const maxIndex = getMonthIndex(field.max, '12') ?? 9999 * 12 + 12;
+
+        return valueIndex >= minIndex && valueIndex <= maxIndex;
     };
 
     const normalizeMonthYearFields = (item, fieldsList = fields) => {
@@ -194,14 +207,27 @@ export default function DynamicTableSection({
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         fields.forEach(field => {
             const val = tempItem[field.key];
+            if (
+    field.type === 'select' &&
+    (!val || val === '')
+) {
+    validationErrors.push(`${field.label} is required`);
+    return;
+}
             const isRequired = field.required || (typeof field.requiredIf === 'function' && field.requiredIf(tempItem));
 
             if (isRequired) {
-                if (!val || (typeof val === 'string' && !val.trim())) {
-                    validationErrors.push(field.label);
-                    return;
-                }
-            }
+    if (
+        val === undefined ||
+        val === null ||
+        val === '' ||
+        (typeof val === 'string' && !val.trim()) ||
+        val === 'Select...'
+    ) {
+        validationErrors.push(field.label);
+        return;
+    }
+}
 
             if (field.type === 'year' && val) {
                 const normalized = String(val).trim();
@@ -237,7 +263,12 @@ export default function DynamicTableSection({
                     field.subFields.forEach(subF => {
                         const isSubRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(subItem));
                         const subVal = subItem[subF.key];
-                        const isEmpty = subVal === undefined || subVal === null || (typeof subVal === 'string' && !subVal.toString().trim());
+                        const isEmpty =
+    subVal === undefined ||
+    subVal === null ||
+    subVal === '' ||
+    (typeof subVal === 'string' && !subVal.toString().trim()) ||
+    subVal === 'Select...';
                         if (isSubRequired && isEmpty) {
                             validationErrors.push(`${field.label} (item ${sIdx + 1}): ${subF.label}`);
                         }
@@ -257,7 +288,12 @@ export default function DynamicTableSection({
                 field.subFields.forEach(subF => {
                     const isSubRequired = subF.required || (typeof subF.requiredIf === 'function' && subF.requiredIf(pendingItem));
                     const subVal = pendingItem[subF.key];
-                    const isEmpty = subVal === undefined || subVal === null || (typeof subVal === 'string' && !subVal.toString().trim());
+                    const isEmpty =
+    subVal === undefined ||
+    subVal === null ||
+    subVal === '' ||
+    (typeof subVal === 'string' && !subVal.toString().trim()) ||
+    subVal === 'Select...';
                     if (isSubRequired && isEmpty) {
                         validationErrors.push(`${field.label}: ${subF.label}`);
                     }
@@ -319,12 +355,40 @@ export default function DynamicTableSection({
         setTempItem(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleSubItemChange = (parentKey, subKey, value) => {
+    const getStudentName = (studentData) => {
+        return String(studentData?.name || studentData?.student_name || '').trim();
+    };
+
+    const handleEntityChange = (field, value, selectedData) => {
+        setTempItem(prev => {
+            const next = { ...prev, [field.key]: value };
+            const hasStudentNameField = fields.some(f => f.key === 'student_name');
+
+            if (field.entityType === 'student' && field.key === 'student_id' && hasStudentNameField) {
+                next.student_name = value ? getStudentName(selectedData) : '';
+            }
+
+            return next;
+        });
+    };
+
+    const handleSubItemChange = (parentKey, subKey, value, selectedData = null) => {
         setTempSubItems(prev => ({
             ...prev,
             [parentKey]: {
                 ...(prev[parentKey] || {}),
-                [subKey]: value
+                [subKey]: value,
+                ...(() => {
+                    const parentField = fields.find(field => field.key === parentKey);
+                    const subField = parentField?.subFields?.find(field => field.key === subKey);
+                    const hasStudentNameField = parentField?.subFields?.some(field => field.key === 'student_name');
+
+                    if (subField?.entityType === 'student' && subKey === 'student_id' && hasStudentNameField) {
+                        return { student_name: value ? getStudentName(selectedData) : '' };
+                    }
+
+                    return {};
+                })()
             }
         }));
     };
@@ -508,12 +572,14 @@ export default function DynamicTableSection({
                                     />
                                 ) : f.type === 'select' ? (
                                     <select
-                                        value={tempItem[f.key] || ''}
-                                        onChange={(e) => handleChange(f.key, e.target.value)}
-                                        required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
-                                        disabled={f.disabled || f.readOnly || readOnly}
-                                        className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5"
-                                    >
+    value={tempItem[f.key] || ''}
+    onChange={(e) => handleChange(f.key, e.target.value)}
+    required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
+    disabled={f.disabled || f.readOnly || readOnly}
+    className={`w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 ${
+        f.key === 'academic_year' ? 'appearance-none bg-gray-100 cursor-not-allowed' : ''
+    }`}
+>
                                         <option value="">Select...</option>
                                         {f.options.map(opt => (
                                             <option key={opt} value={opt}>{opt}</option>
@@ -523,7 +589,7 @@ export default function DynamicTableSection({
                                     <SearchableSelect
                                         entityType={f.entityType}
                                         value={tempItem[f.key] || ''}
-                                        onChange={(val) => handleChange(f.key, val)}
+                                        onChange={(val, selectedData) => handleEntityChange(f, val, selectedData)}
                                         required={f.required || (typeof f.requiredIf === 'function' && f.requiredIf(tempItem))}
                                         disabled={f.disabled || f.readOnly || readOnly}
                                         optionsOverride={f.optionsOverride || []}
@@ -614,7 +680,7 @@ export default function DynamicTableSection({
                                                                             <SearchableSelect
                                                                                 entityType={subF.entityType}
                                                                                 value={subDefaults[subF.key] || ''}
-                                                                                onChange={(val) => handleSubItemChange(f.key, subF.key, val)}
+                                                                                onChange={(val, selectedData) => handleSubItemChange(f.key, subF.key, val, selectedData)}
                                                                                 className="w-full"
                                                                                 excludeValues={alreadySelected}
                                                                                 disabled={subF.disabled || subF.readOnly || readOnly}
