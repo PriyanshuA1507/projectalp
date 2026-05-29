@@ -838,8 +838,8 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
             <div className="space-y-6">
                 {/* Description */}
                 <div>
-                    <label htmlFor="desc-duties" className="block text-sm font-medium text-gray-700 mb-2">Description of Duties</label>
-                    <textarea id="desc-duties" rows="3" disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 text-sm disabled:bg-gray-50 disabled:text-gray-500 transition-colors" placeholder="Brief description of duties..." value={desc} onChange={(e) => updateField('teaching', 'description_of_duties', e.target.value)}></textarea>
+                    <label htmlFor="desc-duties" className="block text-sm font-medium text-gray-700 mb-2">Description of Duties<span className="text-red-500">*</span></label>
+                    <textarea id="desc-duties" rows="3" required disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 text-sm disabled:bg-gray-50 disabled:text-gray-500 transition-colors" placeholder="Brief description of duties..." value={desc} onChange={(e) => updateField('teaching', 'description_of_duties', e.target.value)}></textarea>
                 </div>
 
                 {/* Mandatory Documents (Schema Alignment) */}
@@ -1005,20 +1005,20 @@ export default function PartII({ formData, addItem, removeItem, updateArrayField
 
                 {/* 3) Details of teaching methods employed */}
                 <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-2">3) Details of teaching methods employed by you</h4>
-                    <textarea rows="3" disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.teaching_methods || ''} onChange={(e) => updateField('teaching', 'teaching_methods', e.target.value)} placeholder="(Lectures, Tutorials, Seminars, Practicals etc.)"></textarea>
+                    <h4 className="text-md font-semibold text-gray-800 mb-2">3) Details of teaching methods employed by you <span className="text-red-500">*</span></h4>
+                    <textarea rows="3" required disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.teaching_methods || ''} onChange={(e) => updateField('teaching', 'teaching_methods', e.target.value)} placeholder="(Lectures, Tutorials, Seminars, Practicals etc.)"></textarea>
                 </div>
 
                 {/* ICT Tools */}
                 <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-2">3.1) ICT Tools and Resources Used</h4>
-                    <textarea rows="2" disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.ict_tools || ''} onChange={(e) => updateField('teaching', 'ict_tools', e.target.value)} placeholder="e.g., LCD Projector, Smart Board, Online Resources..."></textarea>
+                    <h4 className="text-md font-semibold text-gray-800 mb-2">3.1) ICT Tools and Resources Used<span className="text-red-500">*</span></h4>
+                    <textarea rows="2" required disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.ict_tools || ''} onChange={(e) => updateField('teaching', 'ict_tools', e.target.value)} placeholder="e.g., LCD Projector, Smart Board, Online Resources..."></textarea>
                 </div>
 
                 {/* Student Centric Methods */}
                 <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-2">3.2) Student Centric Methods</h4>
-                    <textarea rows="2" disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.student_centric_methods || ''} onChange={(e) => updateField('teaching', 'student_centric_methods', e.target.value)} placeholder="(Experiential/Participative/Problem Solving)..."></textarea>
+                    <h4 className="text-md font-semibold text-gray-800 mb-2">3.2) Student Centric Methods<span className="text-red-500">*</span></h4>
+                    <textarea rows="2" required disabled={readOnly} className="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-100 disabled:text-gray-500 transition-colors" value={teachingData?.student_centric_methods || ''} onChange={(e) => updateField('teaching', 'student_centric_methods', e.target.value)} placeholder="(Experiential/Participative/Problem Solving)..."></textarea>
                 </div>
 
                 {/* 4 a) Details of Tutorials/tests held */}

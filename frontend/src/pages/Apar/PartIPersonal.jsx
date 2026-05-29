@@ -183,10 +183,47 @@ export default function PartIPersonal({ personal, onChange, readOnly, department
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">5) Enter the Academic Qualifications <span className="text-red-500">*</span></label>
-          <textarea required aria-required="true" name="qualification" value={personal.qualification} onChange={onChange} rows={4} disabled={readOnly} className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-4 disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
-            
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Graduation <span className="text-red-500">*</span></label>
+              <input
+                required
+                aria-required="true"
+                type="text"
+                name="qualification_undergraduate"
+                value={personal.qualification_undergraduate}
+                onChange={onChange}
+                disabled={readOnly}
+                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                placeholder="e.g., B.Sc., B.Tech"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Postgraduation</label>
+              <input
+                type="text"
+                name="qualification_postgraduate"
+                value={personal.qualification_postgraduate}
+                onChange={onChange}
+                disabled={readOnly}
+                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                placeholder="e.g., M.Sc., M.Tech"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">PhD</label>
+              <input
+                type="text"
+                name="qualification_phd"
+                value={personal.qualification_phd}
+                onChange={onChange}
+                disabled={readOnly}
+                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2.5 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                placeholder="e.g., Ph.D. in Physics"
+              />
+            </div>
+          </div>
         </div>
-        
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">6) Select the caste <span className="text-red-500">*</span></label>
