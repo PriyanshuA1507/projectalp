@@ -14,6 +14,10 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
     const resolvedAcademicYear = getAcademicYearFromAparForm(formData, academicYear);
     const academicYearField = createAcademicYearSelectField(resolvedAcademicYear);
     const academicYearBounds = getAcademicYearBounds(resolvedAcademicYear);
+    const academicCycleMonthYearBounds = {
+        min: academicYearBounds.startMonth,
+        max: academicYearBounds.endMonth
+    };
 
     // Derive Course options from APAR draft (teaching.courses_taught)
     const draftCourses = (formData?.teaching?.courses_taught || []).filter(Boolean);
@@ -154,7 +158,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'Issue', key: 'issue', placeholder: 'Issue' },
                     { label: 'ISSN', key: 'issn', placeholder: 'Enter ISSN' },
                     { label: 'Pages', key: 'page_numbers',type: 'number', min: 0, placeholder: 'Page numbers' },
-                    { label: 'Month-Year', key: 'year_of_publication',type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'e.g., 02-2026' },
+                    { label: 'Month-Year', key: 'year_of_publication',type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'e.g., 02-2026' },
                     { label: 'Indexing', key: 'indexing', placeholder: 'Indexing' },
                     { label: 'Impact Factor', key: 'impact_factor', type: 'number', min: 0, placeholder: 'IF' },
                     { label: 'Citation Count', key: 'citation_count', type: 'number', min: 0, placeholder: 'Citations' },
@@ -203,7 +207,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'Title of Book', key: 'title_of_book', requiredIf: (item) => item.publication_type === 'Book', placeholder: 'Enter book title' },
                     { label: 'Title of Chapter', key: 'title_of_chapter', requiredIf: (item) => item.publication_type === 'Chapter', placeholder: 'Enter chapter title' },
                     { label: 'Role', key: 'role', type: 'select', options: ['Author', 'Co-Author', 'Editor'], required: true, placeholder: 'Select role' },
-                    { label: 'Month-Year', key: 'year', type: 'monthYear', min: 1000, max: 2099,required: true, placeholder: 'e.g., 02-2026' },
+                    { label: 'Month-Year', key: 'year', type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'e.g., 02-2026' },
                     { label: 'ISBN', key: 'isbn_number', placeholder: 'ISBN' },
                     { label: 'Publisher', key: 'name_of_publisher', required: true, placeholder: 'Enter publisher' },
                     { label: 'Publisher Type', key: 'publisher_type', type: 'select', options: ['National', 'International'], required: true, placeholder: 'Select type' },
@@ -261,7 +265,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'ISBN', key: 'isbn', placeholder: 'ISBN' },
                     { label: 'Volume', key: 'volume', placeholder: 'Volume' },
                     { label: 'Page Numbers', key: 'page_numbers', type: 'number', min: 0, placeholder: 'Pages' },
-                    { label: 'Month-Year', key: 'year_of_publication', type: 'monthYear', min: 1000, max: 2099, required: true, placeholder: 'e.g., 02-2026' },
+                    { label: 'Month-Year', key: 'year_of_publication', type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'e.g., 02-2026' },
                     { label: 'DOI', key: 'doi', placeholder: 'DOI' },
                     { label: 'Indexing', key: 'indexing', placeholder: 'Indexing' },
                     { label: 'Award Received', key: 'award_received', placeholder: 'Award details' },
@@ -315,7 +319,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'Supervisor Role', key: 'supervisor_role', placeholder: 'Enter role' },
                     { label: 'Status', key: 'status', type: 'select', options: ['Ongoing', 'Submitted', 'Awarded'], required: true, placeholder: 'Select status' },
                     { label: 'Result Outcome', key: 'result_outcome', type: 'select',options: ['Accepted', 'Minor Revision', 'Major Revision', 'Rejected', 'Other'], placeholder: 'Select outcome' },
-                    { label: 'Reg. Month-Year', key: 'registration_year', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'MM-YYYY' },
+                    { label: 'Reg. Month-Year', key: 'registration_year', type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'MM-YYYY' },
                     academicYearField,
                     { label: 'Defence Date', key: 'date_of_defence', type: 'date' },
                     { label: 'Notification Date', key: 'date_of_result_notification', type: 'date' },
@@ -350,7 +354,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'Organization', key: 'name_of_organisation', placeholder: 'Enter organization' },
                     { label: 'Category', key: 'category_of_award', placeholder: 'Enter category' },
                     { label: 'Type', key: 'type_of_award', type: 'select', options: ['International', 'National', 'State', 'University'], required: true, placeholder: 'Select type' },
-                    { label: 'Month-Year', key: 'year', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'MM-YYYY' },
+                    { label: 'Month-Year', key: 'year', type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'MM-YYYY' },
                     { label: 'Value (INR)', key: 'monetary_value',  type: 'number', min: 0, placeholder: 'Enter amount' },
                     { label: 'Date', key: 'date_of_award', type: 'date', required: true },
                     { label: 'Evidence PDF', key: 'evidence_link', type: 'file' },
@@ -367,7 +371,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                 readOnly={readOnly}
                 initialItem={{
                     department_id: '',
-                    faculty_id: user?.user_id || '',
+                    faculty_id: currentFacultyId,
                     course_id: '',
                     name_of_module: '',
                     type_of_content: '',
@@ -385,7 +389,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                 fields={[
 
 
-                    { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: user?.faculty_id },
+                    { label: 'Faculty ID', key: 'faculty_id', type: 'entitySelect', entityType: 'faculty', required: true, defaultValue: currentFacultyId, disabled: true },
                     // Use draft-derived course IDs if available; fallback to global course list via entityType
                     { label: 'Course Name', key: 'course_id', type: 'entitySelect', entityType: 'course', required: true, optionsOverride: courseOptionsFromDraft },
                     { label: 'Module Name', key: 'name_of_module', required: true, placeholder: 'Enter module name' },
@@ -441,7 +445,7 @@ export default function PartIII({ formData, academicYear, addItem, removeItem, u
                     { label: 'Funding', key: 'funding_amount', type: 'number', min: 0, placeholder: 'Amount' },
                     { label: 'Funding Source', key: 'source_of_financial_support', placeholder: 'Source' },
                     { label: 'Duration', key: 'duration', placeholder: 'e.g., 2 days' },
-                    { label: 'Month-Year', key: 'year', type: 'monthYear', min: 1900, max: 2099, required: true, placeholder: 'MM-YYYY' },
+                    { label: 'Month-Year', key: 'year', type: 'monthYear', ...academicCycleMonthYearBounds, required: true, placeholder: 'MM-YYYY' },
                     academicYearField,
                     { label: 'Start Date', key: 'start_date', type: 'date', required: true },
                     { label: 'End Date', key: 'end_date', type: 'date', required: true },
