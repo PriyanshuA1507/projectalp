@@ -791,6 +791,7 @@ import {
     extractFacultyId
 } from '../config/duplicateDetectionConfig';
 import { toast } from 'sonner';
+import { useIqacFilter } from '../context/IqacFilterContext.jsx';
 
 console.log("dtu college")
 
@@ -1056,6 +1057,9 @@ const AddPage = () => {
     const [duplicateComparison, setDuplicateComparison] = useState(null);
     const [isBypassingDuplicate, setIsBypassingDuplicate] = useState(false);
 
+    // Read master dashboard academic year selection
+    const { academicYear: dashboardAcademicYear } = useIqacFilter();
+
     useEffect(() => {
         if (resource) {
 
@@ -1136,13 +1140,17 @@ const AddPage = () => {
                     if (role === ROLES.DEPARTMENT_HOD && (user?.departmentId || user?.department_id)) {
                         initialData.department_id = user.departmentId || user.department_id;
                     }
+                    // Prefill academic year from global IQAC filter if a specific session is selected
+                    if (initialData.hasOwnProperty('academic_year') && dashboardAcademicYear && dashboardAcademicYear !== 'All') {
+                        initialData.academic_year = dashboardAcademicYear;
+                    }
                     setFormData(initialData);
                 }
             };
 
             loadData();
         }
-    }, [resource, role, user, editMode, editId]);
+    }, [resource, role, user, editMode, editId, dashboardAcademicYear]);
 
     if (!resource) {
         return <NotFound />;

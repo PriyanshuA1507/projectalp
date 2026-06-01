@@ -1,4 +1,4 @@
-import { getCurrentAcademicYear } from './academicYears.js';
+import { getCurrentAcademicYear, getLastAcademicYears } from './academicYears.js';
 
 export const normalizeAcademicYear = (value) => {
   const normalized = String(value || '').trim();
@@ -66,7 +66,8 @@ export const createAcademicYearSelectField = (academicYear) => {
 export const CURRENT_ACADEMIC_YEAR = getCurrentAcademicYear();
 
 export const ACADEMIC_YEAR_OPTIONS = [
-  CURRENT_ACADEMIC_YEAR
+  // Provide a rolling list of recent academic years (newest first)
+  ...getLastAcademicYears(10)
 ];
 
 export const ACADEMIC_YEAR_SELECT_FIELD = createAcademicYearSelectField(CURRENT_ACADEMIC_YEAR);
