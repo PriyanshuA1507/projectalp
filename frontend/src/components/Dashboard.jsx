@@ -557,7 +557,7 @@ import { useSelector } from 'react-redux';
 import { 
   FiUsers, FiBriefcase, FiPlusSquare, FiX, FiCheckCircle, 
   FiActivity, FiBookOpen, FiFileText, FiAward, FiTrendingUp, 
-  FiClock, FiCalendar, FiCheck
+  FiClock, FiCalendar
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -710,23 +710,7 @@ const formatApprovalDate = (value) => {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const APAR_STEP_STYLES = {
-  Completed: {
-    icon: <FiCheck />,
-    color: 'bg-emerald-500 text-white border-2 border-emerald-500',
-    textCol: 'text-emerald-500'
-  },
-  'In Progress': {
-    icon: <span className="font-bold text-sm">•</span>,
-    color: 'bg-blue-500 text-white shadow-[0_0_0_3px_#bfdbfe]',
-    textCol: 'text-blue-500'
-  },
-  Pending: {
-    icon: <FiFileText />,
-    color: 'bg-slate-200 text-slate-400 border-2 border-slate-200',
-    textCol: 'text-slate-400'
-  }
-};
+// APAR progress widget removed for IQAC dashboard
 
 const formatGrantAmount = (amount) => {
   const value = Number(amount) || 0;
@@ -789,7 +773,6 @@ export default function Dashboard() {
     aparStatus: []
   });
 
-  const [aparProgress, setAparProgress] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [approvalRequests, setApprovalRequests] = useState([]);
 
@@ -855,7 +838,6 @@ export default function Dashboard() {
           });
         }
 
-        setAparProgress(Array.isArray(data.aparProgress) ? data.aparProgress : []);
         setRecentActivities(Array.isArray(data.recentActivities) ? data.recentActivities : []);
       } catch (error) {
         console.error('Failed to fetch dashboard stats', error);
@@ -960,11 +942,7 @@ export default function Dashboard() {
     ];
   }, [chartData.studentProgression]);
 
-  const aparProgressWidth = useMemo(() => {
-    if (!aparProgress.length) return '0%';
-    const completed = aparProgress.filter((step) => step.status === 'Completed').length;
-    return `${(completed / aparProgress.length) * 100}%`;
-  }, [aparProgress]);
+  // APAR progress width computation removed
 
   const deptLabel = selectedDept === 'All'
     ? 'All'
@@ -1395,34 +1373,8 @@ export default function Dashboard() {
         </WidgetBlock>
       </div>
 
-      {/* Lowest Row Info panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-        <WidgetBlock title="APAR Progress" className="lg:col-span-2">
-          <div className="flex items-start justify-between px-2 sm:px-6 h-[120px] relative py-6">
-            <div className="absolute top-[34px] left-[10%] right-[10%] h-1 bg-gray-200 z-0"></div>
-            <div className="absolute top-[34px] left-[10%] h-1 bg-emerald-500 z-0 transition-all duration-500" style={{ width: aparProgressWidth }}></div>
-
-            {(aparProgress.length ? aparProgress : [
-              { label: 'Data Collection', status: 'Pending' },
-              { label: 'Data Validation', status: 'Pending' },
-              { label: 'Report Drafting', status: 'Pending' },
-              { label: 'Final Review', status: 'Pending' },
-              { label: 'Submitted', status: 'Pending' }
-            ]).map((step, i) => {
-              const styles = APAR_STEP_STYLES[step.status] || APAR_STEP_STYLES.Pending;
-              return (
-              <div key={i} className="flex flex-col items-center z-10 w-24">
-                <div className={'w-6 h-6 rounded-full flex items-center justify-center mb-2 ' + styles.color}>
-                  {React.cloneElement(styles.icon, { size: 12 })}
-                </div>
-                <div className="text-[11px] font-semibold text-slate-700 text-center leading-tight mb-1">{step.label}</div>
-                <div className={'text-[10px] bg-white ' + styles.textCol}>{step.status}</div>
-              </div>
-            );
-            })}
-          </div>
-        </WidgetBlock>
-
+      {/* Recent Activities */}
+      <div className="grid grid-cols-1 gap-5 mb-5">
         <WidgetBlock title="Recent Activities">
           <div className="flex flex-col justify-center space-y-4 h-[120px] pt-1">
             {recentActivities.length > 0 ? recentActivities.map((act, i) => (
